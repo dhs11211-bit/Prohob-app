@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "489522647960",
+    "project_id": "service-pro-hob",
+    "storage_bucket": "service-pro-hob.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:489522647960:android:6ec8d6197b0e077507d1ed",
+        "android_client_info": {
+          "package_name": "com.mycompany.workers"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjF-NYL7uNvfxkr437vWbVCf8i0_X6eNU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,93 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:rxdart/rxdart.dart';
+import '../backend/api_service.dart';
+import 'base_auth_user_provider.dart';
+
+export 'base_auth_user_provider.dart';
+
+class LaravelAuthUser extends BaseAuthUser {
+  LaravelAuthUser(this.userData);
+  Map<String, dynamic>? userData;
+
+  @override
+  bool get loggedIn => userData != null;
+
+  @override
+  AuthUserInfo get authUserInfo => AuthUserInfo(
+        uid: userData?['id']?.toString(),
+        email: userData?['email'],
+        displayName: userData?['name'],
+        photoUrl: null,
+        phoneNumber: userData?['phone'] ?? userData?['mobile'],
+      );
+
+  @override
+  bool get emailVerified => true;
+
+  @override
+  Future? delete() async {}
+
+  @override
+  Future? updateEmail(String email) async {}
+
+  @override
+  Future? updatePassword(String newPassword) async {}
+
+  @override
+  Future? sendEmailVerification() async {}
+
+  @override
+  Future refreshUser() async {
+    try {
+      userData = await ApiService.instance.getMe();
+    } catch (e) {
+      userData = null;
+    }
+  }
+}
+
+class LaravelAuthManager {
+  static const _storage = FlutterSecureStorage();
+  static final BehaviorSubject<BaseAuthUser> _userStreamController = BehaviorSubject<BaseAuthUser>();
+
+  // The stream required by main.dart
+  static Stream<BaseAuthUser> get userStream => _userStreamController.stream;
+
+  static Future<void> initialize() async {
+    final token = await _storage.read(key: 'auth_token');
+    Map<String, dynamic>? user;
+    if (token != null) {
+      try {
+        user = await ApiService.instance.getMe();
+      } catch (e) {
+        await _storage.delete(key: 'auth_token');
+      }
+    }
+    _updateUser(user);
+  }
+
+  static Future<void> login(String email, String password) async {
+    final response = await ApiService.instance.login(email, password);
+    final token = response['data']['access_token'];
+    await _storage.write(key: 'auth_token', value: token);
+    _updateUser(response['data']['user']);
+  }
+
+  static Future<void> signOut() async {
+    try {
+      await ApiService.instance.logout();
+    } catch (e) {
+      // Ignore network errors on logout
+    }
+    await _storage.delete(key: 'auth_token');
+    _updateUser(null);
+  }
+
+  static void _updateUser(Map<String, dynamic>? userData) {
+    final authUser = LaravelAuthUser(userData);
+    currentUser = authUser; // Update the global var in base_auth_user_provider
+    _userStreamController.add(authUser);
+  }
+}

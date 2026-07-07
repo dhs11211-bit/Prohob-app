@@ -1,0 +1,510 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../backend/api_service.dart';
+import '../backend/reverb_service.dart';
+
+class GlobalChatModal {
+  static Future<void> openChatWithUser(
+    BuildContext context, {
+    required String targetUserId,
+    required String targetName,
+    required bool isCustomer,
+    VoidCallback? onClose,
+  }) async {
+    try {
+      var me = await ApiService.instance.getMe();
+      int currentUserId = me['id'];
+
+      // 1. Fetch all conversations
+      var res = await ApiService.instance.get('/conversations');
+      List<dynamic> convs = res is Map ? (res['data'] ?? []) : (res ?? []);
+
+      String? foundChatId;
+
+      // 2. Look for existing conversation
+      for (var c in convs) {
+        if (isCustomer) {
+          if (c['type'] == 'customer' &&
+              c['customer_id'].toString() == targetUserId) {
+            foundChatId = c['id'].toString();
+            break;
+          }
+        } else {
+          if (c['type'] == 'internal' && c['participants'] != null) {
+            List<dynamic> parts = c['participants'];
+            bool hasTarget =
+                parts.any((p) => p['id'].toString() == targetUserId);
+            if (hasTarget) {
+              foundChatId = c['id'].toString();
+              break;
+            }
+          }
+        }
+      }
+
+      // 3. Create if not found
+      if (foundChatId == null) {
+        Map<String, dynamic> payload = {
+          'type': isCustomer ? 'customer' : 'internal',
+          'name': targetName,
+        };
+        if (isCustomer) {
+          payload['customer_id'] = int.parse(targetUserId);
+        } else {
+          payload['participants'] = [int.parse(targetUserId)];
+        }
+
+        var createRes =
+            await ApiService.instance.post('/conversations', payload);
+        foundChatId = createRes['id'].toString();
+      }
+
+      // 4. Open modal
+      if (context.mounted) {
+        show(
+          context,
+          chatId: foundChatId,
+          title: targetName,
+          subtitle: isCustomer ? 'Customer' : 'Staff Member',
+          isGroup: false,
+          currentUserId: currentUserId,
+          onClose: onClose,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to open chat: $e'),
+            backgroundColor: Colors.redAccent));
+      }
+    }
+  }
+
+  static Future<void> openGroupChat(
+    BuildContext context, {
+    required String jobId,
+    required String jobName,
+    required List<String> workerIds,
+    VoidCallback? onClose,
+  }) async {
+    try {
+      var me = await ApiService.instance.getMe();
+      int currentUserId = me['id'];
+
+      // We assume jobs have a chat_group_id saved on them if it already exists.
+      // But if we don't know it, we create one.
+      Map<String, dynamic> payload = {
+        'type': 'group',
+        'name': jobName,
+        'participants': workerIds.map((id) => int.parse(id)).toList(),
+      };
+
+      var createRes = await ApiService.instance.post('/conversations', payload);
+      String chatId = createRes['id'].toString();
+
+      if (context.mounted) {
+        show(
+          context,
+          chatId: chatId,
+          title: jobName,
+          subtitle: 'Job Group Chat',
+          isGroup: true,
+          currentUserId: currentUserId,
+          onClose: onClose,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to open group chat: $e'),
+            backgroundColor: Colors.redAccent));
+      }
+    }
+  }
+
+  static void show(
+    BuildContext context, {
+    required String chatId,
+    required String title,
+    required String subtitle,
+    required bool isGroup,
+    required int currentUserId,
+    VoidCallback? onClose,
+  }) {
+    // Styling colors matching custom_inbox.dart
+    const Color bg = Color(0xFF0D1B2A);
+    const Color card = Color(0xFF1E293B);
+    const Color text = Colors.white;
+    const Color muted = Colors.white60;
+    const Color accentBlue = Color(0xFF3B82F6);
+    const Color neonAction = Color(0xFF00FFCC);
+    const Color accentRed = Color(0xFFEF4444);
+
+    // Mark as read in background
+    ApiService.instance
+        .markConversationAsRead(int.parse(chatId))
+        .catchError((e) {});
+
+    bool isSearchingChat = false;
+    String inChatSearchQuery = "";
+
+    List<dynamic> _messages = [];
+    bool _isLoadingMessages = true;
+    final TextEditingController _msgController = TextEditingController();
+
+    bool isModalOpen = true;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setModalState) {
+          if (_isLoadingMessages && _messages.isEmpty) {
+            ApiService.instance
+                .getConversationThread(int.parse(chatId))
+                .then((res) {
+              if (isModalOpen) {
+                setModalState(() {
+                  var dataBlock = res['data'];
+                  if (dataBlock is Map) {
+                    _messages = dataBlock['data'] ?? [];
+                  } else if (dataBlock is List) {
+                    _messages = List.from(dataBlock);
+                  } else {
+                    _messages = [];
+                  }
+
+                  _messages.sort((a, b) {
+                    try {
+                      DateTime timeA = DateTime.parse(a['created_at']);
+                      DateTime timeB = DateTime.parse(b['created_at']);
+                      return timeB.compareTo(timeA); // Descending
+                    } catch (e) {
+                      return 0;
+                    }
+                  });
+                  _isLoadingMessages = false;
+                });
+              }
+            }).catchError((e) {
+              if (isModalOpen) setModalState(() => _isLoadingMessages = false);
+            });
+          }
+
+          ReverbService.instance.subscribeToChat(int.parse(chatId));
+          ReverbService.instance.onMessageReceived = (data) {
+            if (isModalOpen) {
+              setModalState(() {
+                int existingIndex =
+                    _messages.indexWhere((m) => m['id'] == data['id']);
+                if (existingIndex == -1) {
+                  int tempIndex = _messages.indexWhere((m) =>
+                      m['id'] != null &&
+                      m['id'].toString().startsWith('temp_') &&
+                      m['content'] == data['content']);
+                  if (tempIndex != -1) {
+                    _messages[tempIndex] = data;
+                  } else {
+                    _messages.insert(0, data);
+                  }
+                }
+              });
+            }
+          };
+
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: const BoxDecoration(
+                  color: bg,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(32))),
+              child: Column(
+                children: [
+                  Center(
+                      child: Container(
+                          margin: const EdgeInsets.only(top: 12),
+                          width: 50,
+                          height: 5,
+                          decoration: BoxDecoration(
+                              color: muted.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(10)))),
+                  Container(
+                      padding: const EdgeInsets.only(
+                          top: 8, bottom: 16, left: 24, right: 16),
+                      decoration: BoxDecoration(
+                          border: Border(
+                              bottom: BorderSide(
+                                  color: Colors.white.withOpacity(0.05)))),
+                      child: Row(children: [
+                        Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 22,
+                              backgroundColor: isGroup
+                                  ? neonAction.withOpacity(0.2)
+                                  : accentBlue.withOpacity(0.2),
+                              child: Text(
+                                  title.isNotEmpty
+                                      ? title[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                      color: isGroup ? neonAction : accentBlue,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                    color: bg, shape: BoxShape.circle),
+                                child: Icon(
+                                    isGroup
+                                        ? Icons.groups
+                                        : Icons.support_agent,
+                                    color: isGroup ? neonAction : accentBlue,
+                                    size: 10),
+                              ),
+                            )
+                          ],
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                            child: isSearchingChat
+                                ? TextField(
+                                    autofocus: true,
+                                    style: const TextStyle(
+                                        color: text, fontSize: 16),
+                                    decoration: const InputDecoration(
+                                        hintText: "Search in this chat...",
+                                        hintStyle: TextStyle(
+                                            color: muted, fontSize: 14),
+                                        border: InputBorder.none),
+                                    onChanged: (v) => setModalState(
+                                        () => inChatSearchQuery = v),
+                                  )
+                                : Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                        Text(title,
+                                            style: const TextStyle(
+                                                color: text,
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.bold)),
+                                        Text(subtitle,
+                                            style: const TextStyle(
+                                                color: muted, fontSize: 12))
+                                      ])),
+                        IconButton(
+                            icon: Icon(
+                                isSearchingChat ? Icons.close : Icons.search,
+                                color: isSearchingChat ? accentRed : muted),
+                            onPressed: () {
+                              setModalState(() {
+                                isSearchingChat = !isSearchingChat;
+                                inChatSearchQuery = "";
+                              });
+                            })
+                      ])),
+                  Expanded(
+                      child: _isLoadingMessages
+                          ? const Center(child: CircularProgressIndicator())
+                          : Builder(builder: (context) {
+                              var filteredDocs = _messages.where((m) {
+                                if (inChatSearchQuery.isEmpty) return true;
+                                String textMsg = m['content'] ?? '';
+                                return textMsg
+                                    .toLowerCase()
+                                    .contains(inChatSearchQuery.toLowerCase());
+                              }).toList();
+
+                              if (filteredDocs.isEmpty) {
+                                return Center(
+                                    child: Text(
+                                        inChatSearchQuery.isNotEmpty
+                                            ? 'No messages found.'
+                                            : 'Start the conversation!',
+                                        style: const TextStyle(color: muted)));
+                              }
+
+                              return ListView.builder(
+                                  reverse: true,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 20),
+                                  physics: const BouncingScrollPhysics(),
+                                  itemCount: filteredDocs.length,
+                                  itemBuilder: (context, index) {
+                                    var data = filteredDocs[index];
+                                    bool isMe =
+                                        data['sender_id'] == currentUserId;
+
+                                    DateTime? time;
+                                    try {
+                                      time = DateTime.parse(data['created_at'])
+                                          .toLocal();
+                                    } catch (e) {}
+
+                                    String timeStr = time != null
+                                        ? DateFormat('hh:mm a').format(time)
+                                        : '';
+
+                                    return Container(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 16),
+                                        child: Row(
+                                            mainAxisAlignment: isMe
+                                                ? MainAxisAlignment.end
+                                                : MainAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Flexible(
+                                                  child: Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              16),
+                                                      decoration: BoxDecoration(
+                                                          color: isMe
+                                                              ? accentBlue
+                                                              : card,
+                                                          borderRadius: BorderRadius.only(
+                                                              topLeft: const Radius
+                                                                  .circular(20),
+                                                              topRight:
+                                                                  const Radius.circular(
+                                                                      20),
+                                                              bottomLeft: isMe
+                                                                  ? const Radius.circular(
+                                                                      20)
+                                                                  : const Radius
+                                                                      .circular(
+                                                                      4),
+                                                              bottomRight: isMe
+                                                                  ? const Radius.circular(4)
+                                                                  : const Radius.circular(20))),
+                                                      child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+                                                        if (isGroup &&
+                                                            !isMe) ...[
+                                                          Text(
+                                                              data['sender_name'] ??
+                                                                  "Team Member",
+                                                              style: const TextStyle(
+                                                                  color:
+                                                                      neonAction,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          const SizedBox(
+                                                              height: 4),
+                                                        ],
+                                                        Text(
+                                                            data['content'] ??
+                                                                '',
+                                                            style: TextStyle(
+                                                                color: isMe
+                                                                    ? Colors
+                                                                        .white
+                                                                    : text,
+                                                                fontSize: 15)),
+                                                        Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .only(
+                                                                    top: 6),
+                                                            child: Text(timeStr,
+                                                                style: TextStyle(
+                                                                    color: isMe
+                                                                        ? Colors
+                                                                            .white70
+                                                                        : muted,
+                                                                    fontSize:
+                                                                        10)))
+                                                      ])))
+                                            ]));
+                                  });
+                            })),
+                  Container(
+                    padding: const EdgeInsets.only(
+                        left: 4, right: 8, top: 12, bottom: 20),
+                    decoration: BoxDecoration(
+                        color: bg,
+                        border: Border(
+                            top: BorderSide(
+                                color: Colors.white.withOpacity(0.05)))),
+                    child: Row(
+                      children: [
+                        Expanded(
+                            child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                decoration: BoxDecoration(
+                                    color: card,
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                        color: Colors.white.withOpacity(0.1))),
+                                child: TextField(
+                                    controller: _msgController,
+                                    style: const TextStyle(color: text),
+                                    maxLines: null,
+                                    keyboardType: TextInputType.multiline,
+                                    decoration: const InputDecoration(
+                                        hintText: 'Message...',
+                                        hintStyle: TextStyle(
+                                            color: muted, fontSize: 14),
+                                        border: InputBorder.none)))),
+                        IconButton(
+                            icon: const Icon(Icons.send,
+                                color: accentBlue, size: 24),
+                            onPressed: () {
+                              if (_msgController.text.trim().isEmpty) return;
+                              final textMsg = _msgController.text.trim();
+                              _msgController.clear();
+
+                              ApiService.instance
+                                  .sendMessage(int.parse(chatId), textMsg)
+                                  .catchError((e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text('Failed to send: $e'),
+                                        backgroundColor: Colors.redAccent));
+                              });
+
+                              // Optimistic update
+                              setModalState(() {
+                                _messages.insert(0, {
+                                  'id':
+                                      'temp_${DateTime.now().millisecondsSinceEpoch}',
+                                  'content': textMsg,
+                                  'sender_id': currentUserId,
+                                  'direction': 'inbound',
+                                  'created_at':
+                                      DateTime.now().toUtc().toIso8601String(),
+                                });
+                              });
+                            }), // IconButton
+                      ], // Row children
+                    ), // Row
+                  ), // Container
+                ], // Column children
+              ), // Column
+            ), // Container (216)
+          ); // Padding (213)
+        });
+      },
+    ).whenComplete(() {
+      isModalOpen = false;
+      ReverbService.instance.unsubscribeFromChat(int.parse(chatId));
+      ReverbService.instance.onMessageReceived = null;
+      if (onClose != null) {
+        onClose();
+      }
+    });
+  }
+}
