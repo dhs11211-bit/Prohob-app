@@ -6,9 +6,11 @@ import 'dart:io' show Platform;
 
 class ApiService {
   static String get baseUrl {
-    // For local development, you used:
-    // if (kIsWeb) return 'http://localhost:8000/api/mob';
-    // if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/mob';
+    if (!kReleaseMode) {
+      if (kIsWeb) return 'http://localhost:8000/api/mob';
+      if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/mob';
+      return 'http://localhost:8000/api/mob';
+    }
     
     // Live Production Server
     return 'https://api.serviceprohob.com/api/mob';
