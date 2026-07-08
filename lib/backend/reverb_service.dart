@@ -19,10 +19,23 @@ class ReverbService {
   final String _appKey = 'l6diygx4q9lsylsrr1v1';
   
   String get _host {
+    if (!kReleaseMode) {
+      if (kIsWeb) return 'localhost';
+      if (Platform.isAndroid) return '10.0.2.2';
+      return 'localhost';
+    }
     return 'api.serviceprohob.com';
   }
 
-  final int _port = 443;
+  int get _port {
+    if (!kReleaseMode) return 8080;
+    return 443;
+  }
+
+  String get _scheme {
+    if (!kReleaseMode) return 'ws';
+    return 'wss';
+  }
 
   // Listeners
   Function(dynamic)? onMessageReceived;
@@ -38,7 +51,7 @@ class ReverbService {
     try {
       pusher = PusherChannelsClient.websocket(
         options: PusherChannelsOptions.fromHost(
-          scheme: 'wss',
+          scheme: _scheme,
           host: _host,
           port: _port,
           key: _appKey,
