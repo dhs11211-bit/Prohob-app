@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../backend/api_service.dart';
 import '/components/global_chat_modal.dart';
+import '/components/job_details_screen.dart';
 
 class CustomSchedule extends StatefulWidget {
   const CustomSchedule({Key? key, this.width, this.height}) : super(key: key);
@@ -31,6 +32,12 @@ class _CustomScheduleState extends State<CustomSchedule> {
   List<dynamic> _allJobs = [];
   bool _isLoadingJobs = true;
 
+  int _currentPage = 1;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+
+  final ScrollController _listScrollController = ScrollController();
+
   final Color bg = const Color(0xFF0F172A);
   final Color card = const Color(0xFF1E293B);
   final Color text = Colors.white;
@@ -40,29 +47,111 @@ class _CustomScheduleState extends State<CustomSchedule> {
   final Color neonAction = const Color(0xFFD4FF00);
   final Color accentRed = const Color(0xFFEF4444);
 
+  void _jumpToDate(DateTime date) {
+    setState(() {
+      _selectedDate = date;
+    });
+    _fetchJobs(reset: true);
+    
+    // Scroll weekly strip
+    DateTime baseDate = DateTime.now().subtract(const Duration(days: 60));
+    int dayDiff = date.difference(baseDate).inDays;
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        dayDiff * 65.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+    
+    // Scroll month grid
+    int monthDiff = ((date.year - DateTime.now().year) * 12) + (date.month - DateTime.now().month);
+    if (_monthPageController.hasClients) {
+      _monthPageController.animateToPage(
+        1200 + monthDiff,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
     _scrollController = ScrollController(initialScrollOffset: 60 * 65.0);
     _monthPageController = PageController(initialPage: 1200);
-    _fetchJobs();
+    _listScrollController.addListener(_onListScroll);
+    _fetchJobs(reset: true);
   }
 
-  Future<void> _fetchJobs() async {
-    if (mounted) setState(() => _isLoadingJobs = true);
+  void _onListScroll() {
+    if (!_listScrollController.hasClients) return;
+    final position = _listScrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200 && !_isLoadingMore && _hasMore) {
+      _fetchJobs(loadMore: true);
+    }
+  }
+
+  Future<void> _fetchJobs({bool reset = false, bool loadMore = false}) async {
+    if (loadMore) {
+      if (!_hasMore || _isLoadingMore) return;
+      if (mounted) setState(() => _isLoadingMore = true);
+    } else {
+      _currentPage = 1;
+      _hasMore = true;
+      if (mounted) setState(() => _isLoadingJobs = true);
+    }
+
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      final jobs = await ApiService.instance.getMyJobs(startDate: dateStr, endDate: dateStr);
+      
+      dynamic res;
+      final pageToLoad = loadMore ? _currentPage + 1 : 1;
+      res = await ApiService.instance.getMyJobs(
+        fromDate: dateStr, 
+        limit: 15, 
+        page: pageToLoad
+      );
+      
+      final List<dynamic> newJobs = res['data'] ?? [];
+
       if (mounted) {
         setState(() {
-          _allJobs = jobs;
-          _isLoadingJobs = false;
+          if (loadMore) {
+            _allJobs.addAll(newJobs);
+            _currentPage++;
+            _isLoadingMore = false;
+            if (newJobs.isEmpty || newJobs.length < 15) {
+              _hasMore = false;
+            }
+          } else {
+            _allJobs = newJobs;
+            _isLoadingJobs = false;
+            if (newJobs.isEmpty || newJobs.length < 15) {
+              _hasMore = false;
+            }
+          }
+          
+          _allJobs.sort((a, b) {
+            final tA = a['scheduled_time'] ?? a['start_date'];
+            final tB = b['scheduled_time'] ?? b['start_date'];
+            if (tA == null) return -1;
+            if (tB == null) return 1;
+            try {
+              return DateTime.parse(tA.toString()).compareTo(DateTime.parse(tB.toString()));
+            } catch (e) {
+              return 0;
+            }
+          });
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingJobs = false);
+        setState(() {
+          _isLoadingJobs = false;
+          _isLoadingMore = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading schedule: $e')));
       }
     }
@@ -70,6 +159,7 @@ class _CustomScheduleState extends State<CustomSchedule> {
 
   @override
   void dispose() {
+    _listScrollController.dispose();
     _scrollController.dispose();
     _monthPageController.dispose();
     super.dispose();
@@ -225,8 +315,8 @@ class _CustomScheduleState extends State<CustomSchedule> {
   // Lógica del Chat
   Future<void> _startJobChat(
       String jobId, Map<String, dynamic> jobData, DateTime jobTime) async {
-    String clientName = jobData['client_name'] ?? 'Unknown Client';
-    String jobName = "$clientName - ${jobData['job_type'] ?? 'Job'}";
+    String customerName = jobData['customer_name'] ?? 'Unknown Customer';
+    String jobName = "$customerName - ${jobData['job_type'] ?? 'Job'}";
     List<dynamic> workers = jobData['assigned_users'] ?? jobData['assigned_workers'] ?? [];
 
     List<String> workerIds = workers.map((w) {
@@ -244,292 +334,41 @@ class _CustomScheduleState extends State<CustomSchedule> {
 
   void _openJobDetailsModal(String jobId, Map<String, dynamic> jobData,
       String timeLabel, DateTime jobTime) {
-    List<dynamic> tasks = jobData['tasks'] ?? [];
-    String clientName =
-        jobData['client_name'] ?? jobData['job_type'] ?? 'Scheduled Clean';
-    String jobType = jobData['job_type'] ?? 'Cleaning Service';
-    String address = jobData['address'] ?? 'No address set';
-    String notes = jobData['notes'] ?? 'No special instructions provided.';
-    List<dynamic> workers = jobData['assigned_workers'] ?? [];
-    String leaderId = jobData['team_leader_id'] ?? '';
-    final myUid = currentUser?.uid;
+    final phone = jobData['customer_phone'] ?? jobData['customer_phone'];
+    final address = jobData['address'] ?? 'No address set';
 
-    double? lat = jobData['latitude'] != null
-        ? (jobData['latitude'] as num).toDouble()
-        : null;
-    double? lng = jobData['longitude'] != null
-        ? (jobData['longitude'] as num).toDouble()
-        : null;
-
-    showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (c) => Container(
-            height: MediaQuery.of(context).size.height * 0.90,
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                left: 24,
-                right: 24,
-                top: 24),
-            decoration: BoxDecoration(
-                color: bg,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(32))),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Center(
-                  child: Container(
-                      width: 40,
-                      height: 5,
-                      decoration: BoxDecoration(
-                          color: muted.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(10)))),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(Icons.access_time_filled,
-                              color: neonAction, size: 14),
-                          const SizedBox(width: 6),
-                          Text(timeLabel,
-                              style: TextStyle(
-                                  color: neonAction,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2)),
-                        ]),
-                        const SizedBox(height: 12),
-                        Text(clientName,
-                            style: TextStyle(
-                                color: text,
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text(jobType,
-                            style: TextStyle(color: muted, fontSize: 14)),
-                      ],
-                    ),
-                  ),
-                  Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                          color: accentBlue.withOpacity(0.1),
-                          shape: BoxShape.circle),
-                      child: Icon(Icons.business_center,
-                          color: accentBlue, size: 24)),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('LOCATION',
-                          style: TextStyle(
-                              color: muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2)),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                            color: card,
-                            borderRadius: BorderRadius.circular(16)),
-                        child: Row(
-                          children: [
-                            Icon(Icons.location_on, color: muted, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                child: Text(address,
-                                    style: TextStyle(
-                                        color: text,
-                                        fontSize: 15,
-                                        height: 1.3))),
-                          ],
-                        ),
-                      ),
-                      const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Divider(height: 1, color: Colors.white10)),
-                      Text('SPECIAL INSTRUCTIONS / CODES',
-                          style: TextStyle(
-                              color: muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2)),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                            color: card,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                                color: Colors.orange.withOpacity(0.3))),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.info_outline,
-                                color: Colors.orange, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                child: Text(notes,
-                                    style: TextStyle(
-                                        color: text,
-                                        fontSize: 14,
-                                        height: 1.4))),
-                          ],
-                        ),
-                      ),
-                      const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Divider(height: 1, color: Colors.white10)),
-                      Text('TASK CHECKLIST',
-                          style: TextStyle(
-                              color: muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2)),
-                      const SizedBox(height: 12),
-                      if (tasks.isEmpty)
-                        Text('No specific tasks assigned.',
-                            style: TextStyle(color: muted, fontSize: 14))
-                      else
-                        ...tasks.map((t) => Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                                color: card,
-                                borderRadius: BorderRadius.circular(12)),
-                            child: Row(children: [
-                              Icon(Icons.check_circle_outline,
-                                  color: accentBlue, size: 20),
-                              const SizedBox(width: 12),
-                              Text(t.toString(),
-                                  style: TextStyle(
-                                      color: text,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500))
-                            ]))),
-                      const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Divider(height: 1, color: Colors.white10)),
-                      Text('ASSIGNED TEAM',
-                          style: TextStyle(
-                              color: muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2)),
-                      const SizedBox(height: 12),
-                      if (workers.isEmpty)
-                        Text('No workers assigned yet.',
-                            style: TextStyle(color: muted))
-                      else
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: workers.map((workerId) {
-                            bool isMe = workerId == myUid;
-                            bool isLeader = workerId == leaderId;
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                  color: isMe
-                                      ? accentBlue.withOpacity(0.15)
-                                      : card,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: isLeader
-                                          ? const Color(0xFFF59E0B)
-                                          : (isMe
-                                              ? accentBlue
-                                              : Colors.white10))),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(isLeader ? Icons.star : Icons.person,
-                                      color: isLeader
-                                          ? const Color(0xFFF59E0B)
-                                          : (isMe ? accentBlue : muted),
-                                      size: 14),
-                                  const SizedBox(width: 6),
-                                  Text(isMe ? 'You' : 'Crew Member',
-                                      style: TextStyle(
-                                          color: isMe ? Colors.white : text,
-                                          fontSize: 13,
-                                          fontWeight: isMe
-                                              ? FontWeight.bold
-                                              : FontWeight.normal))
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 55,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: card,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(
-                                    color: accentBlue.withOpacity(0.5)))),
-                        icon:
-                            Icon(Icons.navigation, color: accentBlue, size: 18),
-                        label: Text('MAPS',
-                            style: TextStyle(
-                                color: accentBlue,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15)),
-                        onPressed: () => _launchExternalMaps(lat, lng, address),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 55,
-                      child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: neonAction,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16))),
-                          icon: const Icon(Icons.chat_bubble,
-                              color: Colors.black, size: 18),
-                          label: const Text('CHAT',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15)),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _startJobChat(jobId, jobData, jobTime);
-                          }),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30)
-            ])));
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => JobDetailsScreen(
+          jobData: jobData,
+          allProfiles: const {},
+          allColors: const {},
+          timeStr: timeLabel,
+          showGenerateInvoice: false,
+          onChatPressed: () => _startJobChat(jobId, jobData, jobTime),
+          onDirectionsPressed: () {
+            double? lat = jobData['latitude'] != null
+                ? (jobData['latitude'] as num).toDouble()
+                : null;
+            double? lng = jobData['longitude'] != null
+                ? (jobData['longitude'] as num).toDouble()
+                : null;
+            _launchExternalMaps(lat, lng, address);
+          },
+          onCallPressed: () async {
+            if (phone != null && phone.toString().isNotEmpty) {
+              final Uri url = Uri.parse('tel:${phone.toString().replaceAll(RegExp(r'[^0-9+]'), '')}');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url);
+              }
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No phone number available')));
+            }
+          },
+        ),
+      ),
+    );
   }
 
   // Modales de Time Off
@@ -1057,6 +896,7 @@ class _CustomScheduleState extends State<CustomSchedule> {
             width: widget.width ?? double.infinity,
             height: MediaQuery.of(context).size.height,
             child: SingleChildScrollView(
+              controller: _listScrollController,
               physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics()),
               child: Padding(
@@ -1073,273 +913,353 @@ class _CustomScheduleState extends State<CustomSchedule> {
                                 fontWeight: FontWeight.bold))),
                     const SizedBox(height: 20),
                     Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              GestureDetector(
-                                onTap: () => setState(() => _currentView =
-                                    _currentView == 'Week' ? 'Month' : 'Week'),
-                                child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                        color: card,
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
-                                    child: Row(children: [
-                                      Text(
-                                          DateFormat('MMMM yyyy')
-                                              .format(_selectedDate),
-                                          style: TextStyle(
-                                              color: text,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(width: 8),
-                                      Icon(
-                                          _currentView == 'Week'
-                                              ? Icons.calendar_view_week
-                                              : Icons.calendar_month,
-                                          color: muted,
-                                          size: 18)
-                                    ])),
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.chevron_left, color: Colors.white70),
+                              onPressed: () {
+                                if (_currentView == 'Week') {
+                                  _jumpToDate(_selectedDate.subtract(const Duration(days: 7)));
+                                } else {
+                                  _jumpToDate(DateTime(_selectedDate.year, _selectedDate.month - 1, 1));
+                                }
+                              },
+                            ),
+                            GestureDetector(
+                              onTap: () async {
+                                final DateTime? picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: _selectedDate,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2030),
+                                  builder: (context, child) {
+                                    return Theme(
+                                      data: Theme.of(context).copyWith(
+                                        colorScheme: const ColorScheme.dark(
+                                          primary: Color(0xFF3B82F6),
+                                          onPrimary: Colors.white,
+                                          surface: Color(0xFF1E293B),
+                                          onSurface: Colors.white,
+                                        ),
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                if (picked != null) {
+                                  _jumpToDate(picked);
+                                }
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    DateFormat('MMMM yyyy').format(_selectedDate),
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
+                                ],
                               ),
-                              GestureDetector(
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Today Button
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  onPressed: () {
+                                    _jumpToDate(DateTime.now());
+                                  },
+                                  child: const Text(
+                                    "Today",
+                                    style: TextStyle(
+                                      color: Color(0xFF3B82F6),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // View Switcher Button
+                                InkWell(
                                   onTap: () {
                                     setState(() {
-                                      _selectedDate = DateTime.now();
+                                      _currentView = _currentView == 'Week' ? 'Month' : 'Week';
                                     });
-                                    _fetchJobs();
-                                    if (_currentView == 'Week')
-                                      _scrollController.animateTo(60 * 65.0,
-                                          duration:
-                                              const Duration(milliseconds: 300),
-                                          curve: Curves.easeInOut);
-                                    if (_currentView == 'Month')
-                                      _monthPageController.animateToPage(1200,
-                                          duration:
-                                              const Duration(milliseconds: 300),
-                                          curve: Curves.easeInOut);
                                   },
                                   child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                          color: accentBlue.withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color:
-                                                  accentBlue.withOpacity(0.3))),
-                                      child: Row(children: [
-                                        Icon(Icons.today,
-                                            color: accentBlue, size: 16),
-                                        const SizedBox(width: 6),
-                                        Text('Today, $todayString',
-                                            style: TextStyle(
-                                                color: accentBlue,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold))
-                                      ])))
-                            ])),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white12,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      _currentView == 'Week' ? 'Week' : 'Month',
+                                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.chevron_right, color: Colors.white70),
+                              onPressed: () {
+                                if (_currentView == 'Week') {
+                                  _jumpToDate(_selectedDate.add(const Duration(days: 7)));
+                                } else {
+                                  _jumpToDate(DateTime(_selectedDate.year, _selectedDate.month + 1, 1));
+                                }
+                              },
+                            ),
+                          ],
+                        )),
                     const SizedBox(height: 16),
-                    AnimatedSwitcher(
+AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
                         child: _currentView == 'Week'
                             ? _buildFluidWeeklyStrip(_allJobs)
                             : _buildFluidMonthGrid(_allJobs)),
                     const SizedBox(height: 32),
-                    Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                  DateFormat('EEEE, MMM d')
-                                      .format(_selectedDate),
-                                  style: TextStyle(
-                                      color: text,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold)),
-                              GestureDetector(
-                                  onTap: _openTimeOffModal,
-                                  child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                          color: card,
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                      child: Text('+ Request time off',
-                                          style: TextStyle(
-                                              color: muted,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold))))
-                            ])),
-                    const SizedBox(height: 16),
-                    if (jobsForSelectedDate.isNotEmpty)
-                      ...jobsForSelectedDate.map((job) {
-                        final data = job as Map<String, dynamic>;
-                        DateTime jobTime;
-                        if (data['scheduled_time'] is String) {
-                          jobTime =
-                              DateTime.parse(data['scheduled_time']);
-                        } else {
-                          try {
+                    // NEW JOBS MAPPING
+                    if (_allJobs.isNotEmpty)
+                      ...(() {
+                        List<Widget> widgets = [];
+                        String? lastDateStr;
+                        for (var job in _allJobs) {
+                          final data = job as Map<String, dynamic>;
+                          DateTime jobTime;
+                          if (data['scheduled_time'] is String) {
                             jobTime = DateTime.parse(data['scheduled_time']);
-                          } catch (e) {
-                            jobTime = DateTime.now();
+                          } else {
+                            try { jobTime = DateTime.parse(data['scheduled_time']); }
+                            catch (e) { jobTime = DateTime.now(); }
                           }
-                        }
-                        String timeStr = "Time not set";
-                        if (data['scheduled_time'] != null) {
-                          try {
-                            DateTime parsedTime = DateTime.parse(data['scheduled_time'].toString().trim()).toLocal();
-                            String startStr = DateFormat.jm().format(parsedTime);
-                            timeStr = startStr;
-                            
-                            if (data['start_time'] != null && data['start_time'].toString().trim().isNotEmpty) {
-                               try {
-                                 DateTime startParsed = DateTime.parse("1970-01-01 " + data['start_time'].toString().trim());
-                                 startStr = DateFormat.jm().format(startParsed);
-                                 timeStr = startStr;
-                               } catch (e) {}
-                            }
-                            
-                            if (data['end_time'] != null && data['end_time'].toString().trim().isNotEmpty) {
-                               try {
-                                 DateTime endParsed = DateTime.parse("1970-01-01 " + data['end_time'].toString().trim());
-                                 String endStr = DateFormat.jm().format(endParsed);
-                                 timeStr = "$startStr - $endStr";
-                               } catch (e) {}
-                            }
-                          } catch (e) {}
-                        }
+                          
+                          // The group by date logic
+                          String currentDateStr = DateFormat('EEEE, MMM d, yyyy').format(jobTime);
+                          if (lastDateStr != currentDateStr) {
+                            widgets.add(
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      currentDateStr,
+                                      style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.bold)
+                                    ),
+                                    if (lastDateStr == null) // only show time off button on first group
+                                      GestureDetector(
+                                        onTap: _openTimeOffModal,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(8)),
+                                          child: Text('+ Request time off', style: TextStyle(color: muted, fontSize: 12, fontWeight: FontWeight.bold))
+                                        )
+                                      )
+                                  ]
+                                )
+                              )
+                            );
+                            lastDateStr = currentDateStr;
+                          }
 
-                        String status = (data['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
-                        Color statusColor = const Color(0xFF3B82F6);
-                        if (status == 'ACTIVE' || status == 'IN PROGRESS') statusColor = const Color(0xFF10B981);
-                        if (status == 'PENDING' || status == 'DRAFT') statusColor = const Color(0xFFF59E0B);
-                        if (status == 'COMPLETED') statusColor = const Color(0xFF8B5CF6);
+                          // Calculate times
+                          String timeStr = "Time not set";
+                          if (data['scheduled_time'] != null) {
+                            try {
+                              DateTime parsedTime = DateTime.parse(data['scheduled_time'].toString().trim()).toLocal();
+                              String startStr = DateFormat.jm().format(parsedTime);
+                              timeStr = startStr;
+                              if (data['start_time'] != null && data['start_time'].toString().trim().isNotEmpty) {
+                                 try {
+                                   DateTime startParsed = DateTime.parse("1970-01-01 " + data['start_time'].toString().trim());
+                                   startStr = DateFormat.jm().format(startParsed);
+                                   timeStr = startStr;
+                                 } catch (e) {}
+                              }
+                              if (data['end_time'] != null && data['end_time'].toString().trim().isNotEmpty) {
+                                 try {
+                                   DateTime endParsed = DateTime.parse("1970-01-01 " + data['end_time'].toString().trim());
+                                   String endStr = DateFormat.jm().format(endParsed);
+                                   timeStr = "$startStr - $endStr";
+                                 } catch (e) {}
+                              }
+                            } catch (e) {}
+                          }
 
-                        final addr = data['address'] ?? 'No address provided';
-                        final clientName = data['client_name'] ??
-                            data['job_type'] ??
-                            'Scheduled Job';
-                        final title = data['title'] ?? 'Job Title';
+                          String status = (data['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
+                          Color statusColor = const Color(0xFF3B82F6);
+                          if (status == 'ACTIVE' || status == 'IN PROGRESS') statusColor = const Color(0xFF10B981);
+                          if (status == 'PENDING' || status == 'DRAFT') statusColor = const Color(0xFFF59E0B);
+                          if (status == 'COMPLETED') statusColor = const Color(0xFF8B5CF6);
 
-                        return GestureDetector(
-                          onTap: () =>
-                              _openJobDetailsModal(data['id'].toString(), data, timeStr, jobTime),
-                          child: Container(
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 8),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
+                          final addr = data['address'] ?? 'No address provided';
+                          final customerName = data['customer_name'] ?? data['job_type'] ?? 'Scheduled Job';
+                          final displayNo = data['job_number'] ?? "#${data['id']}";
+
+                          widgets.add(
+                            GestureDetector(
+                              onTap: () => _openJobDetailsModal(data['id'].toString(), data, timeStr, jobTime),
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
                                   color: card,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(color: Colors.white10),
                                   boxShadow: [
-                                    BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4))
-                                  ]),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                Expanded(
-                                    flex: 3,
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                      Text(title,
-                                          style: TextStyle(
-                                              color: text,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis),
-                                      const SizedBox(height: 4),
-                                      Text(clientName,
-                                          style: TextStyle(
-                                              color: text.withOpacity(0.9),
-                                              fontSize: 14),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis),
-                                      const SizedBox(height: 4),
-                                      Row(children: [
-                                        Icon(Icons.location_on,
-                                            color: muted, size: 12),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                            child: Text(addr,
-                                                style: TextStyle(
-                                                    color: muted, fontSize: 12),
-                                                overflow:
-                                                    TextOverflow.ellipsis)),
-                                      ])
-                                    ])),
-                                Expanded(
-                                  flex: 2,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.access_time, size: 14, color: Colors.white54),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Text(
-                                          timeStr,
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))
+                                  ]
                                 ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Align(
-                                    alignment: Alignment.center,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                          color: statusColor.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: statusColor.withOpacity(0.3))),
-                                      child: Text(
-                                        status,
-                                        style: TextStyle(
-                                            color: statusColor,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 0.5),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFF59E0B).withOpacity(0.15),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+                                                ),
+                                                child: Text(
+                                                  displayNo,
+                                                  style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 12),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  data['title'] ?? 'Job Title',
+                                                  style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.bold),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (data['recurring'] == 1 || data['recurring'] == true || data['is_recurring'] == 1 || data['is_recurring'] == true) ...[
+                                                const SizedBox(width: 6),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF8B5CF6).withOpacity(0.15),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.3)),
+                                                  ),
+                                                  child: const Icon(Icons.autorenew, color: Color(0xFF8B5CF6), size: 12),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.person_outline, size: 14, color: Colors.white54),
+                                              const SizedBox(width: 4),
+                                              Text(customerName, style: TextStyle(color: text.withOpacity(0.9), fontSize: 14)),
+                                              const SizedBox(width: 12),
+                                              const Icon(Icons.access_time, size: 14, color: Colors.white54),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(timeStr, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Row(
+                                                  children: [
+                                                    Builder(
+                                                      builder: (context) {
+                                                        bool isRecurring = data['recurring'] == 1 || data['recurring'] == true || data['is_recurring'] == 1 || data['is_recurring'] == true;
+                                                        Color badgeColor = isRecurring ? const Color(0xFF8B5CF6) : const Color(0xFF3B82F6);
+                                                        return Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: badgeColor.withOpacity(0.15),
+                                                            borderRadius: BorderRadius.circular(6),
+                                                            border: Border.all(color: badgeColor.withOpacity(0.3)),
+                                                          ),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              Icon(isRecurring ? Icons.autorenew : Icons.looks_one, color: badgeColor, size: 10),
+                                                              const SizedBox(width: 4),
+                                                              Text(isRecurring ? 'Series Job' : 'Single Job', style: TextStyle(color: badgeColor, fontSize: 8, fontWeight: FontWeight.bold)),
+                                                            ],
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Icon(Icons.location_on, color: muted, size: 12),
+                                                    const SizedBox(width: 4),
+                                                    Expanded(
+                                                      child: Text(addr, style: TextStyle(color: muted, fontSize: 12), overflow: TextOverflow.ellipsis),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: statusColor.withOpacity(0.15),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                                                ),
+                                                child: Text(status, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                        color: bg, shape: BoxShape.circle),
-                                    child: Icon(Icons.chevron_right,
-                                        color: muted, size: 20))
-                              ])),
-                        );
-                      }).toList()
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+                                      child: Icon(Icons.chevron_right, color: muted, size: 20),
+                                    ),
+                                  ]
+                                )
+                              )
+                            )
+                          );
+                        }
+                        return widgets;
+                      })()
                     else
                       Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 30),
-                          child: Center(
-                              child: Text('No shifts scheduled for this day.',
-                                  style: TextStyle(color: muted)))),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+                        child: Center(child: Text('No shifts scheduled.', style: TextStyle(color: muted)))
+                      ),
+                      
+                    if (_isLoadingMore)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+
                     GestureDetector(
                       onTap: _openAllHolidaysModal,
                       child: Container(

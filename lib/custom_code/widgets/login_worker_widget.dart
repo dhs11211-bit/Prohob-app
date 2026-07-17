@@ -57,7 +57,7 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
       await widget.onLoginSuccess();
     } catch (e) {
       setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -83,7 +83,8 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text("Welcome to",
-                          style: TextStyle(color: Colors.white70, fontSize: 16)),
+                          style:
+                              TextStyle(color: Colors.white70, fontSize: 16)),
                       const Text("Field Handle",
                           style: TextStyle(
                               color: Color(0xFF3B82F6),
@@ -92,7 +93,8 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                       const SizedBox(height: 40),
 
                       const Text("Email Address",
-                          style: TextStyle(color: Colors.white60, fontSize: 14)),
+                          style:
+                              TextStyle(color: Colors.white60, fontSize: 14)),
                       const SizedBox(height: 8),
                       _buildTextField(
                           controller: _emailController,
@@ -101,7 +103,8 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                       const SizedBox(height: 24),
 
                       const Text("Password",
-                          style: TextStyle(color: Colors.white60, fontSize: 14)),
+                          style:
+                              TextStyle(color: Colors.white60, fontSize: 14)),
                       const SizedBox(height: 8),
                       _buildTextField(
                         controller: _passwordController,
@@ -139,7 +142,8 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12))),
                           child: _isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
                               : const Text("Sign In",
                                   style: TextStyle(
                                       fontSize: 18,

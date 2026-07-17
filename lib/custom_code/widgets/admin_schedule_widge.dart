@@ -173,7 +173,7 @@ class _AdminScheduleWidgeState extends State<AdminScheduleWidge> {
     if (authUser != null && authUser!.userData != null) {
       if (mounted) {
         setState(() {
-          _adminName = authUser!.userData!['name'] ?? 'Admin';
+          _adminName = '${authUser!.userData!['first_name'] ?? ''} ${authUser!.userData!['last_name'] ?? ''}'.trim().isEmpty ? 'Admin' : '${authUser!.userData!['first_name'] ?? ''} ${authUser!.userData!['last_name'] ?? ''}'.trim();
         });
       }
     }
@@ -288,7 +288,8 @@ class _AdminScheduleWidgeState extends State<AdminScheduleWidge> {
   }
 
   void _showAdminPersonalInfoModal() {
-    TextEditingController nameCtrl = TextEditingController(text: _adminName);
+    TextEditingController firstNameCtrl = TextEditingController(text: _adminName.split(' ').first);
+    TextEditingController lastNameCtrl = TextEditingController(text: _adminName.split(' ').length > 1 ? _adminName.split(' ').sublist(1).join(' ') : '');
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -338,14 +339,23 @@ class _AdminScheduleWidgeState extends State<AdminScheduleWidge> {
                                   style: const TextStyle(
                                       color: Colors.white60, fontSize: 16))),
                           const SizedBox(height: 20),
-                          const Text("Display Name",
+                          const Text("First Name",
                               style: TextStyle(
                                   color: Colors.white60, fontSize: 12)),
                           const SizedBox(height: 8),
                           _buildTextField(
-                              controller: nameCtrl,
-                              label: "Your Name",
+                              controller: firstNameCtrl,
+                              label: "First Name",
                               icon: Icons.person),
+                          const SizedBox(height: 20),
+                          const Text("Last Name",
+                              style: TextStyle(
+                                  color: Colors.white60, fontSize: 12)),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                              controller: lastNameCtrl,
+                              label: "Last Name",
+                              icon: Icons.person_outline),
                           const SizedBox(height: 32),
                           SizedBox(
                               width: double.infinity,
@@ -359,19 +369,20 @@ class _AdminScheduleWidgeState extends State<AdminScheduleWidge> {
                                 onPressed: isSaving
                                     ? null
                                     : () async {
-                                        if (nameCtrl.text.trim().isEmpty)
+                                        if (firstNameCtrl.text.trim().isEmpty || lastNameCtrl.text.trim().isEmpty)
                                           return;
                                         setModalState(() => isSaving = true);
-                                        if (nameCtrl.text.trim().isNotEmpty) {
+                                        if (firstNameCtrl.text.trim().isNotEmpty) {
                                           try {
                                             // 1. Update Laravel backend
                                             await ApiService.instance.put('/employee/profile', {
-                                              'name': nameCtrl.text.trim(),
+                                              'first_name': firstNameCtrl.text.trim(),
+                                              'last_name': lastNameCtrl.text.trim(),
                                             });
 
                                             if (mounted) {
                                               setState(() =>
-                                                  _adminName = nameCtrl.text.trim());
+                                                  _adminName = '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}');
                                               Navigator.pop(context);
                                               ScaffoldMessenger.of(context)
                                                   .showSnackBar(const SnackBar(

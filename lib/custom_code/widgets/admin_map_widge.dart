@@ -23,6 +23,7 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 // =====================================================================
 // 🚀 COMPONENTES DEL EDITOR DE FOTOS NATIVO (PARA EL CHAT)
@@ -174,6 +175,8 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
 
   // Removed Firebase currentUser, using global currentUser from laravel_auth_manager.dart
   String _adminName = "Admin";
+  String _adminFirstName = "";
+  String _adminLastName = "";
   maps.GoogleMapController? _mapController;
 
   int _selectedFilter = 0;
@@ -195,7 +198,8 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
   Future<void> _fetchJobs() async {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final jobs = await ApiService.instance.get('/admin/jobs?start_date=$dateStr&end_date=$dateStr');
+      final jobs = await ApiService.instance
+          .get('/admin/jobs?start_date=$dateStr&end_date=$dateStr');
       if (mounted) {
         setState(() {
           _allJobs = jobs is List ? jobs : [];
@@ -213,10 +217,13 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
     if (currentUser != null) {
       try {
         var doc = await ApiService.instance.getMe();
-        if (doc != null && doc.containsKey('name')) {
+        if (doc != null) {
           if (mounted) {
             setState(() {
-              _adminName = doc['name'];
+              _adminFirstName = doc['first_name'] ?? '';
+              _adminLastName = doc['last_name'] ?? '';
+              _adminName = '$_adminFirstName $_adminLastName'.trim();
+              if (_adminName.isEmpty) _adminName = 'Admin';
             });
           }
         }
@@ -275,7 +282,8 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
 
   String _formatTimestamp(dynamic timestamp) {
     if (timestamp == null) return '';
-    DateTime date = timestamp is String ? DateTime.parse(timestamp) : DateTime.now();
+    DateTime date =
+        timestamp is String ? DateTime.parse(timestamp) : DateTime.now();
     DateTime now = DateTime.now();
 
     if (date.year == now.year &&
@@ -373,7 +381,7 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
   // 🚀 POP-UPS CENTRALES (ADIÓS BUG DE GOOGLE MAPS)
   // =====================================================================
   void _showJobDetailsOnMap(Map<String, dynamic> data) {
-    String client = data['client_name'] ?? 'Unknown Client';
+    String client = data['customer_name'] ?? 'Unknown Customer';
     String type = data['job_type'] ?? 'Standard Clean';
     String address = data['address'] ?? 'No address provided';
     String status = (data['status'] ?? 'pending').toString().toUpperCase();
@@ -469,11 +477,18 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                   future: () async {
                     try {
                       List<Map<String, String>> workerList = [];
-                      if (data != null && data['assigned_users'] != null && data['assigned_users'] is List) {
+                      if (data != null &&
+                          data['assigned_users'] != null &&
+                          data['assigned_users'] is List) {
                         for (var u in data['assigned_users']) {
                           workerList.add({
                             'id': u['id'].toString(),
-                            'name': u['name'] ?? 'Worker'
+                            'name': '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'
+                                    .trim()
+                                    .isEmpty
+                                ? 'Worker'
+                                : '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'
+                                    .trim()
                           });
                         }
                       }
@@ -520,7 +535,9 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                           return GestureDetector(
                             onTap: () {
                               _showAssignedWorkerOptions(
-                                  worker['id']!, worker['name']!);
+                                  worker['id']!,
+                                  '${worker['first_name'] ?? ''} ${worker['last_name'] ?? ''}'
+                                      .trim());
                             },
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -537,7 +554,8 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                                     backgroundColor: const Color(0xFF3B82F6)
                                         .withOpacity(0.2),
                                     child: Text(
-                                      worker['name']![0].toUpperCase(),
+                                      (worker['first_name'] ?? 'W')[0]
+                                          .toUpperCase(),
                                       style: const TextStyle(
                                           color: Color(0xFF3B82F6),
                                           fontWeight: FontWeight.bold,
@@ -547,7 +565,8 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      worker['name']!,
+                                      '${worker['first_name'] ?? ''} ${worker['last_name'] ?? ''}'
+                                          .trim(),
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 15,
@@ -654,7 +673,7 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                   builder: (context) {
                     // Temporarily using placeholder for worker name since we disabled Firebase query
                     String workerName = 'Worker';
-                    
+
                     return GestureDetector(
                       onTap: () {
                         Navigator.pop(context);
@@ -730,7 +749,10 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
   }
 
   void _showAdminPersonalInfoModal() {
-    TextEditingController nameCtrl = TextEditingController(text: _adminName);
+    TextEditingController firstNameCtrl =
+        TextEditingController(text: _adminFirstName);
+    TextEditingController lastNameCtrl =
+        TextEditingController(text: _adminLastName);
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -782,13 +804,22 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                                       color: Colors.white60, fontSize: 16)),
                             ),
                             const SizedBox(height: 20),
-                            const Text("Display Name",
+                            const Text("First Name",
                                 style: TextStyle(
                                     color: Colors.white60, fontSize: 12)),
                             const SizedBox(height: 8),
                             _buildTextField(
-                                controller: nameCtrl,
-                                label: "Your Name",
+                                controller: firstNameCtrl,
+                                label: "First Name",
+                                icon: Icons.person),
+                            const SizedBox(height: 20),
+                            const Text("Last Name",
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 12)),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                                controller: lastNameCtrl,
+                                label: "Last Name",
                                 icon: Icons.person),
                             const SizedBox(height: 32),
                             SizedBox(
@@ -803,17 +834,31 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                                   onPressed: isSaving
                                       ? null
                                       : () async {
-                                          if (nameCtrl.text.trim().isEmpty)
+                                          if (firstNameCtrl.text
+                                                  .trim()
+                                                  .isEmpty ||
+                                              lastNameCtrl.text.trim().isEmpty)
                                             return;
                                           setModalState(() => isSaving = true);
                                           try {
-                                            await ApiService.instance.put('/employee/profile', {
-                                              'name': nameCtrl.text.trim()
+                                            await ApiService.instance.put(
+                                                '/employee/profile', {
+                                              'first_name':
+                                                  firstNameCtrl.text.trim(),
+                                              'last_name':
+                                                  lastNameCtrl.text.trim()
                                             });
 
                                             if (mounted) {
-                                              setState(() => _adminName =
-                                                  nameCtrl.text.trim());
+                                              setState(() {
+                                                _adminFirstName =
+                                                    firstNameCtrl.text.trim();
+                                                _adminLastName =
+                                                    lastNameCtrl.text.trim();
+                                                _adminName =
+                                                    '$_adminFirstName $_adminLastName'
+                                                        .trim();
+                                              });
                                             }
                                             Navigator.pop(ctx);
                                             ScaffoldMessenger.of(context)
@@ -849,90 +894,94 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
   void _showAdminProfileModal() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF0D1B2A),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                    width: 40,
-                    height: 4,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(2))),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Row(children: [
-                    Container(
-                        width: 50,
-                        height: 50,
-                        decoration: const BoxDecoration(
-                            color: Color(0xFF2A3B5A), shape: BoxShape.circle),
-                        child: Center(
-                            child: Text(_getUserInitial(_adminName),
+                        color: const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(20)),
+                    child: Row(children: [
+                      Container(
+                          width: 50,
+                          height: 50,
+                          decoration: const BoxDecoration(
+                              color: Color(0xFF2A3B5A), shape: BoxShape.circle),
+                          child: Center(
+                              child: Text(_getUserInitial(_adminName),
+                                  style: const TextStyle(
+                                      color: Color(0xFF3B82F6),
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold)))),
+                      const SizedBox(width: 16),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(_adminName,
                                 style: const TextStyle(
-                                    color: Color(0xFF3B82F6),
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold)))),
-                    const SizedBox(width: 16),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                          Text(_adminName,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold)),
-                          Text(currentUser?.email ?? "",
-                              style: const TextStyle(
-                                  color: Colors.white60, fontSize: 13))
-                        ]))
-                  ]),
-                ),
-                const SizedBox(height: 24),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading:
-                      const Icon(Icons.person_outline, color: Colors.white70),
-                  title: const Text("Personal Information",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600)),
-                  trailing:
-                      const Icon(Icons.chevron_right, color: Colors.white38),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showAdminPersonalInfoModal();
-                  },
-                ),
-                const SizedBox(height: 16),
-                ListTile(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold)),
+                            Text(currentUser?.email ?? "",
+                                style: const TextStyle(
+                                    color: Colors.white60, fontSize: 13))
+                          ]))
+                    ]),
+                  ),
+                  const SizedBox(height: 24),
+                  ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.logout, color: Color(0xFFEF4444)),
-                    title: const Text("Sign out",
+                    leading:
+                        const Icon(Icons.person_outline, color: Colors.white70),
+                    title: const Text("Personal Information",
                         style: TextStyle(
-                            color: Color(0xFFEF4444),
+                            color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600)),
                     trailing:
                         const Icon(Icons.chevron_right, color: Colors.white38),
-                    onTap: () async {
+                    onTap: () {
                       Navigator.pop(context);
-                      await widget.onLogout();
-                    }),
-              ],
+                      _showAdminPersonalInfoModal();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading:
+                          const Icon(Icons.logout, color: Color(0xFFEF4444)),
+                      title: const Text("Sign out",
+                          style: TextStyle(
+                              color: Color(0xFFEF4444),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600)),
+                      trailing: const Icon(Icons.chevron_right,
+                          color: Colors.white38),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await widget.onLogout();
+                      }),
+                ],
+              ),
             ),
           ),
         );
@@ -1003,68 +1052,74 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
               ),
             ),
             Expanded(
-              child: _isLoading 
-                  ? const Center(child: CircularProgressIndicator()) 
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
                   : Builder(
-                builder: (context) {
-                  Set<maps.Marker> mapMarkers = {};
+                      builder: (context) {
+                        Set<maps.Marker> mapMarkers = {};
 
-                  // 1. PINTAR TRABAJOS (MALETINES)
-                  if (_selectedFilter == 0 || _selectedFilter == 1) {
-                    for (var data in _allJobs) {
-                      if (data is! Map<String, dynamic>) continue;
+                        // 1. PINTAR TRABAJOS (MALETINES)
+                        if (_selectedFilter == 0 || _selectedFilter == 1) {
+                          for (var data in _allJobs) {
+                            if (data is! Map<String, dynamic>) continue;
 
-                      String status =
-                          (data['status'] ?? '').toString().toLowerCase();
-                      if (status == 'cancelled') continue;
+                            String status =
+                                (data['status'] ?? '').toString().toLowerCase();
+                            if (status == 'cancelled') continue;
 
-                      double? lat;
-                      double? lng;
+                            double? lat;
+                            double? lng;
 
-                      if (data['latitude'] != null) {
-                        lat = double.tryParse(data['latitude'].toString());
-                      }
-                      if (data['longitude'] != null) {
-                        lng = double.tryParse(data['longitude'].toString());
-                      }
+                            if (data['latitude'] != null) {
+                              lat =
+                                  double.tryParse(data['latitude'].toString());
+                            }
+                            if (data['longitude'] != null) {
+                              lng =
+                                  double.tryParse(data['longitude'].toString());
+                            }
 
-                      if (lat != null &&
-                          lng != null &&
-                          lat != 0.0 &&
-                          lng != 0.0) {
-                        mapMarkers.add(
-                          maps.Marker(
-                            markerId: maps.MarkerId('job_${data['id']}'),
-                            position: maps.LatLng(lat, lng),
-                            icon: _jobIcon ??
-                                maps.BitmapDescriptor
-                                    .defaultMarkerWithHue(
-                                        maps.BitmapDescriptor.hueRed),
-                            consumeTapEvents:
-                                true, // 🚀 BLOQUEA LOS CLICS DE GOOGLE MAPS
-                            onTap: () => _showJobDetailsOnMap(data),
-                          ),
-                        );
-                      }
-                    }
-                  }
+                            if (lat != null &&
+                                lng != null &&
+                                lat != 0.0 &&
+                                lng != 0.0) {
+                              mapMarkers.add(
+                                maps.Marker(
+                                  markerId: maps.MarkerId('job_${data['id']}'),
+                                  position: maps.LatLng(lat, lng),
+                                  icon: _jobIcon ??
+                                      maps.BitmapDescriptor
+                                          .defaultMarkerWithHue(
+                                              maps.BitmapDescriptor.hueRed),
+                                  consumeTapEvents:
+                                      true, // 🚀 BLOQUEA LOS CLICS DE GOOGLE MAPS
+                                  onTap: () => _showJobDetailsOnMap(data),
+                                ),
+                              );
+                            }
+                          }
+                        }
 
-                  // 2. PINTAR TRABAJADORES ACTIVOS (PERSONAS)
-                  // Note: Not implemented yet since no backend endpoint exists for active worker locations.
+                        // 2. PINTAR TRABAJADORES ACTIVOS (PERSONAS)
+                        // Note: Not implemented yet since no backend endpoint exists for active worker locations.
 
-                      return ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(32)),
-                        child: maps.GoogleMap(
-                          initialCameraPosition: const maps.CameraPosition(
-                              target: _centerCoords, zoom: 13.5),
-                          mapToolbarEnabled: false,
-                          zoomControlsEnabled: false,
-                          myLocationEnabled: false,
-                          myLocationButtonEnabled: false,
-                          onMapCreated: (maps.GoogleMapController controller) {
-                            _mapController = controller;
-                            _mapController?.setMapStyle('''
+                        return ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(32)),
+                          child: maps.GoogleMap(
+                            key: const ValueKey('admin_map_google_map'),
+                            initialCameraPosition: const maps.CameraPosition(
+                                target: _centerCoords, zoom: 13.5),
+                            mapToolbarEnabled: false,
+                            zoomControlsEnabled: false,
+                            myLocationEnabled: false,
+                            myLocationButtonEnabled: false,
+                            onMapCreated:
+                                (maps.GoogleMapController controller) {
+                              _mapController = controller;
+                              if (!kIsWeb) {
+                                try {
+                                  _mapController?.setMapStyle('''
                               [
                                 { "elementType": "geometry", "stylers": [{ "color": "#1e293b" }] },
                                 { "elementType": "labels.text.fill", "stylers": [{ "color": "#94a3b8" }] },
@@ -1075,12 +1130,16 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                                 { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#0f172a" }] }
                               ]
                             ''');
-                          },
-                          markers: mapMarkers,
-                        ),
-                      );
-                },
-              ),
+                                } catch (e) {
+                                  debugPrint("Map style error: $e");
+                                }
+                              }
+                            },
+                            markers: mapMarkers,
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

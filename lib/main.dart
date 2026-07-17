@@ -11,6 +11,7 @@ import 'flutter_flow/flutter_flow_util.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'flutter_flow/nav/nav.dart';
 import 'index.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 
 import 'app_state.dart';
@@ -152,6 +153,84 @@ class _NavBarPageState extends State<NavBarPage> {
     _currentPage = widget.page;
   }
 
+  SpeedDial _buildSpeedDial() {
+    return SpeedDial(
+      icon: Icons.add,
+      activeIcon: Icons.close,
+      spacing: 3,
+      childPadding: const EdgeInsets.all(5),
+      spaceBetweenChildren: 4,
+      backgroundColor: const Color(0xFF3B82F6), // Primary color
+      foregroundColor: Colors.white,
+      elevation: 8.0,
+      animationCurve: Curves.elasticInOut,
+      isOpenOnStart: false,
+      children: [
+        SpeedDialChild(
+          child: const Icon(Icons.receipt),
+          backgroundColor: Colors.teal,
+          foregroundColor: Colors.white,
+          label: 'Create Invoice',
+          onTap: () {
+            setState(() {
+              _currentPageName = 'AdminFinances';
+              _currentPage = AdminFinancesWidget(key: UniqueKey());
+            });
+          },
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.person_add),
+          backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white,
+          label: 'Create Customer',
+          onTap: () {
+            setState(() {
+              _currentPageName = 'AdminCustomers';
+              _currentPage = AdminCustomersWidget(key: UniqueKey(), openCreateCustomerModal: true);
+            });
+          },
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.engineering),
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+          label: 'Create Worker',
+          onTap: () {
+            setState(() {
+              _currentPageName = 'AdminTeam';
+              _currentPage = AdminTeamWidget(key: UniqueKey(), openCreateWorkerModal: true);
+            });
+          },
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.task_alt),
+          backgroundColor: Colors.purple,
+          foregroundColor: Colors.white,
+          label: 'Create Task',
+          onTap: () {
+            setState(() {
+              _currentPageName = 'AdminSchedule';
+              _currentPage = AdminScheduleWidget(key: UniqueKey());
+            });
+          },
+        ),
+        SpeedDialChild(
+          child: const Icon(Icons.work),
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+          label: 'Create Job',
+          onTap: () {
+            // Switch to AdminCustomers tab and open modal
+            setState(() {
+              _currentPageName = 'AdminCustomers';
+              _currentPage = AdminCustomersWidget(key: UniqueKey(), openCreateJobModal: true);
+            });
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabs = {
@@ -164,9 +243,21 @@ class _NavBarPageState extends State<NavBarPage> {
     };
     final currentIndex = tabs.keys.toList().indexOf(_currentPageName);
 
-    return Scaffold(
-      resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
-      body: _currentPage ?? tabs[_currentPageName],
+    return WillPopScope(
+      onWillPop: () async {
+        if (_currentPageName != 'AdminDashboard') {
+          setState(() {
+            _currentPageName = 'AdminDashboard';
+            _currentPage = null;
+          });
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
+        body: _currentPage ?? tabs[_currentPageName],
+      floatingActionButton: _buildSpeedDial(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (i) => safeSetState(() {
@@ -193,7 +284,7 @@ class _NavBarPageState extends State<NavBarPage> {
               Icons.calendar_today,
               size: 24.0,
             ),
-            label: 'Home',
+            label: 'Schedule',
             tooltip: '',
           ),
           BottomNavigationBarItem(
@@ -201,7 +292,7 @@ class _NavBarPageState extends State<NavBarPage> {
               Icons.people_outlined,
               size: 24.0,
             ),
-            label: 'Home',
+            label: 'Team',
             tooltip: '',
           ),
           BottomNavigationBarItem(
@@ -209,7 +300,7 @@ class _NavBarPageState extends State<NavBarPage> {
               Icons.contacts_outlined,
               size: 24.0,
             ),
-            label: 'Home',
+            label: 'Customers',
             tooltip: '',
           ),
           BottomNavigationBarItem(
@@ -217,7 +308,7 @@ class _NavBarPageState extends State<NavBarPage> {
               Icons.monetization_on_outlined,
               size: 24.0,
             ),
-            label: 'Home',
+            label: 'Finances',
             tooltip: '',
           ),
           BottomNavigationBarItem(
@@ -225,11 +316,12 @@ class _NavBarPageState extends State<NavBarPage> {
               Icons.map_outlined,
               size: 24.0,
             ),
-            label: 'Home',
+            label: 'Map',
             tooltip: '',
           )
         ],
       ),
-    );
+    ), // Scaffold
+    ); // WillPopScope
   }
 }

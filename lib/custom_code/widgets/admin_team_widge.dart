@@ -162,6 +162,7 @@ class AdminTeamWidge extends StatefulWidget {
     required this.onLogout,
     required this.onChatWithWorker,
     required this.onChatTap,
+    this.openCreateWorkerModal = false,
   });
 
   final double? width;
@@ -169,6 +170,7 @@ class AdminTeamWidge extends StatefulWidget {
   final Future Function() onLogout;
   final Future Function(String workerId, String workerName) onChatWithWorker;
   final Future Function(String chatId, String chatName) onChatTap;
+  final bool openCreateWorkerModal;
 
   @override
   State<AdminTeamWidge> createState() => _AdminTeamWidgeState();
@@ -180,7 +182,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   int? _currentUserId;
   String _adminName = "Admin";
 
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -196,6 +199,11 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   List<dynamic> _allChats = [];
   bool _isLoadingChats = true;
 
+  List<Map<String, dynamic>> _availableRoles = [];
+  int? _selectedRoleId;
+  bool _isLoadingRoles = true;
+  Future<void>? _rolesFuture;
+
   @override
   @override
   void initState() {
@@ -205,6 +213,13 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
 
     _loadAdminProfile();
     _fetchWorkers(); // Initial fetch for the default tab
+    _rolesFuture = _fetchRoles();
+
+    if (widget.openCreateWorkerModal) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddWorkerModal();
+      });
+    }
 
     ReverbService.instance.init().then((_) {
       ReverbService.instance.onConversationUpdated = (data) {
@@ -267,6 +282,28 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     }
   }
 
+  Future<void> _fetchRoles() async {
+    try {
+      final res = await ApiService.instance.get('/admin/roles');
+      if (res != null && mounted) {
+        setState(() {
+          List<dynamic> roles = res;
+          _availableRoles = roles.map((r) => Map<String, dynamic>.from(r)).toList();
+          if (_availableRoles.isNotEmpty) {
+            _selectedRoleId = _availableRoles.first['id'];
+          }
+          _isLoadingRoles = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingRoles = false;
+        });
+      }
+    }
+  }
+
   Future<void> _fetchJobs() async {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -312,7 +349,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       if (user != null) {
         if (mounted) {
           setState(() {
-            _adminName = user['name'] ?? "Admin";
+            _adminName = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim().isEmpty ? "Admin" : '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
           });
         }
       }
@@ -1271,7 +1308,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   void _createGroupFromJob(String jobId, String jobName, List assignedUsers) async {
     List<Map<String, dynamic>> workersInfo = [];
     for (var u in assignedUsers) {
-      workersInfo.add({'id': u['id'].toString(), 'name': u['name'] ?? 'Worker'});
+      workersInfo.add({'id': u['id'].toString(), 'name': '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim().isEmpty ? 'Worker' : '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim()});
     }
     List<String> selectedWorkers = workersInfo.map((w) => w['id'] as String).toList();
 
@@ -1505,7 +1542,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                               var data = _allWorkers[i] as Map<String, dynamic>;
                               String workerId = data['id']?.toString() ?? '';
                               String workerName =
-                                  data['display_name'] ?? data['name'] ?? 'Staff Member';
+                                  data['display_name'] ?? ('${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim().isEmpty ? 'Staff Member' : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim());
 
                               return GestureDetector(
                                   onTap: () {
@@ -1562,7 +1599,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   // =====================================================================
 
   void _showAdminPersonalInfoModal() {
-    TextEditingController nameCtrl = TextEditingController(text: _adminName);
+    TextEditingController firstNameCtrl = TextEditingController(text: _adminName.split(' ').first);
+    TextEditingController lastNameCtrl = TextEditingController(text: _adminName.split(' ').length > 1 ? _adminName.split(' ').sublist(1).join(' ') : '');
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -1614,14 +1652,23 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                       color: Colors.white60, fontSize: 16)),
                             ),
                             const SizedBox(height: 20),
-                            const Text("Display Name",
+                            const Text("First Name",
                                 style: TextStyle(
                                     color: Colors.white60, fontSize: 12)),
                             const SizedBox(height: 8),
                             _buildTextField(
-                                controller: nameCtrl,
-                                label: "Your Name",
+                                controller: firstNameCtrl,
+                                label: "First Name",
                                 icon: Icons.person),
+                            const SizedBox(height: 20),
+                            const Text("Last Name",
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 12)),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                                controller: lastNameCtrl,
+                                label: "Last Name",
+                                icon: Icons.person_outline),
                             const SizedBox(height: 32),
                             SizedBox(
                                 width: double.infinity,
@@ -1635,15 +1682,16 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   onPressed: isSaving
                                       ? null
                                       : () async {
-                                          if (nameCtrl.text.trim().isEmpty)
+                                          if (firstNameCtrl.text.trim().isEmpty || lastNameCtrl.text.trim().isEmpty)
                                             return;
                                           setModalState(() => isSaving = true);
                                           try {
                                             await ApiService.instance.put('/employee/profile', {
-                                              'name': nameCtrl.text.trim()
+                                              'first_name': firstNameCtrl.text.trim(),
+                                              'last_name': lastNameCtrl.text.trim(),
                                             });
                                             setState(() => _adminName =
-                                                nameCtrl.text.trim());
+                                                '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}');
                                             Navigator.pop(ctx);
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(const SnackBar(
@@ -1681,11 +1729,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -1810,40 +1857,38 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     );
   }
 
-  Future<void> _createNewWorker() async {
-    if (_nameController.text.isEmpty ||
+  Future<String?> _createNewWorker() async {
+    if (_firstNameController.text.isEmpty ||
+        _lastNameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
-      );
-      return;
+      return "Please fill all fields";
     }
     
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
-      );
-      return;
+      return "Passwords do not match";
     }
 
-    setState(() => _isCreatingUser = true);
+    if (_selectedRoleId == null) {
+      return "Please select a role";
+    }
 
     try {
       final res = await ApiService.instance.post('/admin/workers', {
-        'name': _nameController.text.trim(),
+        'first_name': _firstNameController.text.trim(),
+        'last_name': _lastNameController.text.trim(),
         'email': _emailController.text.trim(),
         'password': _passwordController.text,
         'password_confirmation': _confirmPasswordController.text,
         'hourly_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
-        'role_id': 5, // 5 = Technician role by default
+        'role_id': _selectedRoleId,
       });
 
       if (mounted) {
         setState(() {
-          _isCreatingUser = false;
-          _nameController.clear();
+          _firstNameController.clear();
+          _lastNameController.clear();
           _emailController.clear();
           _passwordController.clear();
           _confirmPasswordController.clear();
@@ -1861,18 +1906,18 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         );
         _fetchWorkers(); // Refresh the list
       }
+      return null;
     } catch (e) {
-      setState(() => _isCreatingUser = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: ${e.toString()}"),
-          backgroundColor: const Color(0xFFEF4444),
-        ),
-      );
+      return e.toString().replaceAll('Exception: ', '');
     }
   }
 
   void _showAddWorkerModal() {
+    String? _createWorkerError;
+    bool _obscurePassword = true;
+    bool _isCreatingUserLocal = false;
+    bool _isFetchingRolesLocal = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1880,6 +1925,16 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       builder: (context) {
         return StatefulBuilder(
             builder: (BuildContext context, StateSetter setModalState) {
+          
+          if (_isLoadingRoles && !_isFetchingRolesLocal) {
+            _isFetchingRolesLocal = true;
+            _rolesFuture?.then((_) {
+              if (mounted) {
+                setModalState(() {});
+              }
+            });
+          }
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -1907,13 +1962,24 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                         ),
                       ),
                       const SizedBox(height: 24),
-                      const Text(
-                        "Add New Worker",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            "Add New Worker",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -1924,9 +1990,47 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                         ),
                       ),
                       const SizedBox(height: 24),
+                      Stack(
+                        children: [
+                          AbsorbPointer(
+                            absorbing: _isLoadingRoles,
+                            child: Opacity(
+                              opacity: _isLoadingRoles ? 0.5 : 1.0,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (_createWorkerError != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _createWorkerError!,
+                                  style: const TextStyle(color: Color(0xFFEF4444), fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _buildTextField(
-                        controller: _nameController,
-                        label: "Full Name",
+                        controller: _firstNameController,
+                        label: "First Name",
+                        icon: Icons.person_outline,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _lastNameController,
+                        label: "Last Name",
                         icon: Icons.person_outline,
                       ),
                       const SizedBox(height: 16),
@@ -1936,37 +2040,93 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                         icon: Icons.email_outlined,
                       ),
                       const SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: DropdownButtonFormField<int>(
+                          value: _selectedRoleId,
+                          isExpanded: true,
+                          dropdownColor: const Color(0xFF1E293B),
+                          icon: const Padding(
+                            padding: EdgeInsets.only(right: 8.0),
+                            child: Icon(Icons.arrow_drop_down, color: Colors.white60),
+                          ),
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.work_outline, color: Color(0xFF3B82F6)),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          hint: const Text("Select Role", style: TextStyle(color: Colors.white38)),
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          items: _availableRoles.map((role) {
+                            return DropdownMenuItem<int>(
+                              value: role['id'] as int,
+                              child: Text(role['name'] ?? 'Unknown Role'),
+                            );
+                          }).toList(),
+                          onChanged: (int? newValue) {
+                            setModalState(() {
+                              _selectedRoleId = newValue;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
                       _buildTextField(
                         controller: _passwordController,
                         label: "Temporary Password",
                         icon: Icons.lock_outline,
-                        obscure: true,
+                        obscure: _obscurePassword,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: Colors.white38,
+                          ),
+                          onPressed: () {
+                            setModalState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
                         controller: _confirmPasswordController,
                         label: "Confirm Password",
                         icon: Icons.lock_outline,
-                        obscure: true,
+                        obscure: _obscurePassword,
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
                         controller: _hourlyRateController,
                         label: "Hourly Rate (\$)",
                         icon: Icons.attach_money,
-                        keyboardType: TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       ),
+
+
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: _isCreatingUser
+                          onPressed: _isCreatingUserLocal
                               ? null
                               : () async {
-                                  setModalState(() => _isCreatingUser = true);
-                                  await _createNewWorker();
-                                  setModalState(() => _isCreatingUser = false);
+                                  setModalState(() {
+                                    _isCreatingUserLocal = true;
+                                    _createWorkerError = null;
+                                  });
+                                  String? error = await _createNewWorker();
+                                  if (mounted) {
+                                    setModalState(() {
+                                      _isCreatingUserLocal = false;
+                                      _createWorkerError = error;
+                                    });
+                                  }
                                 },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3B82F6),
@@ -1974,7 +2134,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: _isCreatingUser
+                          child: _isCreatingUserLocal
                               ? const SizedBox(
                                   width: 24,
                                   height: 24,
@@ -1992,6 +2152,18 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   ),
                                 ),
                         ),
+                      ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (_isLoadingRoles)
+                            const Positioned.fill(
+                              child: Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
@@ -2496,7 +2668,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       required String label,
       required IconData icon,
       TextInputType? keyboardType,
-      bool obscure = false}) {
+      bool obscure = false,
+      Widget? suffixIcon}) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
@@ -2511,6 +2684,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
           hintText: label,
           hintStyle: const TextStyle(color: Colors.white38),
           prefixIcon: Icon(icon, color: const Color(0xFF3B82F6)),
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 16),
         ),
@@ -2736,20 +2910,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                           },
                         ),
                       ),
-                        Positioned(
-                          bottom: 24,
-                          right: 24,
-                          child: FloatingActionButton(
-                            heroTag: 'addWorker',
-                            onPressed: _showAddWorkerModal,
-                            backgroundColor: const Color(0xFF3B82F6),
-                            child: const Icon(
-                              Icons.person_add,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                        )
+                        // Removed local addWorker FAB as it is now in the global SpeedDial
                       ],
                     ),
 
@@ -2890,7 +3051,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                       List parts = data['participants'] ?? [];
 
                                       String chatName = data['display_name'] ??
-                                          data['name'] ??
+                                          ('${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim().isEmpty ? 'Chat' : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim());
                                           data['customer_name'] ??
                                           data['job_name'] ??
                                           (isGroup
@@ -3093,7 +3254,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                           ],
                         ),
                         Positioned(
-                          bottom: 24,
+                          bottom: 90, // Moved up to avoid overlap with global SpeedDial
                           right: 24,
                           child: FloatingActionButton(
                             heroTag: 'newChat',

@@ -10,10 +10,16 @@ import 'admin_customers_model.dart';
 export 'admin_customers_model.dart';
 
 class AdminCustomersWidget extends StatefulWidget {
-  const AdminCustomersWidget({super.key});
+  const AdminCustomersWidget({
+    super.key,
+    this.openCreateJobModal = false,
+    this.openCreateCustomerModal = false,
+  });
 
   static String routeName = 'AdminCustomers';
   static String routePath = '/adminCustomers';
+  final bool openCreateJobModal;
+  final bool openCreateCustomerModal;
 
   @override
   State<AdminCustomersWidget> createState() => _AdminCustomersWidgetState();
@@ -55,6 +61,8 @@ class _AdminCustomersWidgetState extends State<AdminCustomersWidget> {
           child: custom_widgets.AdminCustomersView(
             width: double.infinity,
             height: double.infinity,
+            openCreateJobModal: widget.openCreateJobModal,
+            openCreateCustomerModal: widget.openCreateCustomerModal,
             onLogout: () async {
               context.pushNamed(SignInWidget.routeName);
             },

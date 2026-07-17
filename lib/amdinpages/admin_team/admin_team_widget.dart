@@ -11,10 +11,14 @@ import 'admin_team_model.dart';
 export 'admin_team_model.dart';
 
 class AdminTeamWidget extends StatefulWidget {
-  const AdminTeamWidget({super.key});
+  const AdminTeamWidget({
+    super.key,
+    this.openCreateWorkerModal = false,
+  });
 
   static String routeName = 'AdminTeam';
   static String routePath = '/adminTeam';
+  final bool openCreateWorkerModal;
 
   @override
   State<AdminTeamWidget> createState() => _AdminTeamWidgetState();
@@ -56,6 +60,7 @@ class _AdminTeamWidgetState extends State<AdminTeamWidget> {
           child: custom_widgets.AdminTeamWidge(
             width: double.infinity,
             height: double.infinity,
+            openCreateWorkerModal: widget.openCreateWorkerModal,
             onLogout: () async {
               GoRouter.of(context).prepareAuthEvent();
               await LaravelAuthManager.signOut();

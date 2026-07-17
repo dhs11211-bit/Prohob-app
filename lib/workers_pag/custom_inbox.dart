@@ -27,6 +27,10 @@ class _CustomInboxState extends State<CustomInbox> {
   List<dynamic> _conversations = [];
   bool _isLoading = true;
 
+  // Staff list for Direct Message picker
+  List<dynamic> _staffMembers = [];
+  bool _isLoadingStaff = false;
+
   final Color bg = const Color(0xFF0F172A);
   final Color card = const Color(0xFF1E293B);
   final Color text = Colors.white;
@@ -59,7 +63,7 @@ class _CustomInboxState extends State<CustomInbox> {
         if (user != null && user['cl_id'] != null) {
           ReverbService.instance.subscribeToConversations(user['cl_id']);
         }
-      }).catchError((e) => print('Error getting user: $e'));
+      }).catchError((e) { debugPrint('Error getting user: $e'); return null; });
     });
   }
 
@@ -367,20 +371,204 @@ class _CustomInboxState extends State<CustomInbox> {
         });
   }
 
+  // ─── Fetch staff/workers list ─────────────────────────────────────────
+  Future<void> _fetchStaffMembers() async {
+    if (_isLoadingStaff) return;
+    setState(() => _isLoadingStaff = true);
+    try {
+      final res = await ApiService.instance.get('/admin/workers');
+      if (mounted) {
+        List<dynamic> dataList = [];
+        if (res is Map && res['data'] != null) {
+          final d = res['data'];
+          if (d is Map && d['data'] != null) {
+            dataList = d['data'];
+          } else if (d is List) {
+            dataList = d;
+          }
+        } else if (res is List) {
+          dataList = res;
+        }
+        setState(() {
+          _staffMembers = dataList;
+          _isLoadingStaff = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching staff: \$e');
+      if (mounted) setState(() => _isLoadingStaff = false);
+    }
+  }
+
+  // ─── Main "New Chat" option sheet ─────────────────────────────────────
   void _openContactsModal() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0D1B2A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
-        child: const Center(child: Text('Contact Admin via backend API coming soon', style: TextStyle(color: Colors.white))),
-      )
+        child: Material(
+          color: Colors.transparent,
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Direct Message option
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person, color: Color(0xFF3B82F6)),
+                  ),
+                  title: const Text(
+                    'Direct Message',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Chat 1-on-1 with a staff member or admin',
+                    style: TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    _openDirectMessagePicker();
+                  },
+                ),
+                const Divider(color: Colors.white10, height: 30),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
+
+  // ─── Staff member picker for Direct Message ───────────────────────────
+  void _openDirectMessagePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _StaffPickerSheet(
+        onSelected: (memberId, memberName) {
+          Navigator.pop(ctx);
+          _startDirectMessageWith(memberId, memberName);
+        },
+      ),
+    );
+  }
+
+
+  // ─── Start (or reuse) a 1-on-1 internal conversation ─────────────────
+  Future<void> _startDirectMessageWith(String memberId, String memberName) async {
+    if (_currentUserId == null) return;
+
+    // Show a brief loading dialog while we look up / create the conversation
+    BuildContext? dialogCtx;
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          dialogCtx = ctx;
+          return const Center(child: CircularProgressIndicator());
+        },
+      );
+    }
+
+    try {
+      // Fetch / create the conversation (network call only — does NOT open modal)
+      var me = await ApiService.instance.getMe();
+      int currentUserId = me['id'];
+
+      // Look for an existing 1-on-1 internal conversation
+      String? foundChatId;
+      try {
+        var res = await ApiService.instance.get('/conversations');
+        List<dynamic> convs = [];
+        if (res is Map) {
+          final d = res['data'];
+          if (d is Map && d['data'] != null) {
+            convs = d['data'] as List<dynamic>;
+          } else if (d is List) {
+            convs = d;
+          }
+        } else if (res is List) {
+          convs = res;
+        }
+        for (var c in convs) {
+          if (c['type'] == 'internal' && c['participants'] != null) {
+            List<dynamic> parts = c['participants'];
+            if (parts.any((p) => p.toString() == memberId)) {
+              foundChatId = c['id'].toString();
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+
+      // Create a new conversation if none found
+      if (foundChatId == null) {
+        var createRes = await ApiService.instance.post('/conversations', {
+          'type': 'internal',
+          'name': memberName,
+          'participants': [int.parse(memberId)],
+        });
+        foundChatId = createRes['id']?.toString();
+      }
+
+      // Pop the loading dialog BEFORE opening the chat modal
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      // Now open the chat modal
+      if (foundChatId != null && context.mounted) {
+        GlobalChatModal.show(
+          context,
+          chatId: foundChatId!,
+          title: memberName,
+          subtitle: 'Staff Member',
+          isGroup: false,
+          currentUserId: currentUserId,
+          onClose: _fetchConversations,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error opening direct chat: $e');
+      // Pop loading dialog on error too
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not open chat: $e'),
+          backgroundColor: Colors.redAccent,
+        ));
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -441,6 +629,197 @@ class _CustomInboxState extends State<CustomInbox> {
             child: _buildUnifiedInboxView(),
           ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Standalone widget for the staff picker so initState fires EXACTLY ONCE
+// (avoids infinite API loops that occur when using StatefulBuilder).
+// ─────────────────────────────────────────────────────────────────────────────
+class _StaffPickerSheet extends StatefulWidget {
+  final void Function(String memberId, String memberName) onSelected;
+  const _StaffPickerSheet({required this.onSelected});
+
+  @override
+  State<_StaffPickerSheet> createState() => _StaffPickerSheetState();
+}
+
+class _StaffPickerSheetState extends State<_StaffPickerSheet> {
+  List<dynamic> _staff = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStaff(); // called exactly once
+  }
+
+  Future<void> _fetchStaff() async {
+    try {
+      final res = await ApiService.instance.get('/admin/workers');
+      List<dynamic> dataList = [];
+      if (res is Map && res['data'] != null) {
+        final d = res['data'];
+        if (d is Map && d['data'] != null) {
+          dataList = List<dynamic>.from(d['data']);
+        } else if (d is List) {
+          dataList = List<dynamic>.from(d);
+        }
+      } else if (res is List) {
+        dataList = List<dynamic>.from(res);
+      }
+      if (mounted) {
+        setState(() {
+          _staff = dataList;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('_StaffPickerSheet: error fetching staff: \$e');
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.65,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0D1B2A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              'Direct Message',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Text(
+              'Select a staff member or admin',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _staff.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.people_outline, color: Colors.white30, size: 48),
+                        SizedBox(height: 12),
+                        Text(
+                          'No staff members found',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _staff.length,
+                    itemBuilder: (_, i) {
+                      final data = _staff[i] as Map<String, dynamic>;
+                      final memberId   = data['id']?.toString() ?? '';
+                      final firstName  = data['first_name'] ?? '';
+                      final lastName   = data['last_name']  ?? '';
+                      final memberName = (data['display_name'] as String?)?.trim().isNotEmpty == true
+                          ? data['display_name'] as String
+                          : '$firstName $lastName'.trim().isNotEmpty
+                              ? '$firstName $lastName'.trim()
+                              : 'Staff Member';
+                      final role    = data['role'] ?? data['job_title'] ?? '';
+                      final initial = memberName.isNotEmpty ? memberName[0].toUpperCase() : '?';
+
+                      return GestureDetector(
+                        onTap: () => widget.onSelected(memberId, memberName),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor:
+                                    const Color(0xFF3B82F6).withOpacity(0.2),
+                                child: Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    color: Color(0xFF3B82F6),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      memberName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    if (role.toString().isNotEmpty)
+                                      Text(
+                                        role.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Colors.white24,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
     );

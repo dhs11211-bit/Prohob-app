@@ -22,11 +22,15 @@ class AdminCustomersView extends StatefulWidget {
     this.width,
     this.height,
     required this.onLogout,
+    this.openCreateJobModal = false,
+    this.openCreateCustomerModal = false,
   });
 
   final double? width;
   final double? height;
   final Future Function() onLogout;
+  final bool openCreateJobModal;
+  final bool openCreateCustomerModal;
 
   @override
   State<AdminCustomersView> createState() => _AdminCustomersViewState();
@@ -68,6 +72,17 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
     // _refreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
     //   _fetchCustomers();
     // });
+
+    if (widget.openCreateCustomerModal) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddCustomerDialog();
+      });
+    }
+    if (widget.openCreateJobModal) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showCreateJobModal();
+      });
+    }
   }
 
   @override
@@ -163,7 +178,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   // 🚀 MENÚ DE PERFIL UNIFICADO (IGUAL AL TEAM Y AL MAPA)
   // =====================================================================
   void _showAdminPersonalInfoModal() {
-    TextEditingController nameCtrl = TextEditingController(text: _adminName);
+    TextEditingController firstNameCtrl = TextEditingController(text: _adminName.split(' ').first);
+    TextEditingController lastNameCtrl = TextEditingController(text: _adminName.split(' ').length > 1 ? _adminName.split(' ').sublist(1).join(' ') : '');
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -215,7 +231,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       color: Colors.white60, fontSize: 16)),
                             ),
                             const SizedBox(height: 20),
-                            const Text("Display Name",
+                            const Text("First Name",
                                 style: TextStyle(
                                     color: Colors.white60, fontSize: 12)),
                             const SizedBox(height: 8),
@@ -225,12 +241,36 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: TextField(
-                                controller: nameCtrl,
+                                controller: firstNameCtrl,
                                 style: const TextStyle(color: Colors.white),
                                 decoration: const InputDecoration(
-                                  hintText: "Your Name",
+                                  hintText: "First Name",
                                   hintStyle: TextStyle(color: Colors.white38),
                                   prefixIcon: Icon(Icons.person,
+                                      color: Color(0xFF3B82F6)),
+                                  border: InputBorder.none,
+                                  contentPadding:
+                                      EdgeInsets.symmetric(vertical: 16),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Text("Last Name",
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 12)),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: TextField(
+                                controller: lastNameCtrl,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  hintText: "Last Name",
+                                  hintStyle: TextStyle(color: Colors.white38),
+                                  prefixIcon: Icon(Icons.person_outline,
                                       color: Color(0xFF3B82F6)),
                                   border: InputBorder.none,
                                   contentPadding:
@@ -251,15 +291,18 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   onPressed: isSaving
                                       ? null
                                       : () async {
-                                          if (nameCtrl.text.trim().isEmpty)
+                                          if (firstNameCtrl.text.trim().isEmpty || lastNameCtrl.text.trim().isEmpty)
                                             return;
                                           setModalState(() => isSaving = true);
                                           try {
-                                            await ApiService.instance.put('/auth/profile', {'name': nameCtrl.text.trim()});
+                                            await ApiService.instance.put('/auth/profile', {
+                                              'first_name': firstNameCtrl.text.trim(),
+                                              'last_name': lastNameCtrl.text.trim(),
+                                            });
 
                                             if (mounted)
                                               setState(() => _adminName =
-                                                  nameCtrl.text.trim());
+                                                  '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}');
                                             Navigator.pop(ctx);
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(const SnackBar(
@@ -297,11 +340,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -395,7 +437,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   void _showAddCustomerDialog(
       {StateSetter? parentSetState,
       Function(String, String, double, double)? onCustomerCreated}) {
-    TextEditingController nameCtrl = TextEditingController();
+    TextEditingController firstNameCtrl = TextEditingController();
+    TextEditingController lastNameCtrl = TextEditingController();
     TextEditingController phoneCtrl = TextEditingController();
     TextEditingController emailCtrl = TextEditingController();
     TextEditingController addressCtrl = TextEditingController();
@@ -454,7 +497,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              _buildSimpleTextField(nameCtrl, "Full Name / Company"),
+              _buildSimpleTextField(firstNameCtrl, "First Name"),
+              const SizedBox(height: 12),
+              _buildSimpleTextField(lastNameCtrl, "Last Name"),
               const SizedBox(height: 12),
               _buildSimpleTextField(phoneCtrl, "Phone Number"),
               const SizedBox(height: 12),
@@ -518,9 +563,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3B82F6)),
               onPressed: () async {
-                if (nameCtrl.text.isNotEmpty) {
+                if (firstNameCtrl.text.isNotEmpty && lastNameCtrl.text.isNotEmpty) {
                   var newDoc = await ApiService.instance.post('/customers', {
-                    'name': nameCtrl.text.trim(),
+                    'first_name': firstNameCtrl.text.trim(),
+                    'last_name': lastNameCtrl.text.trim(),
                     'phone': phoneCtrl.text.trim(),
                     'email': emailCtrl.text.trim(),
                     'address1': addressCtrl.text.trim(),
@@ -528,7 +574,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                     'lng': lng,
                   });
                   if (onCustomerCreated != null) {
-                    onCustomerCreated(newDoc['id'].toString(), nameCtrl.text.trim(), lat, lng);
+                    onCustomerCreated(newDoc['id'].toString(), '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}', lat, lng);
                   } else {
                     _fetchCustomers();
                     if (mounted) {
@@ -551,8 +597,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   }
 
   void _showEditCustomerDialog(String customerId, Map<String, dynamic> customerData) {
-    TextEditingController nameCtrl =
-        TextEditingController(text: customerData['name']);
+    TextEditingController firstNameCtrl =
+        TextEditingController(text: customerData['first_name'] ?? customerData['name']?.split(' ').first ?? '');
+    TextEditingController lastNameCtrl =
+        TextEditingController(text: customerData['last_name'] ?? (customerData['name'] != null && customerData['name'].contains(' ') ? customerData['name'].split(' ').sublist(1).join(' ') : ''));
     TextEditingController phoneCtrl =
         TextEditingController(text: customerData['phone']);
     TextEditingController emailCtrl =
@@ -619,7 +667,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              _buildSimpleTextField(nameCtrl, "Full Name / Company"),
+              _buildSimpleTextField(firstNameCtrl, "First Name"),
+              const SizedBox(height: 12),
+              _buildSimpleTextField(lastNameCtrl, "Last Name"),
               const SizedBox(height: 12),
               _buildSimpleTextField(phoneCtrl, "Phone Number"),
               const SizedBox(height: 12),
@@ -671,9 +721,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3B82F6)),
               onPressed: () async {
-                if (nameCtrl.text.isNotEmpty) {
+                if (firstNameCtrl.text.isNotEmpty && lastNameCtrl.text.isNotEmpty) {
                   await ApiService.instance.put('/customers/$customerId', {
-                    'name': nameCtrl.text.trim(),
+                    'first_name': firstNameCtrl.text.trim(),
+                    'last_name': lastNameCtrl.text.trim(),
                     'phone': phoneCtrl.text.trim(),
                     'email': emailCtrl.text.trim(),
                     'address1': addressCtrl.text.trim(),
@@ -792,11 +843,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
           child: SafeArea(
             child: Container(
               padding: const EdgeInsets.all(24),
@@ -916,7 +966,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                           alignment: Alignment.centerRight,
                           child: GestureDetector(
                             onTap: () => _showDeleteCustomerDialog(
-                                id, customerData['name'] ?? 'Customer'),
+                                id, '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim().isEmpty ? 'Customer' : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim()),
                             child: const Icon(Icons.person_remove,
                                 color: Colors.redAccent),
                           ))
@@ -936,7 +986,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Text(customerData['name'] ?? 'No Name',
+                            Text('${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim().isEmpty ? 'No Name' : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim(),
                                 style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 22,
@@ -984,7 +1034,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                       Expanded(
                           child: ElevatedButton.icon(
                               onPressed: () => _showJobHistoryModal(
-                                  id, customerData['name'] ?? ''),
+                                  id, '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim()),
                               icon: const Icon(Icons.history,
                                   color: Colors.white, size: 16),
                               label: const Text("Job History",
@@ -1249,7 +1299,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   _customersList.map((customer) {
                                 return DropdownMenuItem<String>(
                                     value: customer['id'].toString(),
-                                    child: Text(customer['name'] ?? 'Unknown',
+                                    child: Text('${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'.trim().isEmpty ? 'Unknown' : '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'.trim(),
                                         style: const TextStyle(
                                             color: Colors.white)));
                               }).toList();
@@ -1295,7 +1345,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
                                         setModalState(() {
                                           selectedCustomerId = val;
-                                          selectedCustomerName = selectedDoc['name'];
+                                          selectedCustomerName = '${selectedDoc['first_name'] ?? ''} ${selectedDoc['last_name'] ?? ''}'.trim();
                                           if (selectedDoc['address1'] != null &&
                                               selectedDoc['address1']
                                                   .toString()
@@ -1977,28 +2027,6 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: "addCustomer",
-            onPressed: () => _showAddCustomerDialog(),
-            backgroundColor: const Color(0xFF1E293B),
-            child: const Icon(Icons.person_add, color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton.extended(
-            heroTag: "createJob",
-            onPressed: _showCreateJobModal,
-            backgroundColor: const Color(0xFF3B82F6),
-            icon: const Icon(Icons.assignment_add, color: Colors.white),
-            label: const Text("Create Job",
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -2102,7 +2130,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                          Text(data['name'] ?? 'Unknown Customer',
+                                          Text('${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim().isEmpty ? 'Unknown Customer' : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim(),
                                               style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 16,
