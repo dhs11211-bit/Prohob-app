@@ -18,7 +18,7 @@ class LaravelAuthUser extends BaseAuthUser {
   AuthUserInfo get authUserInfo => AuthUserInfo(
         uid: userData?['id']?.toString(),
         email: userData?['email'],
-        displayName: userData?['name'],
+        displayName: '${userData?['first_name'] ?? ''} ${userData?['last_name'] ?? ''}'.trim(),
         photoUrl: null,
         phoneNumber: userData?['phone'] ?? userData?['mobile'],
       );

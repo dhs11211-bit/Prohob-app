@@ -44,7 +44,8 @@ class _ProfileMenuModalState extends State<ProfileMenuModal> {
   bool _isSaving = false;
 
   final Map<String, TextEditingController> _ctrls = {
-    'name': TextEditingController(),
+    'first_name': TextEditingController(),
+    'last_name': TextEditingController(),
     'dob': TextEditingController(),
     'phone': TextEditingController(),
     'address': TextEditingController(),
@@ -73,8 +74,10 @@ class _ProfileMenuModalState extends State<ProfileMenuModal> {
       if (mounted) {
         setState(() {
           _currentEmail = user.email ?? "";
-          _currentName = user.userData?['name'] ?? "Worker";
-          _ctrls['name']?.text = _currentName;
+          _currentName = '${user.userData?['first_name'] ?? ''} ${user.userData?['last_name'] ?? ''}'.trim();
+          if (_currentName.isEmpty) _currentName = 'Worker';
+          _ctrls['first_name']?.text = user.userData?['first_name'] ?? '';
+          _ctrls['last_name']?.text = user.userData?['last_name'] ?? '';
           _ctrls['phone']?.text = user.userData?['phone'] ?? "";
           _ctrls['dob']?.text = user.userData?['dob'] ?? "";
           _ctrls['address']?.text = user.userData?['address'] ?? "";
@@ -168,7 +171,8 @@ class _ProfileMenuModalState extends State<ProfileMenuModal> {
     setState(() => _isSaving = true);
     try {
       await ApiService.instance.updateProfile({
-        'name': _ctrls['name']!.text,
+        'first_name': _ctrls['first_name']!.text,
+        'last_name': _ctrls['last_name']!.text,
         'dob': _ctrls['dob']!.text,
         'phone': _ctrls['phone']!.text,
         'address': _ctrls['address']!.text,
@@ -180,7 +184,8 @@ class _ProfileMenuModalState extends State<ProfileMenuModal> {
 
       setState(() {
         _isSaving = false;
-        _currentName = _ctrls['name']!.text;
+        _currentName = '${_ctrls['first_name']!.text} ${_ctrls['last_name']!.text}'.trim();
+        if (_currentName.isEmpty) _currentName = 'Worker';
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Profile updated!'), backgroundColor: Colors.green));
@@ -357,7 +362,11 @@ class _ProfileMenuModalState extends State<ProfileMenuModal> {
 
   Widget _buildPersonalInfo() {
     return _pageWrapper('Personal Info', [
-      _inputField('Full Legal Name', _ctrls['name']!),
+      Row(children: [
+        Expanded(child: _inputField('First Name', _ctrls['first_name']!)),
+        const SizedBox(width: 12),
+        Expanded(child: _inputField('Last Name', _ctrls['last_name']!)),
+      ]),
       Row(children: [
         Expanded(child: _dateInputField('Date of Birth', _ctrls['dob']!)),
         const SizedBox(width: 12),

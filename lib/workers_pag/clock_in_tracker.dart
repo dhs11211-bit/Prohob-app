@@ -552,7 +552,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                             var jobData = todayJobs[index];
                             int jobId = jobData['id'];
                             String clientName =
-                                jobData['client_name'] ?? 'Assigned Shift';
+                                jobData['customer_name'] ?? 'Assigned Shift';
                             String jobTitle = 
                                 jobData['title'] ?? jobData['job_type'] ?? '';
                             String displayAddress =

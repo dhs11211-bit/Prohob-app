@@ -49,8 +49,11 @@ class _CustomHeaderState extends State<CustomHeader> {
       final user = await ApiService.instance.getMe();
       if (mounted) {
         setState(() {
-          _userName = user['name'] ?? 'Worker';
-          _initials = _userName.isNotEmpty ? _userName.substring(0, 1).toUpperCase() : 'W';
+          _userName = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+          if (_userName.isEmpty) _userName = 'Worker';
+          _initials = (user['first_name'] as String? ?? '').isNotEmpty
+              ? (user['first_name'] as String).substring(0, 1).toUpperCase()
+              : 'W';
           _userId = user['id']?.toString();
         });
       }

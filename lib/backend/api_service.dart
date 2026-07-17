@@ -21,8 +21,12 @@ class ApiService {
   ApiService._privateConstructor();
   static final ApiService instance = ApiService._privateConstructor();
 
-  Future<String?> _getToken() async {
+  Future<String?> getToken() async {
     return await _storage.read(key: 'auth_token');
+  }
+
+  Future<String?> _getToken() async {
+    return await getToken();
   }
 
   Future<Map<String, String>> _getHeaders() async {
@@ -126,19 +130,71 @@ class ApiService {
     }
   }
 
-  Future<List<dynamic>> getMyJobs({String? startDate, String? endDate}) async {
-    String urlStr = '$baseUrl/jobs/all';
-    if (startDate != null && endDate != null) {
-      urlStr += '?start_date=$startDate&end_date=$endDate';
+  Future<dynamic> getAdminJobs({String? startDate, String? endDate, String? fromDate, String? untilDate, int? limit, int? page}) async {
+    String urlStr = '$baseUrl/admin/jobs';
+    
+    List<String> queryParams = [];
+    if (startDate != null) queryParams.add('start_date=$startDate');
+    if (endDate != null) queryParams.add('end_date=$endDate');
+    if (fromDate != null) queryParams.add('from_date=$fromDate');
+    if (untilDate != null) queryParams.add('until_date=$untilDate');
+    if (limit != null) queryParams.add('limit=$limit');
+    if (page != null) queryParams.add('page=$page');
+    
+    if (queryParams.isNotEmpty) {
+      urlStr += '?${queryParams.join('&')}';
     }
+    
     final url = Uri.parse(urlStr);
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data; // Returns list of all jobs
+      if (data is Map && data.containsKey('data')) {
+        var items = data['data'];
+        if (items is List) {
+          data['data'] = items.where((j) => j['hide_from_calendar'] != true && j['hide_from_calendar'] != 1).toList();
+        } else if (items is Map && items.containsKey('data')) {
+          var innerItems = items['data'];
+          if (innerItems is List) {
+            items['data'] = innerItems.where((j) => j['hide_from_calendar'] != true && j['hide_from_calendar'] != 1).toList();
+          }
+        }
+      } else if (data is List) {
+        return data.where((j) => j['hide_from_calendar'] != true && j['hide_from_calendar'] != 1).toList();
+      }
+      return data;
     } else {
-      throw Exception(data['message'] ?? 'Failed to load all jobs');
+      throw Exception(data['message'] ?? 'Failed to get admin jobs');
+    }
+  }
+
+  Future<dynamic> getMyJobs({String? startDate, String? endDate, String? fromDate, String? untilDate, int? limit, int? page}) async {
+    String urlStr = '$baseUrl/jobs/all';
+    
+    List<String> queryParams = [];
+    if (startDate != null && endDate != null) {
+      queryParams.add('start_date=$startDate');
+      queryParams.add('end_date=$endDate');
+    }
+    if (fromDate != null) queryParams.add('from_date=$fromDate');
+    if (untilDate != null) queryParams.add('until_date=$untilDate');
+    if (limit != null) queryParams.add('limit=$limit');
+    if (page != null) queryParams.add('page=$page');
+    
+    if (queryParams.isNotEmpty) {
+      urlStr += '?' + queryParams.join('&');
+    }
+
+    final url = Uri.parse(urlStr);
+    final response = await http.get(url, headers: await _getHeaders());
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      // Return the entire paginated object or the list if not paginated
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to load jobs');
     }
   }
 
@@ -409,11 +465,46 @@ class ApiService {
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
-    
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
       throw Exception(data['message'] ?? 'Failed to upload document');
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadEntityImage({
+    required String entityType,
+    required String entityId,
+    required List<int> fileBytes,
+    required String fileName,
+    String imageType = 'gallery',
+  }) async {
+    final url = Uri.parse('$baseUrl/uploads/image');
+    final token = await _getToken();
+    
+    var request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+    
+    request.fields['entity_type'] = entityType;
+    request.fields['entity_id'] = entityId;
+    request.fields['image_type'] = imageType;
+    
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      fileBytes,
+      filename: fileName,
+    ));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    final data = jsonDecode(response.body);
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to upload image');
     }
   }
 

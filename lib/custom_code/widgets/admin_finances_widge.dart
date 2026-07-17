@@ -125,11 +125,10 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -268,7 +267,7 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                         : const Color(0xFFF59E0B)),
                                 title: Text(
                                     data['customer'] != null
-                                        ? data['customer']['name']
+                                        ? '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim().isEmpty ? 'Unknown' : '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim()
                                         : 'Unknown',
                                     style: const TextStyle(
                                         color: Colors.white,
@@ -357,7 +356,7 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                   workerName = '${firstWorker['user']['first_name']} ${firstWorker['user']['last_name']}';
                                 }
                               } else if (data['processor'] != null) {
-                                workerName = data['processor']['name'] ?? 'Payroll Run';
+                                workerName = '${data['processor']['first_name'] ?? ''} ${data['processor']['last_name'] ?? ''}'.trim().isEmpty ? 'Payroll Run' : '${data['processor']['first_name'] ?? ''} ${data['processor']['last_name'] ?? ''}'.trim();
                               }
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
@@ -636,7 +635,7 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  data['customer'] != null ? data['customer']['name'] : 'Client',
+                  data['customer'] != null ? ('${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim().isEmpty ? 'Client' : '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim()) : 'Client',
                   style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
                 ),
                 const SizedBox(height: 4),

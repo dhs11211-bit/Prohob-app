@@ -157,6 +157,8 @@ class AdminDashboardWidge extends StatefulWidget {
 class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   final LaravelAuthUser? authUser = currentUser as LaravelAuthUser?;
   String _adminName = "Admin";
+  String _adminFirstName = "";
+  String _adminLastName = "";
   Map<String, dynamic>? _dashboardMetrics;
   List<dynamic> _allJobs = [];
   Timer? _refreshTimer;
@@ -165,7 +167,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   // 🚀 VARIABLES DE LOS MULTI-FILTROS (SE PUEDEN APILAR)
   String? _filterWorkerId;
   String? _filterWorkerName;
-  String? _filterClientName;
+  String? _filterCustomerName;
   String? _filterStatus;
   bool _showOnlyToday = true; // Por defecto mostramos solo lo de hoy
 
@@ -190,15 +192,19 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
     if (authUser != null && authUser!.userData != null) {
       if (mounted) {
         setState(() {
-          _adminName = authUser!.userData!['name'] ?? 'Admin';
+          _adminFirstName = authUser!.userData!['first_name'] ?? '';
+          _adminLastName = authUser!.userData!['last_name'] ?? '';
+          _adminName = '$_adminFirstName $_adminLastName'.trim();
+          if (_adminName.isEmpty) _adminName = 'Admin';
         });
       }
     }
-    
+
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final metrics = await ApiService.instance.get('/admin/dashboard');
-      final jobs = await ApiService.instance.get('/admin/jobs?start_date=$dateStr&end_date=$dateStr');
+      final jobs = await ApiService.instance
+          .get('/admin/jobs?start_date=$dateStr&end_date=$dateStr');
       if (mounted) {
         setState(() {
           _dashboardMetrics = metrics;
@@ -314,7 +320,10 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   }
 
   void _showAdminPersonalInfoModal() {
-    TextEditingController nameCtrl = TextEditingController(text: _adminName);
+    TextEditingController firstNameCtrl =
+        TextEditingController(text: _adminFirstName);
+    TextEditingController lastNameCtrl =
+        TextEditingController(text: _adminLastName);
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -364,13 +373,22 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                   style: const TextStyle(
                                       color: Colors.white60, fontSize: 16))),
                           const SizedBox(height: 20),
-                          const Text("Display Name",
+                          const Text("First Name",
                               style: TextStyle(
                                   color: Colors.white60, fontSize: 12)),
                           const SizedBox(height: 8),
                           _buildTextField(
-                              controller: nameCtrl,
-                              label: "Your Name",
+                              controller: firstNameCtrl,
+                              label: "First Name",
+                              icon: Icons.person),
+                          const SizedBox(height: 20),
+                          const Text("Last Name",
+                              style: TextStyle(
+                                  color: Colors.white60, fontSize: 12)),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                              controller: lastNameCtrl,
+                              label: "Last Name",
                               icon: Icons.person),
                           const SizedBox(height: 32),
                           SizedBox(
@@ -385,16 +403,28 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                 onPressed: isSaving
                                     ? null
                                     : () async {
-                                        if (nameCtrl.text.trim().isEmpty)
+                                        if (firstNameCtrl.text.trim().isEmpty ||
+                                            lastNameCtrl.text.trim().isEmpty)
                                           return;
                                         setModalState(() => isSaving = true);
                                         try {
-                                          await ApiService.instance.put('/employee/profile', {
-                                            'name': nameCtrl.text.trim()
+                                          await ApiService.instance.put(
+                                              '/employee/profile', {
+                                            'first_name':
+                                                firstNameCtrl.text.trim(),
+                                            'last_name':
+                                                lastNameCtrl.text.trim()
                                           });
                                           if (mounted)
-                                            setState(() => _adminName =
-                                                nameCtrl.text.trim());
+                                            setState(() {
+                                              _adminFirstName =
+                                                  firstNameCtrl.text.trim();
+                                              _adminLastName =
+                                                  lastNameCtrl.text.trim();
+                                              _adminName =
+                                                  '$_adminFirstName $_adminLastName'
+                                                      .trim();
+                                            });
                                           Navigator.pop(ctx);
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(const SnackBar(
@@ -422,95 +452,99 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   void _showProfileModal() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF0D1B2A),
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                  width: 40,
-                  height: 4,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(20)),
-                child: Row(
-                  children: [
-                    Container(
-                        width: 50,
-                        height: 50,
-                        decoration: const BoxDecoration(
-                            color: Color(0xFF2A3B5A), shape: BoxShape.circle),
-                        child: Center(
-                            child: Text(_getUserInitial(),
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Row(
+                    children: [
+                      Container(
+                          width: 50,
+                          height: 50,
+                          decoration: const BoxDecoration(
+                              color: Color(0xFF2A3B5A), shape: BoxShape.circle),
+                          child: Center(
+                              child: Text(_getUserInitial(),
+                                  style: const TextStyle(
+                                      color: Color(0xFF3B82F6),
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold)))),
+                      const SizedBox(width: 16),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(_adminName,
                                 style: const TextStyle(
-                                    color: Color(0xFF3B82F6),
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold)))),
-                    const SizedBox(width: 16),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                          Text(_adminName,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold)),
-                          Text(authUser?.userData?['email'] ?? "",
-                              style: const TextStyle(
-                                  color: Colors.white60, fontSize: 13))
-                        ]))
-                  ],
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold)),
+                            Text(authUser?.userData?['email'] ?? "",
+                                style: const TextStyle(
+                                    color: Colors.white60, fontSize: 13))
+                          ]))
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              Material(
-                color: Colors.transparent,
-                child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading:
-                        const Icon(Icons.person_outline, color: Colors.white70),
-                    title: const Text("Personal Information",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600)),
-                    trailing:
-                        const Icon(Icons.chevron_right, color: Colors.white38),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showAdminPersonalInfoModal();
-                    }),
-              ),
-              const SizedBox(height: 16),
-              Material(
-                color: Colors.transparent,
-                child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.logout, color: Color(0xFFEF4444)),
-                    title: const Text("Sign out",
-                        style: TextStyle(
-                            color: Color(0xFFEF4444),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600)),
-                    trailing:
-                        const Icon(Icons.chevron_right, color: Colors.white38),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await widget.onLogout();
-                    }),
-              ),
-            ],
+                const SizedBox(height: 24),
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.person_outline,
+                          color: Colors.white70),
+                      title: const Text("Personal Information",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600)),
+                      trailing: const Icon(Icons.chevron_right,
+                          color: Colors.white38),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showAdminPersonalInfoModal();
+                      }),
+                ),
+                const SizedBox(height: 16),
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading:
+                          const Icon(Icons.logout, color: Color(0xFFEF4444)),
+                      title: const Text("Sign out",
+                          style: TextStyle(
+                              color: Color(0xFFEF4444),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600)),
+                      trailing: const Icon(Icons.chevron_right,
+                          color: Colors.white38),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await widget.onLogout();
+                      }),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -538,7 +572,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   }
 
   Future<void> _startJobChat(String jobId, Map<String, dynamic> jobData) async {
-    String jobName = "${jobData['client_name']} - ${jobData['job_type']}";
+    String jobName = "${jobData['customer_name']} - ${jobData['job_type']}";
     List<dynamic> workers = jobData['assigned_workers'] ?? [];
     if (workers.isEmpty && jobData['assigned_worker'] != null) {
       workers = [jobData['assigned_worker']];
@@ -737,10 +771,12 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                               tempDate.day,
                                               tempTime.hour,
                                               tempTime.minute);
-                                          await ApiService.instance.put('/admin/jobs/$jobId', {
-                                              'scheduled_time': newFullDate.toIso8601String(),
-                                              'notes': notesCtrl.text.trim()
-                                            });
+                                          await ApiService.instance.put(
+                                              '/admin/jobs/$jobId', {
+                                            'scheduled_time':
+                                                newFullDate.toIso8601String(),
+                                            'notes': notesCtrl.text.trim()
+                                          });
                                           Navigator.pop(ctx);
                                           Navigator.pop(context);
                                           ScaffoldMessenger.of(context)
@@ -822,7 +858,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(jobData['client_name'] ?? 'Unknown Client',
+                          Text(jobData['customer_name'] ?? 'Unknown Customer',
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
@@ -878,8 +914,10 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                         child: Text(
                             jobData['scheduled_time'] != null
                                 ? DateFormat('EEEE, MMM d, yyyy • hh:mm a')
-                                    .format(
-                                        DateTime.parse(jobData['scheduled_time'].toString()).toLocal())
+                                    .format(DateTime.parse(
+                                            jobData['scheduled_time']
+                                                .toString())
+                                        .toLocal())
                                 : "No Time",
                             style: const TextStyle(
                                 color: Colors.white60, fontSize: 14)))
@@ -907,67 +945,68 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Builder(
-                    builder: (context) {
-                      List users = jobData['assigned_users'] ?? [];
-                      if (users.isEmpty) {
-                        return Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                                color: const Color(0xFF0D1B2A),
-                                borderRadius: BorderRadius.circular(12)),
-                            child: const Row(children: [
-                              Icon(Icons.warning,
-                                  color: Colors.orange, size: 20),
-                              SizedBox(width: 12),
-                              Text("Unassigned - Needs Worker",
-                                  style: TextStyle(
-                                      color: Colors.orange,
-                                      fontWeight: FontWeight.bold))
-                            ]));
-                      }
+                Builder(builder: (context) {
+                  List users = jobData['assigned_users'] ?? [];
+                  if (users.isEmpty) {
+                    return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFF0D1B2A),
+                            borderRadius: BorderRadius.circular(12)),
+                        child: const Row(children: [
+                          Icon(Icons.warning, color: Colors.orange, size: 20),
+                          SizedBox(width: 12),
+                          Text("Unassigned - Needs Worker",
+                              style: TextStyle(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold))
+                        ]));
+                  }
 
-                      return Column(
-                        children: users.map<Widget>((user) {
-                          var profile = user as Map<String, dynamic>;
-                          bool isLeader = profile['id'].toString() == leaderId;
-                          return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                  color: const Color(0xFF0D1B2A),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                      color: isLeader
-                                          ? const Color(0xFFF59E0B)
-                                              .withOpacity(0.5)
-                                          : Colors.transparent)),
-                              child: Row(children: [
-                                CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: const Color(0xFF3B82F6)
-                                        .withOpacity(0.2),
-                                    child: Text(
-                                        (profile['name'] ?? 'W')[0]
-                                            .toUpperCase(),
-                                        style: const TextStyle(
-                                            color: Color(0xFF3B82F6),
-                                            fontWeight: FontWeight.bold))),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                    child: Text(
-                                        profile['name'] ?? 'Worker',
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15))),
-                                if (isLeader)
-                                  const Icon(Icons.star,
-                                      color: Color(0xFFF59E0B), size: 20)
-                              ]));
-                        }).toList(),
-                      );
-                    }),
+                  return Column(
+                    children: users.map<Widget>((user) {
+                      var profile = user as Map<String, dynamic>;
+                      bool isLeader = profile['id'].toString() == leaderId;
+                      return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFF0D1B2A),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: isLeader
+                                      ? const Color(0xFFF59E0B).withOpacity(0.5)
+                                      : Colors.transparent)),
+                          child: Row(children: [
+                            CircleAvatar(
+                                radius: 16,
+                                backgroundColor:
+                                    const Color(0xFF3B82F6).withOpacity(0.2),
+                                child: Text(
+                                    (profile['first_name'] ?? 'W')[0]
+                                        .toUpperCase(),
+                                    style: const TextStyle(
+                                        color: Color(0xFF3B82F6),
+                                        fontWeight: FontWeight.bold))),
+                            const SizedBox(width: 12),
+                            Expanded(
+                                child: Text(() {
+                              final n =
+                                  '${profile['first_name'] ?? ''} ${profile['last_name'] ?? ''}'
+                                      .trim();
+                              return n.isEmpty ? 'Worker' : n;
+                            }(),
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15))),
+                            if (isLeader)
+                              const Icon(Icons.star,
+                                  color: Color(0xFFF59E0B), size: 20)
+                          ]));
+                    }).toList(),
+                  );
+                }),
                 const SizedBox(height: 12),
                 SizedBox(
                     width: double.infinity,
@@ -1005,7 +1044,8 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold)),
                           onPressed: () async {
-                            await ApiService.instance.put('/admin/jobs/$jobId', {'status': 'completed'});
+                            await ApiService.instance.put(
+                                '/admin/jobs/$jobId', {'status': 'completed'});
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -1083,13 +1123,14 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                           style: const TextStyle(
                                               color: Colors.white)),
                                       onTap: () {
-                                      setState(() {
-                                        _filterWorkerId = workers[i]['id'].toString();
-                                        _filterWorkerName =
-                                            wData['display_name'] ?? 'Worker';
-                                      });
-                                      Navigator.pop(context);
-                                    }),
+                                        setState(() {
+                                          _filterWorkerId =
+                                              workers[i]['id'].toString();
+                                          _filterWorkerName =
+                                              wData['display_name'] ?? 'Worker';
+                                        });
+                                        Navigator.pop(context);
+                                      }),
                                 );
                               }))
                   ],
@@ -1098,8 +1139,8 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
             ));
   }
 
-  void _showClientFilterModal() async {
-    var clients = await ApiService.instance.get('/admin/clients');
+  void _showCustomerFilterModal() async {
+    var clients = await ApiService.instance.get('/admin/customers');
     if (!mounted) return;
     showModalBottomSheet(
         context: context,
@@ -1119,14 +1160,14 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                             color: Colors.white24,
                             borderRadius: BorderRadius.circular(2))),
                     const SizedBox(height: 24),
-                    const Text("Select Client to Filter",
+                    const Text("Select Customer to Filter",
                         style: TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     if ((clients as List).isEmpty)
-                      const Text("No clients found",
+                      const Text("No customers found",
                           style: TextStyle(color: Colors.white38))
                     else
                       Expanded(
@@ -1137,15 +1178,22 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                 return Material(
                                   color: Colors.transparent,
                                   child: ListTile(
-                                      title: Text(cData['name'] ?? 'Client',
+                                      title: Text(() {
+                                        final n =
+                                            '${cData['first_name'] ?? ''} ${cData['last_name'] ?? ''}'
+                                                .trim();
+                                        return n.isEmpty ? 'Customer' : n;
+                                      }(),
                                           style: const TextStyle(
                                               color: Colors.white)),
                                       onTap: () {
-                                      setState(() {
-                                        _filterClientName = cData['name'];
-                                      });
-                                      Navigator.pop(context);
-                                    }),
+                                        setState(() {
+                                          _filterCustomerName =
+                                              '${cData['first_name'] ?? ''} ${cData['last_name'] ?? ''}'
+                                                  .trim();
+                                        });
+                                        Navigator.pop(context);
+                                      }),
                                 );
                               }))
                   ],
@@ -1194,7 +1242,8 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                             color: Colors.transparent,
                             child: ListTile(
                                 title: Text(statuses[i],
-                                    style: const TextStyle(color: Colors.white)),
+                                    style:
+                                        const TextStyle(color: Colors.white)),
                                 onTap: () {
                                   setState(() {
                                     _filterStatus = statuses[i].toLowerCase();
@@ -1266,11 +1315,16 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                         color: accentColor.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8)),
                     child: Icon(icon, color: accentColor, size: 20)),
-                Text(subtitle,
-                    style: TextStyle(
-                        color: accentColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold))
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(subtitle,
+                      style: TextStyle(
+                          color: accentColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                )
               ],
             ),
             const SizedBox(height: 16),
@@ -1301,314 +1355,352 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(24.0),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_getGreeting(),
-                          style: const TextStyle(
-                              color: Colors.white60, fontSize: 16)),
-                      const SizedBox(height: 4),
-                      Text(_adminName,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  GestureDetector(
-                    onTap: _showProfileModal,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: const Color(0xFF3B82F6), width: 2)),
-                      child: Center(
-                          child: Text(_getUserInitial(),
-                              style: const TextStyle(
-                                  color: Color(0xFF3B82F6),
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold))),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              Row(
-                children: [
-                  Expanded(
-                      child: _buildClickableKPICard(
-                          title: "Monthly Revenue",
-                          value: "\$${(_dashboardMetrics?['monthly_revenue'] ?? 0).toStringAsFixed(2)}",
-                          icon: Icons.attach_money,
-                          accentColor: const Color(0xFF10B981),
-                          subtitle: "This Month")),
-                  const SizedBox(width: 16),
-                  Expanded(
-                      child: _buildClickableKPICard(
-                          title: "Active Jobs",
-                          value: "${_dashboardMetrics?['active_jobs'] ?? 0}",
-                          icon: Icons.work_outline,
-                          accentColor: const Color(0xFF3B82F6),
-                          subtitle: "Live")),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                      child: _buildClickableKPICard(
-                          title: "Total Workers",
-                          value: "${_dashboardMetrics?['total_workers'] ?? 0}",
-                          icon: Icons.people_outline,
-                          accentColor: const Color(0xFFF59E0B),
-                          subtitle: "Registered")),
-                  const SizedBox(width: 16),
-                  Expanded(
-                      child: _buildClickableKPICard(
-                          title: "Pending Estimates",
-                          value: "${_dashboardMetrics?['pending_estimates'] ?? 0}",
-                          icon: Icons.description_outlined,
-                          accentColor: const Color(0xFF8B5CF6),
-                          subtitle: "Action req.")),
-                ],
-              ),
-              const SizedBox(height: 40),
-
-              const Text("Operations Log",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-
-              // 🚀 PASTILLAS DE MULTI-FILTROS (SE PUEDEN SUMAR)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildFilterPill(
-                        _showOnlyToday ? "📅 Today" : "📅 All Dates",
-                        _showOnlyToday,
-                        () => setState(() => _showOnlyToday = true),
-                        () => setState(() => _showOnlyToday = false)),
-                    _buildFilterPill(
-                        _filterWorkerId != null
-                            ? "👷 ${_filterWorkerName!}"
-                            : "👷 By Worker",
-                        _filterWorkerId != null,
-                        _showWorkerFilterModal,
-                        () => setState(() {
-                              _filterWorkerId = null;
-                              _filterWorkerName = null;
-                            })),
-                    _buildFilterPill(
-                        _filterClientName != null
-                            ? "🏢 $_filterClientName"
-                            : "🏢 By Client",
-                        _filterClientName != null,
-                        _showClientFilterModal,
-                        () => setState(() => _filterClientName = null)),
-                    _buildFilterPill(
-                        _filterStatus != null
-                            ? "📊 ${_filterStatus![0].toUpperCase()}${_filterStatus!.substring(1)}"
-                            : "📊 By Status",
-                        _filterStatus != null,
-                        _showStatusFilterModal,
-                        () => setState(() => _filterStatus = null)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_getGreeting(),
+                            style: const TextStyle(
+                                color: Colors.white60, fontSize: 16)),
+                        const SizedBox(height: 4),
+                        Text(_adminName,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: _showProfileModal,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: const Color(0xFF3B82F6), width: 2)),
+                        child: Center(
+                            child: Text(_getUserInitial(),
+                                style: const TextStyle(
+                                    color: Color(0xFF3B82F6),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold))),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 32),
 
-              _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _allJobs.isEmpty
-                    ? const Center(
-                        child: Text("No jobs recorded.",
-                            style: TextStyle(color: Colors.white60)))
-                    : Builder(builder: (context) {
-                        List docs = _allJobs;
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildClickableKPICard(
+                            title: "Monthly Revenue",
+                            value:
+                                "\$${(_dashboardMetrics?['monthly_revenue'] ?? 0).toStringAsFixed(2)}",
+                            icon: Icons.attach_money,
+                            accentColor: const Color(0xFF10B981),
+                            subtitle: "This Month")),
+                    const SizedBox(width: 16),
+                    Expanded(
+                        child: _buildClickableKPICard(
+                            title: "Active Jobs",
+                            value: "${_dashboardMetrics?['active_jobs'] ?? 0}",
+                            icon: Icons.work_outline,
+                            accentColor: const Color(0xFF3B82F6),
+                            subtitle: "Live")),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildClickableKPICard(
+                            title: "Total Workers",
+                            value:
+                                "${_dashboardMetrics?['total_workers'] ?? 0}",
+                            icon: Icons.people_outline,
+                            accentColor: const Color(0xFFF59E0B),
+                            subtitle: "Registered")),
+                    const SizedBox(width: 16),
+                    Expanded(
+                        child: _buildClickableKPICard(
+                            title: "Pending Estimates",
+                            value:
+                                "${_dashboardMetrics?['pending_estimates'] ?? 0}",
+                            icon: Icons.description_outlined,
+                            accentColor: const Color(0xFF8B5CF6),
+                            subtitle: "Action req.")),
+                  ],
+                ),
+                const SizedBox(height: 40),
 
-                  // 🚀 ALERTA DE PENDIENTES (BANNER)
-                  int pendingCount = docs
-                      .where((d) =>
-                          (d as Map<String, dynamic>)['status'] ==
-                          'pending')
-                      .length;
+                const Text("Operations Log",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
 
-                  // 🚀 MOTOR DE FILTRADO EXACTO
-                  List<dynamic> filteredDocs =
-                      docs.where((doc) {
-                    var data = doc as Map<String, dynamic>;
-                    String status =
-                        (data['status'] ?? 'assigned').toString().toLowerCase();
-
-                    if (_filterStatus != null && status != _filterStatus)
-                      return false;
-                    if (_filterClientName != null &&
-                        data['client_name'] != _filterClientName) return false;
-                    if (_filterWorkerId != null) {
-                      List users = data['assigned_users'] ?? [];
-                      bool hasWorker = users.any((u) => u['id'].toString() == _filterWorkerId);
-                      if (!hasWorker) return false;
-                    }
-                    if (_showOnlyToday) {
-                      List<DateTime> dates = _generateOccurrences(data);
-                      bool happensToday =
-                          dates.any((d) => isSameDayValid(d, DateTime.now()));
-                      // Si está PENDING, SIEMPRE lo mostramos porque urge aprobarlo, aunque sea de ayer
-                      if (status != 'pending' && !happensToday) return false;
-                    }
-                    return true;
-                  }).toList();
-
-                  // 🚀 ORDENAMIENTO (PENDING HASTA ARRIBA SIEMPRE)
-                  filteredDocs.sort((a, b) {
-                    var dA = a as Map<String, dynamic>;
-                    var dB = b as Map<String, dynamic>;
-                    String statA =
-                        (dA['status'] ?? '').toString().toLowerCase();
-                    String statB =
-                        (dB['status'] ?? '').toString().toLowerCase();
-                    if (statA == 'pending' && statB != 'pending') return -1;
-                    if (statA != 'pending' && statB == 'pending') return 1;
-                    return 0;
-                  });
-
-                  return Column(
+                // 🚀 PASTILLAS DE MULTI-FILTROS (SE PUEDEN SUMAR)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
                     children: [
-                      if (pendingCount > 0 && _filterStatus != 'pending') ...[
-                        GestureDetector(
-                            onTap: () => setState(() {
-                                  _filterStatus = 'pending';
-                                  _showOnlyToday = false;
-                                }),
-                            child: Container(
-                                width: double.infinity,
-                                margin: const EdgeInsets.only(bottom: 16),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                    color: const Color(0xFFF59E0B)
-                                        .withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                        color: const Color(0xFFF59E0B)
-                                            .withOpacity(0.5))),
-                                child: Row(children: [
-                                  const Icon(Icons.warning_amber_rounded,
-                                      color: Color(0xFFF59E0B)),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                      child: Text(
-                                          "You have $pendingCount job(s) awaiting approval!",
-                                          style: const TextStyle(
-                                              color: Color(0xFFF59E0B),
-                                              fontWeight: FontWeight.bold))),
-                                  const Icon(Icons.chevron_right,
-                                      color: Color(0xFFF59E0B))
-                                ])))
-                      ],
-                      if (filteredDocs.isEmpty)
-                        Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
-                                borderRadius: BorderRadius.circular(16)),
-                            child: const Center(
-                                child: Text("No results found for this filter.",
-                                    style: TextStyle(color: Colors.white60))))
-                      else
-                        ...filteredDocs.map((doc) {
-                          var data = doc as Map<String, dynamic>;
-                          String status = (data['status'] ?? 'assigned').toString().toUpperCase();
-
-                          Color dotColor = const Color(0xFF3B82F6);
-                          if (status == 'ACTIVE')
-                            dotColor = const Color(0xFF10B981);
-                          if (status == 'PENDING')
-                            dotColor = const Color(0xFFF59E0B);
-                          if (status == 'COMPLETED')
-                            dotColor = const Color(0xFF8B5CF6);
-                          if (status == 'CANCELLED')
-                            dotColor = Colors.redAccent;
-
-                          return GestureDetector(
-                            onTap: () => _showJobDetailsModal(data['id'].toString(), data),
-                            child: Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(16)),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: BoxDecoration(
-                                            color: dotColor,
-                                            shape: BoxShape.circle)),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                        child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        RichText(
-                                            text: TextSpan(
-                                                style: const TextStyle(
-                                                    fontSize: 14),
-                                                children: [
-                                              TextSpan(
-                                                  text:
-                                                      "${data['client_name'] ?? 'Unknown Client'} ",
-                                                  style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.bold)),
-                                              TextSpan(
-                                                  text: "($status)",
-                                                  style: TextStyle(
-                                                      color: dotColor,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 11))
-                                            ])),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                            data['address'] ??
-                                                'No address provided',
-                                            style: const TextStyle(
-                                                color: Colors.white60,
-                                                fontSize: 12),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis)
-                                      ],
-                                    )),
-                                    const Icon(Icons.chevron_right,
-                                        color: Colors.white24, size: 20)
-                                  ],
-                                )),
-                          );
-                        }).toList()
+                      _buildFilterPill(
+                          _showOnlyToday ? "📅 Today" : "📅 All Dates",
+                          _showOnlyToday,
+                          () => setState(() => _showOnlyToday = true),
+                          () => setState(() => _showOnlyToday = false)),
+                      _buildFilterPill(
+                          _filterWorkerId != null
+                              ? "👷 ${_filterWorkerName!}"
+                              : "👷 By Worker",
+                          _filterWorkerId != null,
+                          _showWorkerFilterModal,
+                          () => setState(() {
+                                _filterWorkerId = null;
+                                _filterWorkerName = null;
+                              })),
+                      _buildFilterPill(
+                          _filterCustomerName != null
+                              ? "🏢 $_filterCustomerName"
+                              : "🏢 By Customer",
+                          _filterCustomerName != null,
+                          _showCustomerFilterModal,
+                          () => setState(() => _filterCustomerName = null)),
+                      _buildFilterPill(
+                          _filterStatus != null
+                              ? "📊 ${_filterStatus![0].toUpperCase()}${_filterStatus!.substring(1)}"
+                              : "📊 By Status",
+                          _filterStatus != null,
+                          _showStatusFilterModal,
+                          () => setState(() => _filterStatus = null)),
                     ],
-                  );
-                },
-              ),
-              const SizedBox(height: 100),
-            ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _allJobs.isEmpty
+                        ? const Center(
+                            child: Text("No jobs recorded.",
+                                style: TextStyle(color: Colors.white60)))
+                        : Builder(
+                            builder: (context) {
+                              List docs = _allJobs;
+
+                              // 🚀 ALERTA DE PENDIENTES (BANNER)
+                              int pendingCount = docs
+                                  .where((d) =>
+                                      (d as Map<String, dynamic>)['status'] ==
+                                      'pending')
+                                  .length;
+
+                              // 🚀 MOTOR DE FILTRADO EXACTO
+                              List<dynamic> filteredDocs = docs.where((doc) {
+                                var data = doc as Map<String, dynamic>;
+                                String status = (data['status'] ?? 'assigned')
+                                    .toString()
+                                    .toLowerCase();
+
+                                if (_filterStatus != null &&
+                                    status != _filterStatus) return false;
+                                if (_filterCustomerName != null &&
+                                    data['customer_name'] !=
+                                        _filterCustomerName) return false;
+                                if (_filterWorkerId != null) {
+                                  List users = data['assigned_users'] ?? [];
+                                  bool hasWorker = users.any((u) =>
+                                      u['id'].toString() == _filterWorkerId);
+                                  if (!hasWorker) return false;
+                                }
+                                if (_showOnlyToday) {
+                                  List<DateTime> dates =
+                                      _generateOccurrences(data);
+                                  bool happensToday = dates.any(
+                                      (d) => isSameDayValid(d, DateTime.now()));
+                                  // Si está PENDING, SIEMPRE lo mostramos porque urge aprobarlo, aunque sea de ayer
+                                  if (status != 'pending' && !happensToday)
+                                    return false;
+                                }
+                                return true;
+                              }).toList();
+
+                              // 🚀 ORDENAMIENTO (PENDING HASTA ARRIBA SIEMPRE)
+                              filteredDocs.sort((a, b) {
+                                var dA = a as Map<String, dynamic>;
+                                var dB = b as Map<String, dynamic>;
+                                String statA = (dA['status'] ?? '')
+                                    .toString()
+                                    .toLowerCase();
+                                String statB = (dB['status'] ?? '')
+                                    .toString()
+                                    .toLowerCase();
+                                if (statA == 'pending' && statB != 'pending')
+                                  return -1;
+                                if (statA != 'pending' && statB == 'pending')
+                                  return 1;
+                                return 0;
+                              });
+
+                              return Column(
+                                children: [
+                                  if (pendingCount > 0 &&
+                                      _filterStatus != 'pending') ...[
+                                    GestureDetector(
+                                        onTap: () => setState(() {
+                                              _filterStatus = 'pending';
+                                              _showOnlyToday = false;
+                                            }),
+                                        child: Container(
+                                            width: double.infinity,
+                                            margin: const EdgeInsets.only(
+                                                bottom: 16),
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFFF59E0B)
+                                                    .withOpacity(0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                    color:
+                                                        const Color(0xFFF59E0B)
+                                                            .withOpacity(0.5))),
+                                            child: Row(children: [
+                                              const Icon(
+                                                  Icons.warning_amber_rounded,
+                                                  color: Color(0xFFF59E0B)),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                  child: Text(
+                                                      "You have $pendingCount job(s) awaiting approval!",
+                                                      style: const TextStyle(
+                                                          color:
+                                                              Color(0xFFF59E0B),
+                                                          fontWeight: FontWeight
+                                                              .bold))),
+                                              const Icon(Icons.chevron_right,
+                                                  color: Color(0xFFF59E0B))
+                                            ])))
+                                  ],
+                                  if (filteredDocs.isEmpty)
+                                    Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                            color: const Color(0xFF1E293B),
+                                            borderRadius:
+                                                BorderRadius.circular(16)),
+                                        child: const Center(
+                                            child: Text(
+                                                "No results found for this filter.",
+                                                style: TextStyle(
+                                                    color: Colors.white60))))
+                                  else
+                                    ...filteredDocs.map((doc) {
+                                      var data = doc as Map<String, dynamic>;
+                                      String status =
+                                          (data['status'] ?? 'assigned')
+                                              .toString()
+                                              .toUpperCase();
+
+                                      Color dotColor = const Color(0xFF3B82F6);
+                                      if (status == 'ACTIVE')
+                                        dotColor = const Color(0xFF10B981);
+                                      if (status == 'PENDING')
+                                        dotColor = const Color(0xFFF59E0B);
+                                      if (status == 'COMPLETED')
+                                        dotColor = const Color(0xFF8B5CF6);
+                                      if (status == 'CANCELLED')
+                                        dotColor = Colors.redAccent;
+
+                                      return GestureDetector(
+                                        onTap: () => _showJobDetailsModal(
+                                            data['id'].toString(), data),
+                                        child: Container(
+                                            margin: const EdgeInsets.only(
+                                                bottom: 12),
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFF1E293B),
+                                                borderRadius:
+                                                    BorderRadius.circular(16)),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                    width: 10,
+                                                    height: 10,
+                                                    decoration: BoxDecoration(
+                                                        color: dotColor,
+                                                        shape:
+                                                            BoxShape.circle)),
+                                                const SizedBox(width: 16),
+                                                Expanded(
+                                                    child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    RichText(
+                                                        text: TextSpan(
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        14),
+                                                            children: [
+                                                          TextSpan(
+                                                              text:
+                                                                  "${data['customer_name'] ?? 'Unknown Customer'} ",
+                                                              style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          TextSpan(
+                                                              text: "($status)",
+                                                              style: TextStyle(
+                                                                  color:
+                                                                      dotColor,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                  fontSize: 11))
+                                                        ])),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                        data['address'] ??
+                                                            'No address provided',
+                                                        style: const TextStyle(
+                                                            color:
+                                                                Colors.white60,
+                                                            fontSize: 12),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis)
+                                                  ],
+                                                )),
+                                                const Icon(Icons.chevron_right,
+                                                    color: Colors.white24,
+                                                    size: 20)
+                                              ],
+                                            )),
+                                      );
+                                    }).toList()
+                                ],
+                              );
+                            },
+                          ),
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );

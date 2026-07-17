@@ -46,18 +46,19 @@ class _AuthRouterWidgeState extends State<AuthRouterWidge> {
     if (user == null || user.userData == null) {
       if (mounted) {
         // Redirigir al landing o login si no hay sesión para no quedarse trabado
-        context.goNamed('LandingPricingFirst'); 
+        context.goNamed('LandingPricingFirst');
       }
-      return; 
+      return;
     }
     try {
-        String role = user.userData!['role']?['slug'] ?? 'technician'; // Por defecto worker/technician
+      String role = user.userData!['role']?['slug'] ??
+          'technician'; // Por defecto worker/technician
 
-        if (role == 'admin') {
-          await widget.onAdminRoute();
-        } else {
-          await widget.onWorkerRoute();
-        }
+      if (role == 'admin') {
+        await widget.onAdminRoute();
+      } else {
+        await widget.onWorkerRoute();
+      }
     } catch (e) {
       debugPrint("Error en ruteo: $e");
     }
