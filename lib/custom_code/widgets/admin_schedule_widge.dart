@@ -519,7 +519,7 @@ class _AdminScheduleWidgeState extends State<AdminScheduleWidge> {
   }
 
   Future<void> _startJobChat(String jobId, Map<String, dynamic> jobData) async {
-    String jobName = "${jobData['client_name'] ?? 'Client'} - ${jobData['job_type'] ?? 'Job'}";
+    String jobName = "${jobData['customer_name'] ?? 'Client'} - ${jobData['job_type'] ?? 'Job'}";
     List<dynamic> workers = jobData['assigned_workers'] ?? [];
     if (workers.isEmpty && jobData['assigned_worker'] != null) {
       workers = [jobData['assigned_worker']];
@@ -730,7 +730,7 @@ class _AdminScheduleWidgeState extends State<AdminScheduleWidge> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                Text(jobData['client_name'] ?? 'Unknown Client',
+                Text(jobData['customer_name'] ?? 'Unknown Client',
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -871,7 +871,7 @@ class _AdminScheduleWidgeState extends State<AdminScheduleWidge> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          jobData['client_name'] ?? 'Unknown Client',
+                          jobData['customer_name'] ?? 'Unknown Client',
                           style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 14),

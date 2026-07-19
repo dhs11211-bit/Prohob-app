@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
+import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   static String get baseUrl {
@@ -11,10 +12,11 @@ class ApiService {
       if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/mob';
       return 'http://localhost:8000/api/mob';
     }
-    
+
     // Live Production Server
     return 'https://api.serviceprohob.com/api/mob';
   }
+
   static const _storage = FlutterSecureStorage();
 
   // Singleton instance
@@ -88,9 +90,10 @@ class ApiService {
   }
 
   // --- Chat Media Upload ---
-  Future<Map<String, dynamic>> uploadChatMedia(int chatId, List<int> fileBytes, String fileName) async {
+  Future<Map<String, dynamic>> uploadChatMedia(
+      int chatId, List<int> fileBytes, String fileName) async {
     final url = Uri.parse('$baseUrl/chat/$chatId/media');
-    
+
     var request = http.MultipartRequest('POST', url);
     final storage = const FlutterSecureStorage();
     final token = await storage.read(key: 'auth_token');
@@ -104,6 +107,7 @@ class ApiService {
       'file',
       fileBytes,
       filename: fileName,
+      contentType: _getMediaType(fileName),
     ));
 
     final streamedResponse = await request.send();
@@ -130,9 +134,15 @@ class ApiService {
     }
   }
 
-  Future<dynamic> getAdminJobs({String? startDate, String? endDate, String? fromDate, String? untilDate, int? limit, int? page}) async {
+  Future<dynamic> getAdminJobs(
+      {String? startDate,
+      String? endDate,
+      String? fromDate,
+      String? untilDate,
+      int? limit,
+      int? page}) async {
     String urlStr = '$baseUrl/admin/jobs';
-    
+
     List<String> queryParams = [];
     if (startDate != null) queryParams.add('start_date=$startDate');
     if (endDate != null) queryParams.add('end_date=$endDate');
@@ -140,11 +150,11 @@ class ApiService {
     if (untilDate != null) queryParams.add('until_date=$untilDate');
     if (limit != null) queryParams.add('limit=$limit');
     if (page != null) queryParams.add('page=$page');
-    
+
     if (queryParams.isNotEmpty) {
       urlStr += '?${queryParams.join('&')}';
     }
-    
+
     final url = Uri.parse(urlStr);
     final response = await http.get(url, headers: await _getHeaders());
 
@@ -153,15 +163,26 @@ class ApiService {
       if (data is Map && data.containsKey('data')) {
         var items = data['data'];
         if (items is List) {
-          data['data'] = items.where((j) => j['hide_from_calendar'] != true && j['hide_from_calendar'] != 1).toList();
+          data['data'] = items
+              .where((j) =>
+                  j['hide_from_calendar'] != true &&
+                  j['hide_from_calendar'] != 1)
+              .toList();
         } else if (items is Map && items.containsKey('data')) {
           var innerItems = items['data'];
           if (innerItems is List) {
-            items['data'] = innerItems.where((j) => j['hide_from_calendar'] != true && j['hide_from_calendar'] != 1).toList();
+            items['data'] = innerItems
+                .where((j) =>
+                    j['hide_from_calendar'] != true &&
+                    j['hide_from_calendar'] != 1)
+                .toList();
           }
         }
       } else if (data is List) {
-        return data.where((j) => j['hide_from_calendar'] != true && j['hide_from_calendar'] != 1).toList();
+        return data
+            .where((j) =>
+                j['hide_from_calendar'] != true && j['hide_from_calendar'] != 1)
+            .toList();
       }
       return data;
     } else {
@@ -169,9 +190,15 @@ class ApiService {
     }
   }
 
-  Future<dynamic> getMyJobs({String? startDate, String? endDate, String? fromDate, String? untilDate, int? limit, int? page}) async {
+  Future<dynamic> getMyJobs(
+      {String? startDate,
+      String? endDate,
+      String? fromDate,
+      String? untilDate,
+      int? limit,
+      int? page}) async {
     String urlStr = '$baseUrl/jobs/all';
-    
+
     List<String> queryParams = [];
     if (startDate != null && endDate != null) {
       queryParams.add('start_date=$startDate');
@@ -181,7 +208,7 @@ class ApiService {
     if (untilDate != null) queryParams.add('until_date=$untilDate');
     if (limit != null) queryParams.add('limit=$limit');
     if (page != null) queryParams.add('page=$page');
-    
+
     if (queryParams.isNotEmpty) {
       urlStr += '?' + queryParams.join('&');
     }
@@ -237,7 +264,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> clockIn(int jobId, double? lat, double? lng) async {
+  Future<Map<String, dynamic>> clockIn(
+      int jobId, double? lat, double? lng) async {
     final url = Uri.parse('$baseUrl/clock/in');
     final response = await http.post(
       url,
@@ -256,7 +284,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> clockOut(int jobId, double? lat, double? lng) async {
+  Future<Map<String, dynamic>> clockOut(
+      int jobId, double? lat, double? lng) async {
     final url = Uri.parse('$baseUrl/clock/out');
     final response = await http.post(
       url,
@@ -275,7 +304,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> submitSwapRequest(int jobId, String reason, String details) async {
+  Future<Map<String, dynamic>> submitSwapRequest(
+      int jobId, String reason, String details) async {
     final url = Uri.parse('$baseUrl/jobs/$jobId/swap-request');
     final response = await http.post(
       url,
@@ -309,7 +339,8 @@ class ApiService {
 
   // --- Generic Endpoints ---
   Future<dynamic> get(String endpoint) async {
-    final url = Uri.parse('$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
+    final url = Uri.parse(
+        '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
     final response = await http.get(
       url,
       headers: await _getHeaders(),
@@ -323,7 +354,8 @@ class ApiService {
   }
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
-    final url = Uri.parse('$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
+    final url = Uri.parse(
+        '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
     final response = await http.post(
       url,
       headers: await _getHeaders(),
@@ -338,7 +370,8 @@ class ApiService {
   }
 
   Future<dynamic> put(String endpoint, Map<String, dynamic> body) async {
-    final url = Uri.parse('$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
+    final url = Uri.parse(
+        '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
     final response = await http.put(
       url,
       headers: await _getHeaders(),
@@ -353,7 +386,8 @@ class ApiService {
   }
 
   Future<dynamic> patch(String endpoint, Map<String, dynamic> body) async {
-    final url = Uri.parse('$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
+    final url = Uri.parse(
+        '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
     final response = await http.patch(
       url,
       headers: await _getHeaders(),
@@ -368,7 +402,8 @@ class ApiService {
   }
 
   Future<dynamic> delete(String endpoint) async {
-    final url = Uri.parse('$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
+    final url = Uri.parse(
+        '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
     final response = await http.delete(
       url,
       headers: await _getHeaders(),
@@ -387,7 +422,8 @@ class ApiService {
     if (type != null) {
       url += '?type=$type';
     }
-    final response = await http.get(Uri.parse(url), headers: await _getHeaders());
+    final response =
+        await http.get(Uri.parse(url), headers: await _getHeaders());
     final data = jsonDecode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
@@ -397,8 +433,10 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getConversationThread(int conversationId) async {
-    String url = baseUrl.replaceAll('/mob', '') + '/conversations/$conversationId';
-    final response = await http.get(Uri.parse(url), headers: await _getHeaders());
+    String url =
+        baseUrl.replaceAll('/mob', '') + '/conversations/$conversationId';
+    final response =
+        await http.get(Uri.parse(url), headers: await _getHeaders());
     final data = jsonDecode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
@@ -407,8 +445,10 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> sendMessage(int conversationId, String content, {String channel = 'in_app'}) async {
-    String url = baseUrl.replaceAll('/mob', '') + '/conversations/$conversationId/messages';
+  Future<Map<String, dynamic>> sendMessage(int conversationId, String content,
+      {String channel = 'in_app'}) async {
+    String url = baseUrl.replaceAll('/mob', '') +
+        '/conversations/$conversationId/messages';
     final response = await http.post(
       Uri.parse(url),
       headers: await _getHeaders(),
@@ -426,12 +466,14 @@ class ApiService {
   }
 
   Future<void> markConversationAsRead(int conversationId) async {
-    String url = baseUrl.replaceAll('/mob', '') + '/conversations/$conversationId/read';
+    String url =
+        baseUrl.replaceAll('/mob', '') + '/conversations/$conversationId/read';
     await http.post(Uri.parse(url), headers: await _getHeaders());
   }
 
   // --- Profile Endpoints ---
-  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> profileData) async {
+  Future<Map<String, dynamic>> updateProfile(
+      Map<String, dynamic> profileData) async {
     final url = Uri.parse('$baseUrl/employee/profile');
     final response = await http.put(
       url,
@@ -446,20 +488,22 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> uploadDocument(String docType, List<int> fileBytes, String fileName) async {
+  Future<Map<String, dynamic>> uploadDocument(
+      String docType, List<int> fileBytes, String fileName) async {
     final url = Uri.parse('$baseUrl/employee/profile/document');
     final token = await _getToken();
-    
+
     var request = http.MultipartRequest('POST', url);
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['Accept'] = 'application/json';
-    
+
     request.fields['docType'] = docType;
-    
+
     request.files.add(http.MultipartFile.fromBytes(
       'file',
       fileBytes,
       filename: fileName,
+      contentType: _getMediaType(fileName),
     ));
 
     final streamedResponse = await request.send();
@@ -482,25 +526,26 @@ class ApiService {
   }) async {
     final url = Uri.parse('$baseUrl/uploads/image');
     final token = await _getToken();
-    
+
     var request = http.MultipartRequest('POST', url);
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['Accept'] = 'application/json';
-    
+
     request.fields['entity_type'] = entityType;
     request.fields['entity_id'] = entityId;
     request.fields['image_type'] = imageType;
-    
+
     request.files.add(http.MultipartFile.fromBytes(
       'file',
       fileBytes,
       filename: fileName,
+      contentType: _getMediaType(fileName),
     ));
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
-    
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -518,31 +563,42 @@ class ApiService {
   }) async {
     final url = Uri.parse('$baseUrl/jobs/$jobId/photos');
     final token = await _getToken();
-    
+
     var request = http.MultipartRequest('POST', url);
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['Accept'] = 'application/json';
-    
+
     request.fields['photo_type'] = photoType;
     if (taskName != null) request.fields['task_name'] = taskName;
     if (description != null) request.fields['description'] = description;
-    
+
     for (int i = 0; i < filesBytes.length; i++) {
       request.files.add(http.MultipartFile.fromBytes(
         'files[$i]', // backend expects files.*
         filesBytes[i],
         filename: fileNames[i],
+        contentType: _getMediaType(fileNames[i]),
       ));
     }
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
-    
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
       throw Exception(data['message'] ?? 'Failed to upload evidence');
     }
+  }
+
+  MediaType _getMediaType(String fileName) {
+    final ext = fileName.split('.').last.toLowerCase();
+    if (ext == 'png') return MediaType('image', 'png');
+    if (ext == 'gif') return MediaType('image', 'gif');
+    if (ext == 'pdf') return MediaType('application', 'pdf');
+    if (ext == 'mp4') return MediaType('video', 'mp4');
+    if (ext == 'mov' || ext == 'qt') return MediaType('video', 'quicktime');
+    return MediaType('image', 'jpeg');
   }
 }

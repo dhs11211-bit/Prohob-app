@@ -43,7 +43,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   Timer? _refreshTimer;
   String? _googleMapsApiKey;
 
-  List<String> _jobTypes = ["Standard Clean", "Deep Clean", "Move In/Out"];
+  List<String> _jobTypes = ["Job", "Estimate", "Appointment", "Event"];
   List<String> _availableTasks = ["Dusting", "Vacuuming", "Mopping", "Windows"];
 
   final List<String> _frequencies = [
@@ -94,7 +94,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   Future<void> _fetchGoogleMapsKey() async {
     try {
       final settings = await ApiService.instance.get('/settings');
-      if (mounted && settings is Map && settings.containsKey('google_maps_api_key')) {
+      if (mounted &&
+          settings is Map &&
+          settings.containsKey('google_maps_api_key')) {
         _googleMapsApiKey = settings['google_maps_api_key'];
       }
     } catch (e) {
@@ -104,11 +106,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
   Future<void> _fetchCustomers() async {
     try {
-      final res = await ApiService.instance.get('/customers');
+      final res = await ApiService.instance.get('/admin/customers');
       if (mounted) {
         setState(() {
           // Check if paginated or raw list
-          dynamic dataObj = res is Map && res.containsKey('data') ? res['data'] : res;
+          dynamic dataObj =
+              res is Map && res.containsKey('data') ? res['data'] : res;
           if (dataObj is Map && dataObj.containsKey('data')) {
             _customersList = dataObj['data'];
           } else if (dataObj is List) {
@@ -157,20 +160,35 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
   Widget _buildSimpleTextField(TextEditingController ctrl, String hint,
       {bool isAddress = false, Function(String)? onChanged}) {
-    return TextField(
-      controller: ctrl,
-      onChanged: onChanged,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.white38),
-          prefixIcon: isAddress
-              ? const Icon(Icons.location_on, color: Color(0xFF3B82F6))
-              : null,
-          enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF3B82F6))),
-          focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF3B82F6)))),
+    return Container(
+      height: 41,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10)),
+      child: Center(
+        child: TextField(
+          controller: ctrl,
+          onChanged: onChanged,
+          textAlignVertical: TextAlignVertical.center,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+            prefixIconConstraints: isAddress
+                ? const BoxConstraints(minWidth: 36, minHeight: 0)
+                : null,
+            prefixIcon: isAddress
+                ? const Icon(Icons.location_on,
+                    color: Color(0xFF3B82F6), size: 20)
+                : null,
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ),
     );
   }
 
@@ -178,8 +196,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   // 🚀 MENÚ DE PERFIL UNIFICADO (IGUAL AL TEAM Y AL MAPA)
   // =====================================================================
   void _showAdminPersonalInfoModal() {
-    TextEditingController firstNameCtrl = TextEditingController(text: _adminName.split(' ').first);
-    TextEditingController lastNameCtrl = TextEditingController(text: _adminName.split(' ').length > 1 ? _adminName.split(' ').sublist(1).join(' ') : '');
+    TextEditingController firstNameCtrl =
+        TextEditingController(text: _adminName.split(' ').first);
+    TextEditingController lastNameCtrl = TextEditingController(
+        text: _adminName.split(' ').length > 1
+            ? _adminName.split(' ').sublist(1).join(' ')
+            : '');
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -291,13 +313,19 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   onPressed: isSaving
                                       ? null
                                       : () async {
-                                          if (firstNameCtrl.text.trim().isEmpty || lastNameCtrl.text.trim().isEmpty)
+                                          if (firstNameCtrl.text
+                                                  .trim()
+                                                  .isEmpty ||
+                                              lastNameCtrl.text.trim().isEmpty)
                                             return;
                                           setModalState(() => isSaving = true);
                                           try {
-                                            await ApiService.instance.put('/auth/profile', {
-                                              'first_name': firstNameCtrl.text.trim(),
-                                              'last_name': lastNameCtrl.text.trim(),
+                                            await ApiService.instance
+                                                .put('/auth/profile', {
+                                              'first_name':
+                                                  firstNameCtrl.text.trim(),
+                                              'last_name':
+                                                  lastNameCtrl.text.trim(),
                                             });
 
                                             if (mounted)
@@ -457,12 +485,14 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
           }
           try {
             if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-            final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
+            final uri = Uri.parse(
+                "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
             final response = await http.get(uri);
             if (response.statusCode == 200) {
               final data = jsonDecode(response.body);
               if (data['status'] == 'OK') {
-                setDialogState(() => placePredictions = List<dynamic>.from(data['predictions'] ?? []));
+                setDialogState(() => placePredictions =
+                    List<dynamic>.from(data['predictions'] ?? []));
               }
             }
           } catch (e) {
@@ -473,7 +503,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         Future<void> getPlaceDetails(String placeId) async {
           try {
             if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-            final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+            final uri = Uri.parse(
+                "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
             final response = await http.get(uri);
             if (response.statusCode == 200) {
               final data = jsonDecode(response.body);
@@ -514,12 +545,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                 }
               }),
               if (placePredictions.isNotEmpty)
-                Container(
-                  decoration: const BoxDecoration(
-                      color: Color(0xFF0D1B2A),
-                      borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(12),
-                          bottomRight: Radius.circular(12))),
+                Material(
+                  color: const Color(0xFF0D1B2A),
+                  borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12)),
+                  clipBehavior: Clip.hardEdge,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: placePredictions
@@ -563,7 +594,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3B82F6)),
               onPressed: () async {
-                if (firstNameCtrl.text.isNotEmpty && lastNameCtrl.text.isNotEmpty) {
+                if (firstNameCtrl.text.isNotEmpty &&
+                    lastNameCtrl.text.isNotEmpty) {
                   var newDoc = await ApiService.instance.post('/customers', {
                     'first_name': firstNameCtrl.text.trim(),
                     'last_name': lastNameCtrl.text.trim(),
@@ -574,7 +606,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                     'lng': lng,
                   });
                   if (onCustomerCreated != null) {
-                    onCustomerCreated(newDoc['id'].toString(), '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}', lat, lng);
+                    onCustomerCreated(
+                        newDoc['id'].toString(),
+                        '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}',
+                        lat,
+                        lng);
                   } else {
                     _fetchCustomers();
                     if (mounted) {
@@ -596,17 +632,26 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
     );
   }
 
-  void _showEditCustomerDialog(String customerId, Map<String, dynamic> customerData) {
-    TextEditingController firstNameCtrl =
-        TextEditingController(text: customerData['first_name'] ?? customerData['name']?.split(' ').first ?? '');
-    TextEditingController lastNameCtrl =
-        TextEditingController(text: customerData['last_name'] ?? (customerData['name'] != null && customerData['name'].contains(' ') ? customerData['name'].split(' ').sublist(1).join(' ') : ''));
+  void _showEditCustomerDialog(
+      String customerId, Map<String, dynamic> customerData) {
+    TextEditingController firstNameCtrl = TextEditingController(
+        text: customerData['first_name'] ??
+            customerData['name']?.split(' ').first ??
+            '');
+    TextEditingController lastNameCtrl = TextEditingController(
+        text: customerData['last_name'] ??
+            (customerData['name'] != null && customerData['name'].contains(' ')
+                ? customerData['name'].split(' ').sublist(1).join(' ')
+                : ''));
     TextEditingController phoneCtrl =
         TextEditingController(text: customerData['phone']);
     TextEditingController emailCtrl =
         TextEditingController(text: customerData['email']);
-    TextEditingController addressCtrl =
-        TextEditingController(text: customerData['address1'] ?? (customerData['primary_address'] != null ? customerData['primary_address']['address1'] : ''));
+    TextEditingController addressCtrl = TextEditingController(
+        text: customerData['address1'] ??
+            (customerData['primary_address'] != null
+                ? customerData['primary_address']['address1']
+                : ''));
 
     List<dynamic> placePredictions = [];
     double lat = customerData['lat'] != null
@@ -627,12 +672,14 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
           }
           try {
             if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-            final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
+            final uri = Uri.parse(
+                "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
             final response = await http.get(uri);
             if (response.statusCode == 200) {
               final data = jsonDecode(response.body);
               if (data['status'] == 'OK') {
-                setDialogState(() => placePredictions = List<dynamic>.from(data['predictions'] ?? []));
+                setDialogState(() => placePredictions =
+                    List<dynamic>.from(data['predictions'] ?? []));
               }
             }
           } catch (e) {
@@ -643,7 +690,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         Future<void> getPlaceDetails(String placeId) async {
           try {
             if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-            final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+            final uri = Uri.parse(
+                "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
             final response = await http.get(uri);
             if (response.statusCode == 200) {
               final data = jsonDecode(response.body);
@@ -684,12 +732,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                 }
               }),
               if (placePredictions.isNotEmpty)
-                Container(
-                  decoration: const BoxDecoration(
-                      color: Color(0xFF0D1B2A),
-                      borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(12),
-                          bottomRight: Radius.circular(12))),
+                Material(
+                  color: const Color(0xFF0D1B2A),
+                  borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12)),
+                  clipBehavior: Clip.hardEdge,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: placePredictions
@@ -721,7 +769,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3B82F6)),
               onPressed: () async {
-                if (firstNameCtrl.text.isNotEmpty && lastNameCtrl.text.isNotEmpty) {
+                if (firstNameCtrl.text.isNotEmpty &&
+                    lastNameCtrl.text.isNotEmpty) {
                   await ApiService.instance.put('/customers/$customerId', {
                     'first_name': firstNameCtrl.text.trim(),
                     'last_name': lastNameCtrl.text.trim(),
@@ -808,11 +857,14 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                           ? () async {
                               setDialogState(() => isDeleting = true);
                               try {
-                                await ApiService.instance.delete('/customers/$customerId');
+                                await ApiService.instance
+                                    .delete('/customers/$customerId');
                                 _fetchCustomers();
                                 if (mounted) {
-                                  Navigator.pop(ctx); // Cierra modal de confirmación
-                                  Navigator.pop(context); // Cierra modal de detalles del customere
+                                  Navigator.pop(
+                                      ctx); // Cierra modal de confirmación
+                                  Navigator.pop(
+                                      context); // Cierra modal de detalles del customere
                                   ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                           content: Text(
@@ -870,14 +922,15 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                   const SizedBox(height: 16),
                   Expanded(
                     child: FutureBuilder<dynamic>(
-                      future: ApiService.instance.get('/admin/jobs?customer_id=$customerId'),
+                      future: ApiService.instance
+                          .get('/admin/jobs?customer_id=$customerId'),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
                           return const Center(
                               child: CircularProgressIndicator());
                         }
-                        
+
                         List<dynamic> jobsList = snapshot.data ?? [];
                         if (jobsList.isEmpty) {
                           return const Center(
@@ -966,7 +1019,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                           alignment: Alignment.centerRight,
                           child: GestureDetector(
                             onTap: () => _showDeleteCustomerDialog(
-                                id, '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim().isEmpty ? 'Customer' : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim()),
+                                id,
+                                '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
+                                        .trim()
+                                        .isEmpty
+                                    ? 'Customer'
+                                    : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
+                                        .trim()),
                             child: const Icon(Icons.person_remove,
                                 color: Colors.redAccent),
                           ))
@@ -986,7 +1045,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            Text('${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim().isEmpty ? 'No Name' : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim(),
+                            Text(
+                                '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
+                                        .trim()
+                                        .isEmpty
+                                    ? 'No Name'
+                                    : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
+                                        .trim(),
                                 style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 22,
@@ -1034,7 +1099,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                       Expanded(
                           child: ElevatedButton.icon(
                               onPressed: () => _showJobHistoryModal(
-                                  id, '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'.trim()),
+                                  id,
+                                  '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
+                                      .trim()),
                               icon: const Icon(Icons.history,
                                   color: Colors.white, size: 16),
                               label: const Text("Job History",
@@ -1057,32 +1124,47 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   // --- MOTOR MAESTRO DE CREACIÓN DE TRABAJOS ---
   void _showCreateJobModal() {
     Future<dynamic>? workersFuture = ApiService.instance.get('/admin/workers');
+    Future<dynamic>? teamsFuture = ApiService.instance.get('/admin/teams');
+    Future<dynamic>? customersFuture =
+        ApiService.instance.get('/admin/customers');
+    Future<dynamic>? itemsFuture = ApiService.instance.get('/items');
+
+    TextEditingController jobTitleCtrl = TextEditingController();
     TextEditingController notesCtrl = TextEditingController();
     TextEditingController addressCtrl = TextEditingController();
 
+    // Quick Add Item Controllers
+    TextEditingController newItemNameCtrl = TextEditingController();
+    TextEditingController newItemPriceCtrl = TextEditingController();
+    TextEditingController newItemQtyCtrl = TextEditingController();
+
     DateTime selectedDate = DateTime.now();
-    TimeOfDay selectedTime = TimeOfDay.now();
+    TimeOfDay selectedStartTime = TimeOfDay.now();
+    TimeOfDay? selectedEndTime = TimeOfDay(
+        hour: (TimeOfDay.now().hour + 2) % 24, minute: TimeOfDay.now().minute);
 
-    String? selectedJobType;
-    String selectedFrequency = "One-time";
-    String selectedDuration = "1 Month";
+    String? selectedJobType = "Job";
+    bool isRecurring = false;
+    String recFrequency = 'weekly';
+    TextEditingController recIntervalCtrl = TextEditingController(text: '1');
+    List<int> recDaysOfWeek = [];
+    String recEndType = 'never';
+    TextEditingController recOccurrencesCtrl = TextEditingController();
+    DateTime? recEndDate;
+    bool recSkipWeekends = false;
+    bool recAutoNotify = false;
 
-    List<String> currentSelectedDays = [];
-    final List<String> weekDays = [
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun"
-    ];
+    List<String> selectedWorkerIds = [];
+    List<String> selectedTeamIds = [];
 
     String? selectedCustomerId;
     String? selectedCustomerName;
-    List<String> currentSelectedTasks = [];
 
-    List<String> selectedWorkerIds = [];
+    // Items state
+    List<Map<String, dynamic>> availableItems = [];
+    List<Map<String, dynamic>> selectedItems = [];
+    bool isAddingNewItem = false;
+
     String? selectedTeamLeaderId;
     List<dynamic> placePredictions = [];
     bool isSaving = false;
@@ -1095,503 +1177,743 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.90,
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: StatefulBuilder(
-              builder: (BuildContext context, StateSetter setModalState) {
-            Future<void> searchPlaces(String query) async {
-              if (query.isEmpty) {
-                setModalState(() => placePredictions = []);
-                return;
-              }
-              try {
-                if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-                final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
-                final response = await http.get(uri);
-                if (response.statusCode == 200) {
-                  final data = jsonDecode(response.body);
-                  if (data['status'] == 'OK') {
-                    setModalState(() => placePredictions = List<dynamic>.from(data['predictions'] ?? []));
-                  }
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.90,
+            child: StatefulBuilder(
+                builder: (BuildContext context, StateSetter setModalState) {
+              Future<void> searchPlaces(String query) async {
+                if (query.isEmpty) {
+                  setModalState(() => placePredictions = []);
+                  return;
                 }
-              } catch (e) {
-                debugPrint("Cloud Function Error (Autocomplete): $e");
-              }
-            }
-
-            Future<void> getPlaceDetails(String placeId) async {
-              try {
-                if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-                final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
-                final response = await http.get(uri);
-                if (response.statusCode == 200) {
-                  final data = jsonDecode(response.body);
-                  if (data['status'] == 'OK') {
-                    var location = data['result']['geometry']['location'];
-                    setModalState(() {
-                      latitude = location['lat'];
-                      longitude = location['lng'];
-                    });
+                try {
+                  if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                    return;
+                  final uri = Uri.parse(
+                      "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
+                  final response = await http.get(uri);
+                  if (response.statusCode == 200) {
+                    final data = jsonDecode(response.body);
+                    if (data['status'] == 'OK') {
+                      setModalState(() => placePredictions =
+                          List<dynamic>.from(data['predictions'] ?? []));
+                    }
                   }
+                } catch (e) {
+                  debugPrint("Cloud Function Error (Autocomplete): $e");
                 }
-              } catch (e) {
-                debugPrint("Cloud Function Error (Details): $e");
               }
-            }
 
-            Future<void> addNewItemDialog(String title, bool isJobType) async {
-              TextEditingController newItemCtrl = TextEditingController();
-              await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                    backgroundColor: const Color(0xFF1E293B),
-                    title: Text("Add New $title",
-                        style: const TextStyle(color: Colors.white)),
-                    content: TextField(
-                        controller: newItemCtrl,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                            hintText: "Enter name...",
-                            hintStyle: TextStyle(color: Colors.white38),
-                            enabledBorder: UnderlineInputBorder(
-                                borderSide:
-                                    BorderSide(color: Color(0xFF3B82F6))))),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("Cancel",
-                              style: TextStyle(color: Colors.white60))),
-                      ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3B82F6)),
-                          onPressed: () {
-                            if (newItemCtrl.text.isNotEmpty) {
-                              setModalState(() {
-                                if (isJobType) {
-                                  _jobTypes.add(newItemCtrl.text.trim());
-                                  selectedJobType = newItemCtrl.text.trim();
-                                } else {
-                                  _availableTasks.add(newItemCtrl.text.trim());
-                                  currentSelectedTasks
-                                      .add(newItemCtrl.text.trim());
-                                }
-                              });
-                            }
-                            Navigator.pop(context);
-                          },
-                          child: const Text("Save",
-                              style: TextStyle(color: Colors.white)))
-                    ]),
-              );
-            }
+              Future<void> getPlaceDetails(String placeId) async {
+                try {
+                  if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                    return;
+                  final uri = Uri.parse(
+                      "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+                  final response = await http.get(uri);
+                  if (response.statusCode == 200) {
+                    final data = jsonDecode(response.body);
+                    if (data['status'] == 'OK') {
+                      var location = data['result']['geometry']['location'];
+                      setModalState(() {
+                        latitude = location['lat'];
+                        longitude = location['lng'];
+                      });
+                    }
+                  }
+                } catch (e) {
+                  debugPrint("Cloud Function Error (Details): $e");
+                }
+              }
 
-            void showMultiSelectWorkerDialog(List<dynamic> workers) {
-              showDialog(
-                  context: context,
-                  builder: (BuildContext dialogContext) {
-                    return StatefulBuilder(builder: (context, setDialogState) {
-                      return AlertDialog(
-                        backgroundColor: const Color(0xFF1E293B),
-                        title: const Text("Select Team Members",
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold)),
-                        content: SizedBox(
-                          width: double.maxFinite,
-                          height: 300,
-                          child: ListView.builder(
-                            itemCount: workers.length,
-                            itemBuilder: (context, index) {
-                              var doc = workers[index];
-                              var data = doc as Map<String, dynamic>;
-                              String docId = data['id'].toString();
-                              bool isSelected =
-                                  selectedWorkerIds.contains(docId);
-
-                              return CheckboxListTile(
-                                title: Text(data['display_name'] ?? 'Worker',
-                                    style:
-                                        const TextStyle(color: Colors.white)),
-                                value: isSelected,
-                                activeColor: const Color(0xFF3B82F6),
-                                checkColor: Colors.white,
-                                side: const BorderSide(color: Colors.white60),
-                                onChanged: (bool? val) {
-                                  setDialogState(() {
-                                    if (val == true) {
-                                      selectedWorkerIds.add(docId);
-                                    } else {
-                                      selectedWorkerIds.remove(docId);
-                                      if (selectedTeamLeaderId == docId) {
-                                        selectedTeamLeaderId = null;
-                                      }
-                                    }
-                                  });
-                                  setModalState(() {});
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                        actions: [
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF3B82F6)),
-                            onPressed: () => Navigator.pop(dialogContext),
-                            child: const Text("Done",
-                                style: TextStyle(color: Colors.white)),
-                          )
-                        ],
-                      );
-                    });
-                  });
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom),
-              child: Column(
-                children: [
-                  Padding(
-                      padding: const EdgeInsets.only(top: 16, bottom: 8),
-                      child: Center(
-                          child: Container(
-                              width: 40,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                  color: Colors.white24,
-                                  borderRadius: BorderRadius.circular(2))))),
-                  Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 8),
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text("Assign Job",
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold)),
-                            IconButton(
-                                icon: const Icon(Icons.close,
-                                    color: Colors.white60),
-                                onPressed: () => Navigator.pop(context))
-                          ])),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Select Customer",
+              void showAssignmentDialog(
+                  List<dynamic> workers, List<dynamic> teams) {
+                showDialog(
+                    context: context,
+                    builder: (BuildContext dialogContext) {
+                      return StatefulBuilder(
+                          builder: (context, setDialogState) {
+                        return AlertDialog(
+                          backgroundColor: const Color(0xFF1E293B),
+                          title: const Text("Assign Teams & Staff",
                               style: TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 13,
+                                  color: Colors.white,
                                   fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Builder(
-                            builder: (context) {
-                              List<DropdownMenuItem<String>> customerItems =
-                                  _customersList.map((customer) {
-                                return DropdownMenuItem<String>(
-                                    value: customer['id'].toString(),
-                                    child: Text('${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'.trim().isEmpty ? 'Unknown' : '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'.trim(),
-                                        style: const TextStyle(
-                                            color: Colors.white)));
-                              }).toList();
-
-                              customerItems.insert(
-                                  0,
-                                  const DropdownMenuItem(
-                                      value: "ADD_NEW",
-                                      child: Row(children: [
-                                        Icon(Icons.person_add,
-                                            color: Color(0xFF10B981), size: 20),
-                                        SizedBox(width: 8),
-                                        Text("Add New Customer",
-                                            style: TextStyle(
-                                                color: Color(0xFF10B981),
-                                                fontWeight: FontWeight.bold))
-                                      ])));
-
-                              return Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white10)),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    isExpanded: true,
-                                    dropdownColor: const Color(0xFF1E293B),
-                                    value: selectedCustomerId,
-                                    hint: const Text("Choose a customer...",
-                                        style:
-                                            TextStyle(color: Colors.white38)),
-                                    icon: const Icon(Icons.keyboard_arrow_down,
-                                        color: Color(0xFF3B82F6)),
-                                    items: customerItems,
-                                    onChanged: (val) {
-                                      if (val == "ADD_NEW") {
-                                        _showAddCustomerDialog(parentSetState: setModalState);
-                                      } else if (val != null) {
-                                        var selectedDoc = _customersList
-                                            .firstWhere((d) => d['id'].toString() == val);
-
-                                        setModalState(() {
-                                          selectedCustomerId = val;
-                                          selectedCustomerName = '${selectedDoc['first_name'] ?? ''} ${selectedDoc['last_name'] ?? ''}'.trim();
-                                          if (selectedDoc['address1'] != null &&
-                                              selectedDoc['address1']
-                                                  .toString()
-                                                  .isNotEmpty) {
-                                            addressCtrl.text = selectedDoc['address1'];
-                                            latitude = selectedDoc['lat'] != null
-                                                ? (double.tryParse(selectedDoc['lat'].toString()) ?? 0.0)
-                                                : 0.0;
-                                            longitude = selectedDoc['lng'] != null
-                                                ? (double.tryParse(selectedDoc['lng'].toString()) ?? 0.0)
-                                                : 0.0;
-                                          } else if (selectedDoc['primary_address'] != null) {
-                                            addressCtrl.text = selectedDoc['primary_address']['address1'] ?? '';
-                                            latitude = selectedDoc['primary_address']['latitude'] != null
-                                                ? (double.tryParse(selectedDoc['primary_address']['latitude'].toString()) ?? 0.0)
-                                                : 0.0;
-                                            longitude = selectedDoc['primary_address']['longitude'] != null
-                                                ? (double.tryParse(selectedDoc['primary_address']['longitude'].toString()) ?? 0.0)
-                                                : 0.0;
-                                          }
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          const Text("Service Address",
-                              style: TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white10)),
-                            child: Column(
-                              children: [
-                                TextField(
-                                  controller: addressCtrl,
-                                  onChanged: (val) {
-                                    if (val.length > 3) {
-                                      searchPlaces(val);
-                                    } else {
-                                      setModalState(
-                                          () => placePredictions = []);
-                                    }
-                                  },
-                                  style: const TextStyle(color: Colors.white),
-                                  decoration: const InputDecoration(
-                                      hintText: "Start typing address...",
-                                      hintStyle:
-                                          TextStyle(color: Colors.white38),
-                                      prefixIcon: Icon(Icons.location_on,
-                                          color: Color(0xFF3B82F6)),
-                                      border: InputBorder.none,
-                                      contentPadding:
-                                          EdgeInsets.symmetric(vertical: 16)),
-                                ),
-                                if (placePredictions.isNotEmpty)
-                                  Container(
-                                    decoration: const BoxDecoration(
-                                        color: Color(0xFF0D1B2A),
-                                        borderRadius: BorderRadius.only(
-                                            bottomLeft: Radius.circular(12),
-                                            bottomRight: Radius.circular(12))),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: placePredictions
-                                          .map<Widget>((p) => ListTile(
-                                                title: Text(
-                                                    p['description']
-                                                            ?.toString() ??
-                                                        '',
-                                                    style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 13)),
-                                                onTap: () async {
-                                                  String pId = p['place_id']
-                                                          ?.toString() ??
-                                                      '';
-                                                  setModalState(() {
-                                                    addressCtrl.text =
-                                                        p['description']
-                                                                ?.toString() ??
-                                                            '';
-                                                    placePredictions.clear();
-                                                  });
-                                                  await getPlaceDetails(pId);
-                                                },
-                                              ))
-                                          .toList(),
+                          content: SizedBox(
+                            width: double.maxFinite,
+                            height: 400,
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (teams.isNotEmpty) ...[
+                                    const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 8.0),
+                                      child: Text("Teams",
+                                          style: TextStyle(
+                                              color: Color(0xFF3B82F6),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14)),
                                     ),
-                                  )
-                              ],
-                            ),
-                          ),
-                          if (latitude != 0.0) ...[
-                            const SizedBox(height: 8),
-                            const Row(children: [
-                              Icon(Icons.gps_fixed,
-                                  color: Color(0xFF10B981), size: 14),
-                              SizedBox(width: 6),
-                              Text("Address Confirmed",
-                                  style: TextStyle(
-                                      color: Color(0xFF10B981),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold)),
-                            ]),
-                          ],
-                          const SizedBox(height: 20),
-                          const Text("Job Type",
-                              style: TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white10)),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                dropdownColor: const Color(0xFF1E293B),
-                                value: selectedJobType,
-                                hint: const Text("Select or add new...",
-                                    style: TextStyle(color: Colors.white38)),
-                                icon: const Icon(Icons.keyboard_arrow_down,
-                                    color: Color(0xFF3B82F6)),
-                                items: [
-                                  ..._jobTypes.map((type) => DropdownMenuItem(
-                                      value: type,
-                                      child: Text(type,
-                                          style: const TextStyle(
-                                              color: Colors.white)))),
-                                  const DropdownMenuItem(
-                                      value: "ADD_NEW",
-                                      child: Row(children: [
-                                        Icon(Icons.add,
-                                            color: Color(0xFF3B82F6), size: 20),
-                                        SizedBox(width: 8),
-                                        Text("Add new job type",
-                                            style: TextStyle(
-                                                color: Color(0xFF3B82F6),
-                                                fontWeight: FontWeight.bold))
-                                      ]))
+                                    ...teams.map((doc) {
+                                      var data = doc as Map<String, dynamic>;
+                                      String docId = data['id'].toString();
+                                      bool isSelected =
+                                          selectedTeamIds.contains(docId);
+                                      return CheckboxListTile(
+                                        title: Text(data['name'] ?? 'Team',
+                                            style: const TextStyle(
+                                                color: Colors.white)),
+                                        subtitle: data['member_count'] != null
+                                            ? Text(
+                                                "${data['member_count']} members",
+                                                style: const TextStyle(
+                                                    color: Colors.white60,
+                                                    fontSize: 12))
+                                            : null,
+                                        value: isSelected,
+                                        activeColor: const Color(0xFF3B82F6),
+                                        checkColor: Colors.white,
+                                        side: const BorderSide(
+                                            color: Colors.white60),
+                                        onChanged: (bool? val) {
+                                          setDialogState(() {
+                                            if (val == true) {
+                                              selectedTeamIds.add(docId);
+                                            } else {
+                                              selectedTeamIds.remove(docId);
+                                            }
+                                          });
+                                          setModalState(() {});
+                                        },
+                                      );
+                                    }).toList(),
+                                    const Divider(color: Colors.white10),
+                                  ],
+                                  if (workers.isNotEmpty) ...[
+                                    const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 8.0),
+                                      child: Text("Individual Staff",
+                                          style: TextStyle(
+                                              color: Color(0xFF3B82F6),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14)),
+                                    ),
+                                    ...workers.map((doc) {
+                                      var data = doc as Map<String, dynamic>;
+                                      String docId = data['id'].toString();
+                                      bool isSelected =
+                                          selectedWorkerIds.contains(docId);
+                                      return CheckboxListTile(
+                                        title: Text(
+                                            data['display_name'] ??
+                                                data['name'] ??
+                                                'Worker',
+                                            style: const TextStyle(
+                                                color: Colors.white)),
+                                        value: isSelected,
+                                        activeColor: const Color(0xFF3B82F6),
+                                        checkColor: Colors.white,
+                                        side: const BorderSide(
+                                            color: Colors.white60),
+                                        onChanged: (bool? val) {
+                                          setDialogState(() {
+                                            if (val == true) {
+                                              selectedWorkerIds.add(docId);
+                                            } else {
+                                              selectedWorkerIds.remove(docId);
+                                              if (selectedTeamLeaderId ==
+                                                  docId) {
+                                                selectedTeamLeaderId = null;
+                                              }
+                                            }
+                                          });
+                                          setModalState(() {});
+                                        },
+                                      );
+                                    }).toList(),
+                                  ]
                                 ],
-                                onChanged: (val) {
-                                  if (val == "ADD_NEW") {
-                                    addNewItemDialog("Job Type", true);
-                                  } else {
-                                    setModalState(() => selectedJobType = val);
-                                  }
-                                },
                               ),
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          const Text("Task Checklist",
-                              style: TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
+                          actions: [
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF3B82F6)),
+                              onPressed: () => Navigator.pop(dialogContext),
+                              child: const Text("Done",
+                                  style: TextStyle(color: Colors.white)),
+                            )
+                          ],
+                        );
+                      });
+                    });
+              }
+
+              return Padding(
+                padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom),
+                child: Column(
+                  children: [
+                    Padding(
+                        padding: const EdgeInsets.only(top: 16, bottom: 8),
+                        child: Center(
+                            child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                    color: Colors.white24,
+                                    borderRadius: BorderRadius.circular(2))))),
+                    Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              ..._availableTasks.map((task) {
-                                bool isSelected =
-                                    currentSelectedTasks.contains(task);
-                                return GestureDetector(
-                                    onTap: () => setModalState(() {
-                                          isSelected
-                                              ? currentSelectedTasks
-                                                  .remove(task)
-                                              : currentSelectedTasks.add(task);
-                                        }),
-                                    child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(
-                                            color: isSelected
-                                                ? const Color(0xFF3B82F6)
-                                                : const Color(0xFF1E293B),
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                            border: Border.all(
-                                                color: isSelected
-                                                    ? const Color(0xFF3B82F6)
-                                                    : Colors.white24)),
-                                        child: Text(task,
-                                            style: TextStyle(
-                                                color: isSelected
-                                                    ? Colors.white
-                                                    : Colors.white60,
-                                                fontSize: 13))));
-                              }),
-                              GestureDetector(
-                                  onTap: () => addNewItemDialog("Task", false),
-                                  child: Container(
+                              const Text("Assign Job",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold)),
+                              IconButton(
+                                  icon: const Icon(Icons.close,
+                                      color: Colors.white60),
+                                  onPressed: () => Navigator.pop(context))
+                            ])),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Select Customer",
+                                style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            FutureBuilder<dynamic>(
+                              future: customersFuture,
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const SizedBox(
+                                    height: 41,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFF3B82F6)),
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                var customers = snapshot.data is Map &&
+                                        snapshot.data.containsKey('data')
+                                    ? snapshot.data['data']
+                                    : (snapshot.data is List
+                                        ? snapshot.data
+                                        : []);
+
+                                List<dynamic> customersList =
+                                    List.from(customers);
+
+                                List<DropdownMenuItem<String>> customerItems =
+                                    customersList.map((customer) {
+                                  return DropdownMenuItem<String>(
+                                      value: customer['id'].toString(),
+                                      child: Text(
+                                          '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'
+                                                  .trim()
+                                                  .isEmpty
+                                              ? 'Unknown'
+                                              : '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'
+                                                  .trim(),
+                                          style: const TextStyle(
+                                              color: Colors.white)));
+                                }).toList();
+
+                                return Container(
+                                  height: 41,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xFF1E293B),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border:
+                                          Border.all(color: Colors.white10)),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      dropdownColor: const Color(0xFF1E293B),
+                                      value: selectedCustomerId,
+                                      hint: const Text("Choose a customer...",
+                                          style:
+                                              TextStyle(color: Colors.white38)),
+                                      icon: const Icon(
+                                          Icons.keyboard_arrow_down,
+                                          color: Color(0xFF3B82F6)),
+                                      items: customerItems,
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          var selectedDoc =
+                                              customersList.firstWhere((d) =>
+                                                  d['id'].toString() == val);
+
+                                          setModalState(() {
+                                            selectedCustomerId = val;
+                                            selectedCustomerName =
+                                                '${selectedDoc['first_name'] ?? ''} ${selectedDoc['last_name'] ?? ''}'
+                                                    .trim();
+                                            if (selectedDoc['address1'] !=
+                                                    null &&
+                                                selectedDoc['address1']
+                                                    .toString()
+                                                    .isNotEmpty) {
+                                              addressCtrl.text =
+                                                  selectedDoc['address1'];
+                                              latitude = selectedDoc['lat'] !=
+                                                      null
+                                                  ? (double.tryParse(
+                                                          selectedDoc['lat']
+                                                              .toString()) ??
+                                                      0.0)
+                                                  : 0.0;
+                                              longitude = selectedDoc['lng'] !=
+                                                      null
+                                                  ? (double.tryParse(
+                                                          selectedDoc['lng']
+                                                              .toString()) ??
+                                                      0.0)
+                                                  : 0.0;
+                                            } else if (selectedDoc[
+                                                    'primary_address'] !=
+                                                null) {
+                                              addressCtrl.text =
+                                                  selectedDoc['primary_address']
+                                                          ['address1'] ??
+                                                      '';
+                                              latitude = selectedDoc[
+                                                              'primary_address']
+                                                          ['latitude'] !=
+                                                      null
+                                                  ? (double.tryParse(selectedDoc[
+                                                                  'primary_address']
+                                                              ['latitude']
+                                                          .toString()) ??
+                                                      0.0)
+                                                  : 0.0;
+                                              longitude = selectedDoc[
+                                                              'primary_address']
+                                                          ['longitude'] !=
+                                                      null
+                                                  ? (double.tryParse(selectedDoc[
+                                                                  'primary_address']
+                                                              ['longitude']
+                                                          .toString()) ??
+                                                      0.0)
+                                                  : 0.0;
+                                            }
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            const Text("Job Title",
+                                style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            _buildSimpleTextField(
+                                jobTitleCtrl, "Enter job title..."),
+                            const SizedBox(height: 16),
+                            const Text("Service Address",
+                                style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white10)),
+                              child: Column(
+                                children: [
+                                  SizedBox(
+                                    height: 41,
+                                    child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 8),
-                                      decoration: BoxDecoration(
-                                          color: Colors.transparent,
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                              color: const Color(0xFF3B82F6),
-                                              style: BorderStyle.solid)),
-                                      child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.add,
-                                                color: Color(0xFF3B82F6),
-                                                size: 16),
-                                            SizedBox(width: 4),
-                                            Text("Add task",
-                                                style: TextStyle(
-                                                    color: Color(0xFF3B82F6),
-                                                    fontSize: 13))
-                                          ]))),
+                                          horizontal: 16),
+                                      child: Center(
+                                        child: TextField(
+                                          controller: addressCtrl,
+                                          onChanged: (val) {
+                                            if (val.length > 3) {
+                                              searchPlaces(val);
+                                            } else {
+                                              setModalState(
+                                                  () => placePredictions = []);
+                                            }
+                                          },
+                                          textAlignVertical:
+                                              TextAlignVertical.center,
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13),
+                                          decoration: const InputDecoration(
+                                              hintText:
+                                                  "Start typing address...",
+                                              hintStyle: TextStyle(
+                                                  color: Colors.white38,
+                                                  fontSize: 13),
+                                              prefixIconConstraints:
+                                                  BoxConstraints(
+                                                      minWidth: 36,
+                                                      minHeight: 0),
+                                              prefixIcon: Icon(
+                                                  Icons.location_on,
+                                                  color: Color(0xFF3B82F6),
+                                                  size: 20),
+                                              border: InputBorder.none,
+                                              isDense: true,
+                                              contentPadding: EdgeInsets.zero),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (placePredictions.isNotEmpty)
+                                    Material(
+                                      color: const Color(0xFF0D1B2A),
+                                      borderRadius: const BorderRadius.only(
+                                          bottomLeft: Radius.circular(12),
+                                          bottomRight: Radius.circular(12)),
+                                      clipBehavior: Clip.hardEdge,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: placePredictions
+                                            .map<Widget>((p) => ListTile(
+                                                  title: Text(
+                                                      p['description']
+                                                              ?.toString() ??
+                                                          '',
+                                                      style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 13)),
+                                                  onTap: () async {
+                                                    String pId = p['place_id']
+                                                            ?.toString() ??
+                                                        '';
+                                                    setModalState(() {
+                                                      addressCtrl.text = p[
+                                                                  'description']
+                                                              ?.toString() ??
+                                                          '';
+                                                      placePredictions.clear();
+                                                    });
+                                                    await getPlaceDetails(pId);
+                                                  },
+                                                ))
+                                            .toList(),
+                                      ),
+                                    )
+                                ],
+                              ),
+                            ),
+                            if (latitude != 0.0) ...[
+                              const SizedBox(height: 8),
+                              const Row(children: [
+                                Icon(Icons.gps_fixed,
+                                    color: Color(0xFF10B981), size: 14),
+                                SizedBox(width: 6),
+                                Text("Address Confirmed",
+                                    style: TextStyle(
+                                        color: Color(0xFF10B981),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold)),
+                              ]),
                             ],
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              Expanded(
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                            const SizedBox(height: 20),
+                            const Text("Job Type",
+                                style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Container(
+                              height: 41,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white10)),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  isExpanded: true,
+                                  dropdownColor: const Color(0xFF1E293B),
+                                  value: selectedJobType,
+                                  hint: const Text("Select or add new...",
+                                      style: TextStyle(color: Colors.white38)),
+                                  icon: const Icon(Icons.keyboard_arrow_down,
+                                      color: Color(0xFF3B82F6)),
+                                  items: _jobTypes
+                                      .map((type) => DropdownMenuItem(
+                                          value: type,
+                                          child: Text(type,
+                                              style: const TextStyle(
+                                                  color: Colors.white))))
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setModalState(
+                                          () => selectedJobType = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text("Items",
+                                    style: TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold)),
+                                if (!isAddingNewItem)
+                                  GestureDetector(
+                                    onTap: () => setModalState(() {
+                                      isAddingNewItem = true;
+                                      newItemPriceCtrl.text = "0";
+                                    }),
+                                    child: const Row(children: [
+                                      Icon(Icons.add_circle,
+                                          color: Color(0xFF3B82F6), size: 16),
+                                      SizedBox(width: 4),
+                                      Text("Add quick item",
+                                          style: TextStyle(
+                                              color: Color(0xFF3B82F6),
+                                              fontSize: 13))
+                                    ]),
+                                  )
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            if (isAddingNewItem)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white10),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
                                       children: [
-                                    const Text("Start Date",
-                                        style: TextStyle(
-                                            color: Colors.white60,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 8),
-                                    GestureDetector(
+                                        Expanded(
+                                          flex: 2,
+                                          child: _buildSimpleTextField(
+                                              newItemNameCtrl, "Item Name"),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          flex: 1,
+                                          child: _buildSimpleTextField(
+                                              newItemPriceCtrl, "Price",
+                                              isAddress: false),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton(
+                                          onPressed: () => setModalState(
+                                              () => isAddingNewItem = false),
+                                          child: const Text("Cancel",
+                                              style: TextStyle(
+                                                  color: Colors.white60)),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  const Color(0xFF3B82F6)),
+                                          onPressed: () {
+                                            if (newItemNameCtrl.text.isEmpty)
+                                              return;
+                                            setModalState(() {
+                                              selectedItems.add({
+                                                'description':
+                                                    newItemNameCtrl.text.trim(),
+                                                'price': double.tryParse(
+                                                        newItemPriceCtrl
+                                                            .text) ??
+                                                    0.0,
+                                                'quantity': 1,
+                                                'save_to_items': false,
+                                              });
+                                              isAddingNewItem = false;
+                                              newItemNameCtrl.clear();
+                                              newItemPriceCtrl.clear();
+                                            });
+                                          },
+                                          child: const Text("Add",
+                                              style: TextStyle(
+                                                  color: Colors.white)),
+                                        )
+                                      ],
+                                    )
+                                  ],
+                                ),
+                              ),
+                            FutureBuilder<dynamic>(
+                              future: itemsFuture,
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData)
+                                  return const SizedBox.shrink();
+                                var itemsList = [];
+                                if (snapshot.data is Map &&
+                                    snapshot.data['data'] != null) {
+                                  itemsList = snapshot.data['data'];
+                                } else if (snapshot.data is List) {
+                                  itemsList = snapshot.data;
+                                }
+                                return Container(
+                                  height: 41,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xFF1E293B),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border:
+                                          Border.all(color: Colors.white10)),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      dropdownColor: const Color(0xFF1E293B),
+                                      hint: const Text("Select item...",
+                                          style: TextStyle(
+                                              color: Colors.white38,
+                                              fontSize: 13)),
+                                      icon: const Icon(
+                                          Icons.keyboard_arrow_down,
+                                          color: Color(0xFF3B82F6)),
+                                      items: itemsList
+                                          .map<DropdownMenuItem<String>>(
+                                              (item) {
+                                        double price = double.tryParse(
+                                                item['price']?.toString() ??
+                                                    "0") ??
+                                            0.0;
+                                        return DropdownMenuItem<String>(
+                                          value: item['id'].toString(),
+                                          child: Text(
+                                              "${item['name'] ?? ''} - \$${price.toStringAsFixed(2)}",
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13)),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          var selected = itemsList.firstWhere(
+                                              (i) => i['id'].toString() == val);
+                                          setModalState(() {
+                                            selectedItems.add({
+                                              'item_id': selected['id'],
+                                              'description': selected['name'],
+                                              'price': selected['price'] ?? 0.0,
+                                              'quantity': 1,
+                                            });
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            if (selectedItems.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Column(
+                                  children: selectedItems
+                                      .asMap()
+                                      .entries
+                                      .map((entry) {
+                                    int idx = entry.key;
+                                    var item = entry.value;
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF1E293B),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                              child: Text(
+                                                  item['description'] ?? '',
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 13))),
+                                          Text(
+                                              "\$${item['price']} x ${item['quantity']}",
+                                              style: const TextStyle(
+                                                  color: Colors.white60,
+                                                  fontSize: 13)),
+                                          const SizedBox(width: 12),
+                                          GestureDetector(
+                                            onTap: () => setModalState(() =>
+                                                selectedItems.removeAt(idx)),
+                                            child: const Icon(Icons.close,
+                                                color: Colors.redAccent,
+                                                size: 18),
+                                          )
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            const SizedBox(height: 20),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("Job Date",
+                                          style: TextStyle(
+                                              color: Colors.white60,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 8),
+                                      GestureDetector(
                                         onTap: () async {
                                           DateTime? pickedDate = await showDatePicker(
                                               context: context,
@@ -1607,28 +1929,14 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                                                   0xFF3B82F6))),
                                                   child: child!));
                                           if (pickedDate != null) {
-                                            TimeOfDay? pickedTime = await showTimePicker(
-                                                context: context,
-                                                initialTime: selectedTime,
-                                                builder: (context, child) => Theme(
-                                                    data: ThemeData.dark().copyWith(
-                                                        colorScheme:
-                                                            const ColorScheme
-                                                                .dark(
-                                                                primary: Color(
-                                                                    0xFF3B82F6))),
-                                                    child: child!));
-                                            if (pickedTime != null) {
-                                              setModalState(() {
-                                                selectedDate = pickedDate;
-                                                selectedTime = pickedTime;
-                                              });
-                                            }
+                                            setModalState(() =>
+                                                selectedDate = pickedDate);
                                           }
                                         },
                                         child: Container(
+                                            height: 41,
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 16),
+                                                horizontal: 10),
                                             decoration: BoxDecoration(
                                                 color: const Color(0xFF1E293B),
                                                 borderRadius:
@@ -1639,385 +1947,949 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                                   size: 20),
                                               const SizedBox(width: 8),
                                               Expanded(
-                                                child: Text(
-                                                    "${DateFormat('MMM d').format(selectedDate)}, ${selectedTime.format(context)}",
-                                                    style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 13),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis),
-                                              )
-                                            ])))
-                                  ])),
-                              const SizedBox(width: 16),
-                              Expanded(
+                                                  child: Text(
+                                                      DateFormat('MMM d')
+                                                          .format(selectedDate),
+                                                      style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 13))),
+                                            ])),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
                                   child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                    const Text("Frequency",
-                                        style: TextStyle(
-                                            color: Colors.white60,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 8),
-                                    Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16),
-                                        decoration: BoxDecoration(
-                                            color: const Color(0xFF1E293B),
-                                            borderRadius:
-                                                BorderRadius.circular(12)),
-                                        child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<String>(
-                                                isExpanded: true,
-                                                dropdownColor:
-                                                    const Color(0xFF1E293B),
-                                                value: selectedFrequency,
-                                                icon: const Icon(
-                                                    Icons.keyboard_arrow_down,
-                                                    color: Color(0xFF3B82F6)),
-                                                items: _frequencies
-                                                    .map((freq) => DropdownMenuItem(
-                                                        value: freq,
-                                                        child: Text(freq,
-                                                            style: const TextStyle(
-                                                                color: Colors
-                                                                    .white))))
-                                                    .toList(),
-                                                onChanged: (val) {
-                                                  if (val != null) {
-                                                    setModalState(() =>
-                                                        selectedFrequency =
-                                                            val);
-                                                  }
-                                                })))
-                                  ])),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          if (selectedFrequency == "Custom") ...[
-                            const Text("Select Days",
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("Start Time",
+                                          style: TextStyle(
+                                              color: Colors.white60,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 8),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          TimeOfDay? pickedTime = await showTimePicker(
+                                              context: context,
+                                              initialTime: selectedStartTime,
+                                              builder: (context, child) => Theme(
+                                                  data: ThemeData.dark().copyWith(
+                                                      colorScheme:
+                                                          const ColorScheme
+                                                              .dark(
+                                                              primary: Color(
+                                                                  0xFF3B82F6))),
+                                                  child: child!));
+                                          if (pickedTime != null) {
+                                            setModalState(() {
+                                              selectedStartTime = pickedTime;
+                                              selectedEndTime = TimeOfDay(
+                                                  hour: (pickedTime.hour + 2) %
+                                                      24,
+                                                  minute: pickedTime.minute);
+                                            });
+                                          }
+                                        },
+                                        child: Container(
+                                            height: 41,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10),
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFF1E293B),
+                                                borderRadius:
+                                                    BorderRadius.circular(12)),
+                                            child: Row(children: [
+                                              const Icon(Icons.access_time,
+                                                  color: Color(0xFF3B82F6),
+                                                  size: 20),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                  child: Text(
+                                                      selectedStartTime
+                                                          .format(context),
+                                                      style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 13))),
+                                            ])),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("End Time",
+                                          style: TextStyle(
+                                              color: Colors.white60,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 8),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          TimeOfDay? pickedTime = await showTimePicker(
+                                              context: context,
+                                              initialTime: selectedEndTime ??
+                                                  selectedStartTime,
+                                              builder: (context, child) => Theme(
+                                                  data: ThemeData.dark().copyWith(
+                                                      colorScheme:
+                                                          const ColorScheme
+                                                              .dark(
+                                                              primary: Color(
+                                                                  0xFF3B82F6))),
+                                                  child: child!));
+                                          if (pickedTime != null) {
+                                            setModalState(() =>
+                                                selectedEndTime = pickedTime);
+                                          }
+                                        },
+                                        child: Container(
+                                            height: 41,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10),
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFF1E293B),
+                                                borderRadius:
+                                                    BorderRadius.circular(12)),
+                                            child: Row(children: [
+                                              const Icon(Icons.access_time,
+                                                  color: Colors.grey, size: 20),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                  child: Text(
+                                                      selectedEndTime?.format(
+                                                              context) ??
+                                                          "--:--",
+                                                      style: TextStyle(
+                                                          color:
+                                                              selectedEndTime !=
+                                                                      null
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .white38,
+                                                          fontSize: 13))),
+                                            ])),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            const SizedBox(height: 20),
+                            const Text("Assign Team",
                                 style: TextStyle(
                                     color: Colors.white60,
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: weekDays.map((day) {
-                                bool isSelected =
-                                    currentSelectedDays.contains(day);
-                                return GestureDetector(
-                                  onTap: () => setModalState(() {
-                                    isSelected
-                                        ? currentSelectedDays.remove(day)
-                                        : currentSelectedDays.add(day);
-                                  }),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? const Color(0xFF3B82F6)
-                                            : const Color(0xFF1E293B),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                            color: isSelected
-                                                ? const Color(0xFF3B82F6)
-                                                : Colors.white24)),
-                                    child: Text(day,
-                                        style: TextStyle(
-                                            color: isSelected
-                                                ? Colors.white
-                                                : Colors.white60,
-                                            fontSize: 13)),
-                                  ),
+                            FutureBuilder<List<dynamic>>(
+                              future: Future.wait([
+                                workersFuture ?? Future.value([]),
+                                teamsFuture ?? Future.value([])
+                              ]),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const LinearProgressIndicator();
+                                }
+                                var workersResponse = snapshot.data![0];
+                                var teamsResponse = snapshot.data![1];
+                                var workers = workersResponse is Map &&
+                                        workersResponse.containsKey('data')
+                                    ? workersResponse['data']
+                                    : (workersResponse is List
+                                        ? workersResponse
+                                        : []);
+                                var teams = teamsResponse is Map &&
+                                        teamsResponse.containsKey('data')
+                                    ? teamsResponse['data']
+                                    : (teamsResponse is List
+                                        ? teamsResponse
+                                        : []);
+
+                                int totalSelections = selectedWorkerIds.length +
+                                    selectedTeamIds.length;
+                                String selectionText =
+                                    "Tap to assign staff & teams...";
+                                if (totalSelections > 0) {
+                                  List<String> parts = [];
+                                  if (selectedTeamIds.isNotEmpty) {
+                                    parts.add(
+                                        "${selectedTeamIds.length} team(s)");
+                                  }
+                                  if (selectedWorkerIds.isNotEmpty) {
+                                    parts.add(
+                                        "${selectedWorkerIds.length} staff member(s)");
+                                  }
+                                  selectionText =
+                                      "${parts.join(' & ')} selected";
+                                }
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    InkWell(
+                                        onTap: () => showAssignmentDialog(
+                                            workers, teams),
+                                        child: Container(
+                                            height: 41,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16),
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFF1E293B),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                    color: Colors.white10)),
+                                            child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Text(selectionText,
+                                                      style: TextStyle(
+                                                          color:
+                                                              totalSelections == 0
+                                                                  ? Colors
+                                                                      .white38
+                                                                  : Colors
+                                                                      .white,
+                                                          fontSize: 13)),
+                                                  const Icon(Icons.group_add,
+                                                      color: Color(0xFF3B82F6))
+                                                ]))),
+                                    if (selectedWorkerIds.length > 1) ...[
+                                      const SizedBox(height: 16),
+                                      const Text("Select Team Leader",
+                                          style: TextStyle(
+                                              color: Colors.white60,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        height: 41,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16),
+                                        decoration: BoxDecoration(
+                                            color: const Color(0xFF1E293B),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: const Color(0xFFF59E0B)
+                                                    .withOpacity(0.5))),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            isExpanded: true,
+                                            dropdownColor:
+                                                const Color(0xFF1E293B),
+                                            value: selectedTeamLeaderId,
+                                            hint: const Text("Choose leader...",
+                                                style: TextStyle(
+                                                    color: Colors.white38,
+                                                    fontSize: 13)),
+                                            icon: const Icon(Icons.star,
+                                                color: Color(0xFFF59E0B)),
+                                            items: workers
+                                                .where((w) =>
+                                                    selectedWorkerIds.contains(
+                                                        w['id'].toString()))
+                                                .map<DropdownMenuItem<String>>(
+                                                    (doc) {
+                                              var data =
+                                                  doc as Map<String, dynamic>;
+                                              return DropdownMenuItem<String>(
+                                                  value: data['id'].toString(),
+                                                  child: Text(
+                                                      "${data['display_name']} (Leader)",
+                                                      style: const TextStyle(
+                                                          color:
+                                                              Color(0xFFF59E0B),
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 13)));
+                                            }).toList(),
+                                            onChanged: (val) {
+                                              if (val != null) {
+                                                setModalState(() =>
+                                                    selectedTeamLeaderId = val);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ]
+                                  ],
                                 );
-                              }).toList(),
+                              },
                             ),
                             const SizedBox(height: 20),
-                          ],
-                          if (selectedFrequency != "One-time") ...[
-                            const Text("Duration",
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text("Make this a recurring series",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13)),
+                              value: isRecurring,
+                              activeColor: const Color(0xFF3B82F6),
+                              onChanged: (val) {
+                                setModalState(() => isRecurring = val);
+                              },
+                            ),
+                            if (isRecurring) ...[
+                              Material(
+                                  color: const Color(0xFF1E293B),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side:
+                                        const BorderSide(color: Colors.white10),
+                                  ),
+                                  child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(children: [
+                                              Expanded(
+                                                  child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                    const Text("Repeats",
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.white60,
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold)),
+                                                    const SizedBox(height: 4),
+                                                    Container(
+                                                        height: 41,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 12),
+                                                        decoration: BoxDecoration(
+                                                            color: const Color(
+                                                                0xFF0F172A),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        8)),
+                                                        child:
+                                                            DropdownButtonHideUnderline(
+                                                                child:
+                                                                    DropdownButton<
+                                                                        String>(
+                                                          isExpanded: true,
+                                                          dropdownColor:
+                                                              const Color(
+                                                                  0xFF0F172A),
+                                                          value: recFrequency,
+                                                          items: [
+                                                            'daily',
+                                                            'weekly',
+                                                            'monthly',
+                                                            'yearly'
+                                                          ]
+                                                              .map((f) => DropdownMenuItem(
+                                                                  value: f,
+                                                                  child: Text(
+                                                                      f[0].toUpperCase() +
+                                                                          f.substring(
+                                                                              1),
+                                                                      style: const TextStyle(
+                                                                          color: Colors
+                                                                              .white,
+                                                                          fontSize:
+                                                                              13))))
+                                                              .toList(),
+                                                          onChanged: (val) {
+                                                            if (val != null)
+                                                              setModalState(() =>
+                                                                  recFrequency =
+                                                                      val);
+                                                          },
+                                                        )))
+                                                  ])),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                  child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                    const Text("Every",
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.white60,
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold)),
+                                                    const SizedBox(height: 4),
+                                                    Row(children: [
+                                                      Expanded(
+                                                          child: Container(
+                                                              height: 32,
+                                                              decoration: BoxDecoration(
+                                                                  color: const Color(
+                                                                      0xFF0F172A),
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                          8)),
+                                                              child: TextField(
+                                                                  controller:
+                                                                      recIntervalCtrl,
+                                                                  keyboardType:
+                                                                      TextInputType
+                                                                          .number,
+                                                                  style: const TextStyle(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontSize:
+                                                                          12),
+                                                                  decoration: const InputDecoration(
+                                                                      isDense:
+                                                                          true,
+                                                                      border: InputBorder
+                                                                          .none,
+                                                                      contentPadding: EdgeInsets.symmetric(
+                                                                          horizontal:
+                                                                              12,
+                                                                          vertical:
+                                                                              8))))),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                          recFrequency ==
+                                                                  'daily'
+                                                              ? 'day(s)'
+                                                              : recFrequency ==
+                                                                      'weekly'
+                                                                  ? 'week(s)'
+                                                                  : recFrequency ==
+                                                                          'monthly'
+                                                                      ? 'month(s)'
+                                                                      : 'year(s)',
+                                                          style:
+                                                              const TextStyle(
+                                                                  color: Colors
+                                                                      .white60,
+                                                                  fontSize: 13))
+                                                    ])
+                                                  ]))
+                                            ]),
+                                            if (recFrequency == 'weekly') ...[
+                                              const SizedBox(height: 16),
+                                              const Text("On these days",
+                                                  style: TextStyle(
+                                                      color: Colors.white60,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                              const SizedBox(height: 8),
+                                              Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 8,
+                                                  children: [
+                                                    {'label': 'S', 'id': 0},
+                                                    {'label': 'M', 'id': 1},
+                                                    {'label': 'T', 'id': 2},
+                                                    {'label': 'W', 'id': 3},
+                                                    {'label': 'T', 'id': 4},
+                                                    {'label': 'F', 'id': 5},
+                                                    {'label': 'S', 'id': 6},
+                                                  ].map((dayInfo) {
+                                                    int dayId =
+                                                        dayInfo['id'] as int;
+                                                    String label =
+                                                        dayInfo['label']
+                                                            as String;
+                                                    bool isSelected =
+                                                        recDaysOfWeek
+                                                            .contains(dayId);
+                                                    return GestureDetector(
+                                                        onTap: () {
+                                                          setModalState(() {
+                                                            if (isSelected) {
+                                                              recDaysOfWeek
+                                                                  .remove(
+                                                                      dayId);
+                                                            } else {
+                                                              recDaysOfWeek
+                                                                  .add(dayId);
+                                                            }
+                                                          });
+                                                        },
+                                                        child: Container(
+                                                          width: 32,
+                                                          height: 32,
+                                                          alignment:
+                                                              Alignment.center,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: isSelected
+                                                                ? const Color(
+                                                                    0xFF3B82F6)
+                                                                : const Color(
+                                                                    0xFF0F172A),
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                          child: Text(label,
+                                                              style: TextStyle(
+                                                                  color: isSelected
+                                                                      ? Colors
+                                                                          .white
+                                                                      : Colors
+                                                                          .white60,
+                                                                  fontSize: 12,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                        ));
+                                                  }).toList())
+                                            ],
+                                            const SizedBox(height: 16),
+                                            const Divider(
+                                                color: Colors.white10),
+                                            const SizedBox(height: 8),
+                                            const Text("End Condition",
+                                                style: TextStyle(
+                                                    color: Colors.white60,
+                                                    fontSize: 12,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
+                                            const SizedBox(height: 8),
+                                            Theme(
+                                                data: Theme.of(context)
+                                                    .copyWith(
+                                                        unselectedWidgetColor:
+                                                            Colors.white38),
+                                                child: Column(
+                                                  children: [
+                                                    RadioListTile<String>(
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                        title: const Text(
+                                                            "Never (Runs forever)",
+                                                            style: TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 13)),
+                                                        value: 'never',
+                                                        groupValue: recEndType,
+                                                        activeColor:
+                                                            const Color(
+                                                                0xFF3B82F6),
+                                                        onChanged: (val) {
+                                                          if (val != null)
+                                                            setModalState(() =>
+                                                                recEndType =
+                                                                    val);
+                                                        }),
+                                                    RadioListTile<String>(
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                        title: Row(children: [
+                                                          const Text("After",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize:
+                                                                      13)),
+                                                          const SizedBox(
+                                                              width: 8),
+                                                          Container(
+                                                              width: 60,
+                                                              height: 32,
+                                                              decoration: BoxDecoration(
+                                                                  color: const Color(
+                                                                      0xFF0F172A),
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                          6)),
+                                                              child: TextField(
+                                                                  controller:
+                                                                      recOccurrencesCtrl,
+                                                                  keyboardType:
+                                                                      TextInputType
+                                                                          .number,
+                                                                  style: const TextStyle(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontSize:
+                                                                          12),
+                                                                  onTap: () =>
+                                                                      setModalState(() =>
+                                                                          recEndType =
+                                                                              'occurrences'),
+                                                                  decoration: const InputDecoration(
+                                                                      isDense:
+                                                                          true,
+                                                                      border: InputBorder
+                                                                          .none,
+                                                                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)))),
+                                                          const SizedBox(
+                                                              width: 8),
+                                                          const Text(
+                                                              "occurrences",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize:
+                                                                      13)),
+                                                        ]),
+                                                        value: 'occurrences',
+                                                        groupValue: recEndType,
+                                                        activeColor:
+                                                            const Color(
+                                                                0xFF3B82F6),
+                                                        onChanged: (val) {
+                                                          if (val != null)
+                                                            setModalState(() =>
+                                                                recEndType =
+                                                                    val);
+                                                        }),
+                                                    RadioListTile<String>(
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                        title: Row(children: [
+                                                          const Text("On date",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize:
+                                                                      13)),
+                                                          const SizedBox(
+                                                              width: 8),
+                                                          Expanded(
+                                                              child:
+                                                                  GestureDetector(
+                                                                      onTap:
+                                                                          () async {
+                                                                        setModalState(() =>
+                                                                            recEndType =
+                                                                                'date');
+                                                                        DateTime?
+                                                                            picked =
+                                                                            await showDatePicker(
+                                                                          context:
+                                                                              context,
+                                                                          initialDate:
+                                                                              recEndDate ?? DateTime.now(),
+                                                                          firstDate:
+                                                                              DateTime.now(),
+                                                                          lastDate:
+                                                                              DateTime(2100),
+                                                                          builder:
+                                                                              (context, child) {
+                                                                            return Theme(
+                                                                              data: ThemeData.dark(),
+                                                                              child: child!,
+                                                                            );
+                                                                          },
+                                                                        );
+                                                                        if (picked !=
+                                                                            null) {
+                                                                          setModalState(() =>
+                                                                              recEndDate = picked);
+                                                                        }
+                                                                      },
+                                                                      child: Container(
+                                                                          height:
+                                                                              32,
+                                                                          alignment: Alignment
+                                                                              .centerLeft,
+                                                                          padding: const EdgeInsets
+                                                                              .symmetric(
+                                                                              horizontal:
+                                                                                  12),
+                                                                          decoration: BoxDecoration(
+                                                                              color: const Color(
+                                                                                  0xFF0F172A),
+                                                                              borderRadius: BorderRadius.circular(
+                                                                                  6)),
+                                                                          child: Text(
+                                                                              recEndDate != null ? "${recEndDate!.month.toString().padLeft(2, '0')}/${recEndDate!.day.toString().padLeft(2, '0')}/${recEndDate!.year.toString()}" : 'mm/dd/yyyy',
+                                                                              style: TextStyle(color: recEndDate != null ? Colors.white : Colors.white38, fontSize: 12)))))
+                                                        ]),
+                                                        value: 'date',
+                                                        groupValue: recEndType,
+                                                        activeColor:
+                                                            const Color(
+                                                                0xFF3B82F6),
+                                                        onChanged: (val) {
+                                                          if (val != null)
+                                                            setModalState(() =>
+                                                                recEndType =
+                                                                    val);
+                                                        }),
+                                                  ],
+                                                )),
+                                            const SizedBox(height: 8),
+                                            const Divider(
+                                                color: Colors.white10),
+                                            Theme(
+                                                data: Theme.of(context)
+                                                    .copyWith(
+                                                        unselectedWidgetColor:
+                                                            Colors.white38),
+                                                child: Column(
+                                                  children: [
+                                                    CheckboxListTile(
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                        title: const Text(
+                                                            "Skip weekends (M-F only)",
+                                                            style: TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 13)),
+                                                        value: recSkipWeekends,
+                                                        activeColor:
+                                                            const Color(
+                                                                0xFF3B82F6),
+                                                        onChanged: (val) {
+                                                          if (val != null)
+                                                            setModalState(() =>
+                                                                recSkipWeekends =
+                                                                    val);
+                                                        }),
+                                                    CheckboxListTile(
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                        title: const Text(
+                                                            "Auto-notify customer when new jobs generate",
+                                                            style: TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 13)),
+                                                        value: recAutoNotify,
+                                                        activeColor:
+                                                            const Color(
+                                                                0xFF3B82F6),
+                                                        onChanged: (val) {
+                                                          if (val != null)
+                                                            setModalState(() =>
+                                                                recAutoNotify =
+                                                                    val);
+                                                        }),
+                                                  ],
+                                                ))
+                                          ])))
+                            ],
+                            const SizedBox(height: 20),
+                            const Text("Special Instructions",
                                 style: TextStyle(
                                     color: Colors.white60,
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
                             Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
                                 decoration: BoxDecoration(
                                     color: const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(12)),
-                                child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                        isExpanded: true,
-                                        dropdownColor: const Color(0xFF1E293B),
-                                        value: selectedDuration,
-                                        icon: const Icon(
-                                            Icons.keyboard_arrow_down,
-                                            color: Color(0xFF3B82F6)),
-                                        items: _durations
-                                            .map((d) => DropdownMenuItem(
-                                                value: d,
-                                                child: Text(d,
-                                                    style: const TextStyle(
-                                                        color: Colors.white))))
-                                            .toList(),
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            setModalState(
-                                                () => selectedDuration = val);
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white10)),
+                                child: TextField(
+                                    controller: notesCtrl,
+                                    maxLines: 3,
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 13),
+                                    decoration: const InputDecoration(
+                                        hintText: "Enter entry codes...",
+                                        hintStyle:
+                                            TextStyle(color: Colors.white38),
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.all(16)))),
+                            const SizedBox(height: 40),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: ElevatedButton(
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        void _showErr(String msg) {
+                                          showDialog(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                      backgroundColor:
+                                                          const Color(
+                                                              0xFF1E293B),
+                                                      title: const Text(
+                                                          "Validation Error",
+                                                          style: TextStyle(
+                                                              color: Colors
+                                                                  .white)),
+                                                      content: Text(msg,
+                                                          style: const TextStyle(
+                                                              color: Colors
+                                                                  .white70)),
+                                                      actions: [
+                                                        TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    ctx),
+                                                            child: const Text(
+                                                                "OK",
+                                                                style: TextStyle(
+                                                                    color: Color(
+                                                                        0xFF3B82F6))))
+                                                      ]));
+                                        }
+
+                                        if (selectedCustomerId == null ||
+                                            addressCtrl.text.isEmpty) {
+                                          _showErr(
+                                              "Customer and Address are required.");
+                                          return;
+                                        }
+                                        if (isRecurring &&
+                                            recFrequency == 'weekly' &&
+                                            recDaysOfWeek.isEmpty) {
+                                          _showErr(
+                                              "Select at least one day for weekly recurrence.");
+                                          return;
+                                        }
+                                        if (selectedWorkerIds.length > 1 &&
+                                            selectedTeamLeaderId == null) {
+                                          _showErr(
+                                              "Please select a Team Leader from the assigned workers.");
+                                          return;
+                                        }
+
+                                        setModalState(() => isSaving = true);
+                                        try {
+                                          String startDateStr =
+                                              DateFormat('yyyy-MM-dd')
+                                                  .format(selectedDate);
+                                          String startTimeStr =
+                                              '${selectedStartTime.hour.toString().padLeft(2, '0')}:${selectedStartTime.minute.toString().padLeft(2, '0')}:00';
+                                          String? endDateStr;
+                                          String? endTimeStr;
+                                          if (selectedEndTime != null) {
+                                            endDateStr = startDateStr;
+                                            endTimeStr =
+                                                '${selectedEndTime!.hour.toString().padLeft(2, '0')}:${selectedEndTime!.minute.toString().padLeft(2, '0')}:00';
                                           }
-                                        })))
-                          ],
-                          const SizedBox(height: 20),
-                          const Text("Assign Team",
-                              style: TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          FutureBuilder<dynamic>(
-                              future: workersFuture,
-                              builder: (context, snapshot) {
-                                if (!snapshot.hasData) {
-                                  return const LinearProgressIndicator();
-                                }
-                                var workers = snapshot.data is Map && snapshot.data.containsKey('data') ? snapshot.data['data'] : (snapshot.data is List ? snapshot.data : []);
 
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  InkWell(
-                                      onTap: () =>
-                                          showMultiSelectWorkerDialog(workers),
-                                      child: Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                              color: const Color(0xFF1E293B),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              border: Border.all(
-                                                  color: Colors.white10)),
-                                          child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                Text(
-                                                    selectedWorkerIds.isEmpty
-                                                        ? "Tap to select workers..."
-                                                        : "${selectedWorkerIds.length} worker(s) selected",
-                                                    style: TextStyle(
-                                                        color: selectedWorkerIds
-                                                                .isEmpty
-                                                            ? Colors.white38
-                                                            : Colors.white,
-                                                        fontSize: 16)),
-                                                const Icon(Icons.group_add,
-                                                    color: Color(0xFF3B82F6))
-                                              ]))),
-                                  if (selectedWorkerIds.length > 1) ...[
-                                    const SizedBox(height: 16),
-                                    const Text("Select Team Leader",
+                                          await ApiService.instance
+                                              .post('/admin/jobs', {
+                                            'title': jobTitleCtrl.text.trim(),
+                                            'customer_id': selectedCustomerId,
+                                            'customer_name':
+                                                selectedCustomerName,
+                                            'address': addressCtrl.text.trim(),
+                                            'latitude': latitude,
+                                            'longitude': longitude,
+                                            'job_type':
+                                                selectedJobType ?? 'Standard',
+                                            'items': selectedItems,
+                                            'is_recurring': isRecurring,
+                                            'recurring_pattern': isRecurring
+                                                ? {
+                                                    'frequency': recFrequency,
+                                                    'interval': int.tryParse(
+                                                            recIntervalCtrl
+                                                                .text) ??
+                                                        1,
+                                                    'days_of_week':
+                                                        recFrequency == 'weekly'
+                                                            ? recDaysOfWeek
+                                                            : [],
+                                                    'end_type': recEndType ==
+                                                            'occurrences'
+                                                        ? 'after'
+                                                        : (recEndType == 'date'
+                                                            ? 'on_date'
+                                                            : recEndType),
+                                                    'end_date': recEndType ==
+                                                                'date' &&
+                                                            recEndDate != null
+                                                        ? "${recEndDate!.year.toString().padLeft(4, '0')}-${recEndDate!.month.toString().padLeft(2, '0')}-${recEndDate!.day.toString().padLeft(2, '0')}"
+                                                        : null,
+                                                    'end_after_occurrences':
+                                                        recEndType ==
+                                                                'occurrences'
+                                                            ? int.tryParse(
+                                                                recOccurrencesCtrl
+                                                                    .text)
+                                                            : null,
+                                                    'skip_weekends':
+                                                        recSkipWeekends,
+                                                    'auto_notify':
+                                                        recAutoNotify,
+                                                  }
+                                                : null,
+                                            'start_date': startDateStr,
+                                            'start_time': startTimeStr,
+                                            'end_date': endDateStr,
+                                            'end_time': endTimeStr,
+                                            'assigned_workers':
+                                                selectedWorkerIds,
+                                            'assigned_teams': selectedTeamIds,
+                                            'team_leader_id':
+                                                selectedWorkerIds.length == 1
+                                                    ? selectedWorkerIds[0]
+                                                    : selectedTeamLeaderId,
+                                            'notes': notesCtrl.text.trim(),
+                                            // 🚀 FIX: STATUS INICIAL ES 'ASSIGNED'
+                                            'status': 'assigned',
+                                            'created_at': DateTime.now()
+                                                .toIso8601String(),
+                                          });
+
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                                  content: Text(
+                                                      "Success! Job assigned.",
+                                                      style: TextStyle(
+                                                          color: Colors.white)),
+                                                  backgroundColor:
+                                                      Color(0xFF10B981)));
+                                        } catch (e) {
+                                          setModalState(() => isSaving = false);
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(SnackBar(
+                                                  content: Text("Error: $e")));
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF3B82F6),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12))),
+                                child: isSaving
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white)
+                                    : const Text("Assign & Dispatch Job",
                                         style: TextStyle(
-                                            color: Colors.white60,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16),
-                                      decoration: BoxDecoration(
-                                          color: const Color(0xFF1E293B),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: const Color(0xFFF59E0B)
-                                                  .withOpacity(0.5))),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          isExpanded: true,
-                                          dropdownColor:
-                                              const Color(0xFF1E293B),
-                                          value: selectedTeamLeaderId,
-                                          hint: const Text("Choose leader...",
-                                              style: TextStyle(
-                                                  color: Colors.white38)),
-                                          icon: const Icon(Icons.star,
-                                              color: Color(0xFFF59E0B)),
-                                          items: workers
-                                              .where((w) => selectedWorkerIds
-                                                  .contains(w['id'].toString()))
-                                              .map<DropdownMenuItem<String>>((doc) {
-                                            var data = doc
-                                                as Map<String, dynamic>;
-                                            return DropdownMenuItem<String>(
-                                                value: data['id'].toString(),
-                                                child: Text(
-                                                    "${data['display_name']} (Leader)",
-                                                    style: const TextStyle(
-                                                        color:
-                                                            Color(0xFFF59E0B),
-                                                        fontWeight:
-                                                            FontWeight.bold)));
-                                          }).toList(),
-                                          onChanged: (val) {
-                                            if (val != null) {
-                                              setModalState(() =>
-                                                  selectedTeamLeaderId = val);
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  ]
-                                ],
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          const Text("Special Instructions",
-                              style: TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Container(
-                              decoration: BoxDecoration(
-                                  color: const Color(0xFF1E293B),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10)),
-                              child: TextField(
-                                  controller: notesCtrl,
-                                  maxLines: 3,
-                                  style: const TextStyle(color: Colors.white),
-                                  decoration: const InputDecoration(
-                                      hintText: "Enter entry codes...",
-                                      hintStyle:
-                                          TextStyle(color: Colors.white38),
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.all(16)))),
-                          const SizedBox(height: 40),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 55,
-                            child: ElevatedButton(
-                              onPressed: isSaving
-                                  ? null
-                                  : () async {
-                                      void _showErr(String msg) {
-                                        showDialog(
-                                            context: context,
-                                            builder: (ctx) => AlertDialog(
-                                                  backgroundColor: const Color(0xFF1E293B),
-                                                  title: const Text("Validation Error", style: TextStyle(color: Colors.white)),
-                                                  content: Text(msg, style: const TextStyle(color: Colors.white70)),
-                                                  actions: [
-                                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK", style: TextStyle(color: Color(0xFF3B82F6))))
-                                                  ]
-                                                ));
-                                      }
-
-                                      if (selectedCustomerId == null ||
-                                          addressCtrl.text.isEmpty) {
-                                        _showErr("Customer and Address are required.");
-                                        return;
-                                      }
-                                      if (selectedFrequency == "Custom" &&
-                                          currentSelectedDays.isEmpty) {
-                                        _showErr("Select at least one day for Custom frequency.");
-                                        return;
-                                      }
-                                      if (selectedWorkerIds.length > 1 &&
-                                          selectedTeamLeaderId == null) {
-                                        _showErr("Please select a Team Leader from the assigned workers.");
-                                        return;
-                                      }
-
-                                      setModalState(() => isSaving = true);
-                                      try {
-                                        DateTime start = DateTime(
-                                            selectedDate.year,
-                                            selectedDate.month,
-                                            selectedDate.day,
-                                            selectedTime.hour,
-                                            selectedTime.minute);
-
-                                        await ApiService.instance.post('/admin/jobs', {'customer_id': selectedCustomerId,
-                                          'customer_name': selectedCustomerName,
-                                          'address': addressCtrl.text.trim(),
-                                          'latitude': latitude,
-                                          'longitude': longitude,
-                                          'job_type':
-                                              selectedJobType ?? 'Standard',
-                                          'tasks': currentSelectedTasks,
-                                          'frequency': selectedFrequency,
-                                          'duration':
-                                              selectedFrequency == "One-time"
-                                                  ? null
-                                                  : selectedDuration,
-                                          'custom_days':
-                                              selectedFrequency == "Custom"
-                                                  ? currentSelectedDays
-                                                  : [],
-                                          'scheduled_time':
-                                              start.toIso8601String(),
-                                          'assigned_workers': selectedWorkerIds,
-                                          'team_leader_id':
-                                              selectedWorkerIds.length == 1
-                                                  ? selectedWorkerIds[0]
-                                                  : selectedTeamLeaderId,
-                                          'notes': notesCtrl.text.trim(),
-                                          // 🚀 FIX: STATUS INICIAL ES 'ASSIGNED'
-                                          'status': 'assigned',
-                                          'created_at':
-                                              DateTime.now().toIso8601String(),});
-
-                                        Navigator.pop(context);
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(const SnackBar(
-                                                content: Text(
-                                                    "Success! Job assigned.",
-                                                    style: TextStyle(
-                                                        color: Colors.white)),
-                                                backgroundColor:
-                                                    Color(0xFF10B981)));
-                                      } catch (e) {
-                                        setModalState(() => isSaving = false);
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(
-                                                content: Text("Error: $e")));
-                                      }
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF3B82F6),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12))),
-                              child: isSaving
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white)
-                                  : const Text("Assign & Dispatch Job",
-                                      style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white)),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white)),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 40),
-                        ],
+                            const SizedBox(height: 40),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                  ],
+                ),
+              );
+            }),
+          ),
         );
       },
     );
@@ -2080,19 +2952,20 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
             Expanded(
               child: _isLoadingCustomers
                   ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
+                      child:
+                          CircularProgressIndicator(color: Color(0xFF3B82F6)))
                   : _customersList.isEmpty
                       ? Center(
                           child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
-                            Icon(Icons.business_center_outlined,
-                                color: Colors.white24, size: 64),
-                            SizedBox(height: 16),
-                            Text("No customers yet.",
-                                style: TextStyle(
-                                    color: Colors.white60, fontSize: 18))
-                          ]))
+                              Icon(Icons.business_center_outlined,
+                                  color: Colors.white24, size: 64),
+                              SizedBox(height: 16),
+                              Text("No customers yet.",
+                                  style: TextStyle(
+                                      color: Colors.white60, fontSize: 18))
+                            ]))
                       : RefreshIndicator(
                           onRefresh: _fetchCustomers,
                           color: const Color(0xFF3B82F6),
@@ -2102,54 +2975,72 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 24.0, vertical: 8.0),
                             itemCount: _customersList.length,
-                          itemBuilder: (context, index) {
-                            var data = _customersList[index] as Map<String, dynamic>;
-                            var docId = data['id'].toString();
-                            return GestureDetector(
-                              onTap: () => _showCustomerDetailsModal(docId, data),
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Colors.white10)),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                            color: const Color(0xFF3B82F6)
-                                                .withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(12)),
-                                        child: const Icon(Icons.business,
-                                            color: Color(0xFF3B82F6))),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                        child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                          Text('${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim().isEmpty ? 'Unknown Customer' : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim(),
-                                              style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold)),
-                                          const SizedBox(height: 4),
-                                          Text((data['address1'] ?? (data['primary_address'] != null ? data['primary_address']['address1'] : null)) ?? 'No address',
-                                              style: const TextStyle(
-                                                  color: Colors.white60,
-                                                  fontSize: 13))
-                                        ])),
-                                    const Icon(Icons.chevron_right,
-                                        color: Colors.white24),
-                                  ],
+                            itemBuilder: (context, index) {
+                              var data =
+                                  _customersList[index] as Map<String, dynamic>;
+                              var docId = data['id'].toString();
+                              return GestureDetector(
+                                onTap: () =>
+                                    _showCustomerDetailsModal(docId, data),
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xFF1E293B),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border:
+                                          Border.all(color: Colors.white10)),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                              color: const Color(0xFF3B82F6)
+                                                  .withOpacity(0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(12)),
+                                          child: const Icon(Icons.business,
+                                              color: Color(0xFF3B82F6))),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                            Text(
+                                                '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'
+                                                        .trim()
+                                                        .isEmpty
+                                                    ? 'Unknown Customer'
+                                                    : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'
+                                                        .trim(),
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 16,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                                (data['address1'] ??
+                                                        (data['primary_address'] !=
+                                                                null
+                                                            ? data['primary_address']
+                                                                ['address1']
+                                                            : null)) ??
+                                                    'No address',
+                                                style: const TextStyle(
+                                                    color: Colors.white60,
+                                                    fontSize: 13))
+                                          ])),
+                                      const Icon(Icons.chevron_right,
+                                          color: Colors.white24),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
-                      ),
             ),
           ],
         ),
