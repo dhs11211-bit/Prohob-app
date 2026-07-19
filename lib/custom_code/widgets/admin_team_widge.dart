@@ -1244,7 +1244,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                               var data = jobs[i];
                               String jobId = data['id'].toString();
                               String jobName =
-                                  "${data['client_name'] ?? data['title']} - ${data['job_type'] ?? ''}";
+                                  "${data['customer_name'] ?? data['title']} - ${data['job_type'] ?? ''}";
                               List assignedUsers = data['assigned_users'] as List? ?? [];
 
                               return GestureDetector(
