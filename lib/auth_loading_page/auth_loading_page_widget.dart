@@ -56,10 +56,10 @@ class _AuthLoadingPageWidgetState extends State<AuthLoadingPageWidget> {
             width: double.infinity,
             height: double.infinity,
             onAdminRoute: () async {
-              context.pushNamed(AdminDashboardWidget.routeName);
+              context.pushNamed('AdminDashboard');
             },
             onWorkerRoute: () async {
-              context.pushNamed(WorkDashboardWidget.routeName);
+              context.pushNamed('WorkDashboard');
             },
           ),
         ),

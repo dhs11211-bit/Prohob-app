@@ -99,86 +99,59 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => SignInWidget(),
         ),
         FFRoute(
-          name: PageEarningsWidget.routeName,
-          path: PageEarningsWidget.routePath,
-          builder: (context, params) => PageEarningsWidget(),
-        ),
-        FFRoute(
-          name: PageDocumentsWidget.routeName,
-          path: PageDocumentsWidget.routePath,
-          builder: (context, params) => PageDocumentsWidget(),
-        ),
-        FFRoute(
-          name: PagePersonalInfoWidget.routeName,
-          path: PagePersonalInfoWidget.routePath,
-          builder: (context, params) => PagePersonalInfoWidget(),
-        ),
-        FFRoute(
           name: LandingPricingFirstWidget.routeName,
           path: LandingPricingFirstWidget.routePath,
           builder: (context, params) => LandingPricingFirstWidget(),
         ),
         FFRoute(
-          name: AdminDashboardWidget.routeName,
-          path: AdminDashboardWidget.routePath,
-          builder: (context, params) => params.isEmpty
-              ? NavBarPage(initialPage: 'AdminDashboard')
-              : AdminDashboardWidget(),
+          name: 'AdminDashboard',
+          path: '/adminDashboard',
+          builder: (context, params) => NavBarPage(initialIndex: 0),
         ),
         FFRoute(
-          name: AdminScheduleWidget.routeName,
-          path: AdminScheduleWidget.routePath,
-          builder: (context, params) => params.isEmpty
-              ? NavBarPage(initialPage: 'AdminSchedule')
-              : AdminScheduleWidget(),
+          name: 'AdminSchedule',
+          path: '/adminSchedule',
+          builder: (context, params) => NavBarPage(initialIndex: 1),
         ),
         FFRoute(
-          name: AdminTeamWidget.routeName,
-          path: AdminTeamWidget.routePath,
-          builder: (context, params) => params.isEmpty
-              ? NavBarPage(initialPage: 'AdminTeam')
-              : AdminTeamWidget(),
+          name: 'AdminTeam',
+          path: '/adminTeam',
+          builder: (context, params) => NavBarPage(initialIndex: 4),
         ),
         FFRoute(
-          name: AdminCustomersWidget.routeName,
-          path: AdminCustomersWidget.routePath,
-          builder: (context, params) => params.isEmpty
-              ? NavBarPage(initialPage: 'AdminCustomers')
-              : AdminCustomersWidget(),
+          name: 'AdminCustomers',
+          path: '/adminCustomers',
+          builder: (context, params) => NavBarPage(initialIndex: 4),
         ),
         FFRoute(
-          name: AdminFinancesWidget.routeName,
-          path: AdminFinancesWidget.routePath,
-          builder: (context, params) => params.isEmpty
-              ? NavBarPage(initialPage: 'AdminFinances')
-              : AdminFinancesWidget(),
+          name: 'AdminFinances',
+          path: '/adminFinances',
+          builder: (context, params) => NavBarPage(initialIndex: 3),
         ),
         FFRoute(
-          name: AdminMapWidget.routeName,
-          path: AdminMapWidget.routePath,
-          builder: (context, params) => params.isEmpty
-              ? NavBarPage(initialPage: 'AdminMap')
-              : AdminMapWidget(),
+          name: 'AdminMap',
+          path: '/adminMap',
+          builder: (context, params) => NavBarPage(initialIndex: 4),
         ),
         FFRoute(
-          name: WorkDashboardWidget.routeName,
-          path: WorkDashboardWidget.routePath,
-          builder: (context, params) => WorkDashboardWidget(),
+          name: 'WorkDashboard',
+          path: '/workDashboard',
+          builder: (context, params) => NavBarPage(initialIndex: 0),
         ),
         FFRoute(
-          name: SchedulePageWidget.routeName,
-          path: SchedulePageWidget.routePath,
-          builder: (context, params) => SchedulePageWidget(),
+          name: 'SchedulePage',
+          path: '/schedulePage',
+          builder: (context, params) => NavBarPage(initialIndex: 1),
         ),
         FFRoute(
-          name: WalletPageWidget.routeName,
-          path: WalletPageWidget.routePath,
-          builder: (context, params) => WalletPageWidget(),
+          name: 'WalletPage',
+          path: '/walletPage',
+          builder: (context, params) => NavBarPage(initialIndex: 3),
         ),
         FFRoute(
-          name: ChatPageWidget.routeName,
-          path: ChatPageWidget.routePath,
-          builder: (context, params) => ChatPageWidget(),
+          name: 'ChatPage',
+          path: '/chatPage',
+          builder: (context, params) => NavBarPage(initialIndex: 2),
         ),
         FFRoute(
           name: ImagesWidget.routeName,

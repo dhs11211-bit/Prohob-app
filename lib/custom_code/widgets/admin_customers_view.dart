@@ -24,6 +24,7 @@ class AdminCustomersView extends StatefulWidget {
     required this.onLogout,
     this.openCreateJobModal = false,
     this.openCreateCustomerModal = false,
+    this.onJobCreated,
   });
 
   final double? width;
@@ -31,6 +32,7 @@ class AdminCustomersView extends StatefulWidget {
   final Future Function() onLogout;
   final bool openCreateJobModal;
   final bool openCreateCustomerModal;
+  final VoidCallback? onJobCreated;
 
   @override
   State<AdminCustomersView> createState() => _AdminCustomersViewState();
@@ -75,7 +77,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
     if (widget.openCreateCustomerModal) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showAddCustomerDialog();
+        _showAddCustomerModal();
       });
     }
     if (widget.openCreateJobModal) {
@@ -462,9 +464,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   // =====================================================================
   // 🚀 CREAR, EDITAR Y BORRAR CLIENTES (SOFT DELETE INCORPORADO)
   // =====================================================================
-  void _showAddCustomerDialog(
-      {StateSetter? parentSetState,
-      Function(String, String, double, double)? onCustomerCreated}) {
+  void _showAddCustomerModal(
+      {Function(String customerId, String name, double lat, double lng)?
+          onCustomerCreated}) {
     TextEditingController firstNameCtrl = TextEditingController();
     TextEditingController lastNameCtrl = TextEditingController();
     TextEditingController phoneCtrl = TextEditingController();
@@ -475,165 +477,301 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
     double lat = 0.0;
     double lng = 0.0;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => StatefulBuilder(builder: (context, setDialogState) {
-        Future<void> searchPlaces(String query) async {
-          if (query.isEmpty) {
-            setDialogState(() => placePredictions = []);
-            return;
-          }
-          try {
-            if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-            final uri = Uri.parse(
-                "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
-            final response = await http.get(uri);
-            if (response.statusCode == 200) {
-              final data = jsonDecode(response.body);
-              if (data['status'] == 'OK') {
-                setDialogState(() => placePredictions =
-                    List<dynamic>.from(data['predictions'] ?? []));
-              }
-            }
-          } catch (e) {
-            debugPrint("Error Autocomplete: $e");
-          }
-        }
-
-        Future<void> getPlaceDetails(String placeId) async {
-          try {
-            if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-            final uri = Uri.parse(
-                "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
-            final response = await http.get(uri);
-            if (response.statusCode == 200) {
-              final data = jsonDecode(response.body);
-              if (data['status'] == 'OK') {
-                var location = data['result']['geometry']['location'];
-                setDialogState(() {
-                  lat = location['lat'];
-                  lng = location['lng'];
-                });
-              }
-            }
-          } catch (e) {
-            debugPrint("Error Details: $e");
-          }
-        }
-
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: const Text("Add New Customer",
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              _buildSimpleTextField(firstNameCtrl, "First Name"),
-              const SizedBox(height: 12),
-              _buildSimpleTextField(lastNameCtrl, "Last Name"),
-              const SizedBox(height: 12),
-              _buildSimpleTextField(phoneCtrl, "Phone Number"),
-              const SizedBox(height: 12),
-              _buildSimpleTextField(emailCtrl, "Email Address"),
-              const SizedBox(height: 12),
-              _buildSimpleTextField(addressCtrl, "Start typing address...",
-                  isAddress: true, onChanged: (val) {
-                if (val.length > 3) {
-                  searchPlaces(val);
-                } else {
-                  setDialogState(() => placePredictions = []);
-                }
-              }),
-              if (placePredictions.isNotEmpty)
-                Material(
-                  color: const Color(0xFF0D1B2A),
-                  borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(12)),
-                  clipBehavior: Clip.hardEdge,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: placePredictions
-                        .map<Widget>((p) => ListTile(
-                              title: Text(p['description']?.toString() ?? '',
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 13)),
-                              onTap: () async {
-                                String pId = p['place_id']?.toString() ?? '';
-                                setDialogState(() {
-                                  addressCtrl.text =
-                                      p['description']?.toString() ?? '';
-                                  placePredictions.clear();
-                                });
-                                await getPlaceDetails(pId);
-                              },
-                            ))
-                        .toList(),
-                  ),
-                ),
-              if (lat != 0.0) ...[
-                const SizedBox(height: 8),
-                const Row(children: [
-                  Icon(Icons.gps_fixed, color: Color(0xFF10B981), size: 14),
-                  SizedBox(width: 6),
-                  Text("Address Confirmed",
-                      style: TextStyle(
-                          color: Color(0xFF10B981),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold)),
-                ]),
-              ]
-            ]),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel",
-                    style: TextStyle(color: Colors.white60))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6)),
-              onPressed: () async {
-                if (firstNameCtrl.text.isNotEmpty &&
-                    lastNameCtrl.text.isNotEmpty) {
-                  var newDoc = await ApiService.instance.post('/customers', {
-                    'first_name': firstNameCtrl.text.trim(),
-                    'last_name': lastNameCtrl.text.trim(),
-                    'phone': phoneCtrl.text.trim(),
-                    'email': emailCtrl.text.trim(),
-                    'address1': addressCtrl.text.trim(),
-                    'lat': lat,
-                    'lng': lng,
-                  });
-                  if (onCustomerCreated != null) {
-                    onCustomerCreated(
-                        newDoc['id'].toString(),
-                        '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}',
-                        lat,
-                        lng);
-                  } else {
-                    _fetchCustomers();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text("Customer created successfully!",
-                              style: TextStyle(color: Colors.white)),
-                          backgroundColor: Colors.green));
-                    }
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.95,
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                Future<void> searchPlaces(String query) async {
+                  if (query.isEmpty) {
+                    setModalState(() => placePredictions = []);
+                    return;
                   }
-                  Navigator.pop(context);
+                  try {
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    final uri = Uri.parse(
+                        "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
+                    final response = await http.get(uri);
+                    if (response.statusCode == 200) {
+                      final data = jsonDecode(response.body);
+                      if (data['status'] == 'OK') {
+                        setModalState(() => placePredictions =
+                            List<dynamic>.from(data['predictions'] ?? []));
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint("Error Autocomplete: $e");
+                  }
                 }
+
+                Future<void> getPlaceDetails(String placeId) async {
+                  try {
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    final uri = Uri.parse(
+                        "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+                    final response = await http.get(uri);
+                    if (response.statusCode == 200) {
+                      final data = jsonDecode(response.body);
+                      if (data['status'] == 'OK') {
+                        var location = data['result']['geometry']['location'];
+                        setModalState(() {
+                          lat = location['lat'];
+                          lng = location['lng'];
+                        });
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint("Error Details: $e");
+                  }
+                }
+
+                return Padding(
+                  padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16, bottom: 8),
+                        child: Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Add New Customer",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close,
+                                  color: Colors.white60),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 12),
+                              const Text("First Name",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(firstNameCtrl, "First Name"),
+                              const SizedBox(height: 16),
+                              const Text("Last Name",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(lastNameCtrl, "Last Name"),
+                              const SizedBox(height: 16),
+                              const Text("Phone Number",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(phoneCtrl, "Phone Number"),
+                              const SizedBox(height: 16),
+                              const Text("Email Address",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(emailCtrl, "Email Address"),
+                              const SizedBox(height: 16),
+                              const Text("Service Address",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(
+                                  addressCtrl, "Start typing address...",
+                                  isAddress: true, onChanged: (val) {
+                                if (val.length > 3) {
+                                  searchPlaces(val);
+                                } else {
+                                  setModalState(() => placePredictions = []);
+                                }
+                              }),
+                              if (placePredictions.isNotEmpty)
+                                Material(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: const BorderRadius.only(
+                                      bottomLeft: Radius.circular(12),
+                                      bottomRight: Radius.circular(12)),
+                                  clipBehavior: Clip.hardEdge,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: placePredictions
+                                        .map<Widget>((p) => ListTile(
+                                              title: Text(
+                                                  p['description']?.toString() ??
+                                                      '',
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 13)),
+                                              onTap: () async {
+                                                String pId =
+                                                    p['place_id']?.toString() ?? '';
+                                                setModalState(() {
+                                                  addressCtrl.text =
+                                                      p['description']
+                                                              ?.toString() ??
+                                                          '';
+                                                  placePredictions.clear();
+                                                });
+                                                await getPlaceDetails(pId);
+                                              },
+                                            ))
+                                        .toList(),
+                                  ),
+                                ),
+                              if (lat != 0.0) ...[
+                                const SizedBox(height: 12),
+                                const Row(children: [
+                                  Icon(Icons.gps_fixed,
+                                      color: Color(0xFF10B981), size: 14),
+                                  SizedBox(width: 6),
+                                  Text("Address Confirmed",
+                                      style: TextStyle(
+                                          color: Color(0xFF10B981),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold)),
+                                ]),
+                              ],
+                              const SizedBox(height: 32),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 16),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF0D1B2A),
+                          border: Border(
+                            top: BorderSide(color: Colors.white10),
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: () async {
+                              if (firstNameCtrl.text.trim().isNotEmpty &&
+                                  lastNameCtrl.text.trim().isNotEmpty) {
+                                try {
+                                  Map<String, dynamic> payload = {
+                                    'first_name': firstNameCtrl.text.trim(),
+                                    'last_name': lastNameCtrl.text.trim(),
+                                  };
+                                  if (phoneCtrl.text.trim().isNotEmpty) payload['phone'] = phoneCtrl.text.trim();
+                                  if (emailCtrl.text.trim().isNotEmpty) payload['email'] = emailCtrl.text.trim();
+                                  if (addressCtrl.text.trim().isNotEmpty) {
+                                    payload['address'] = addressCtrl.text.trim();
+                                    payload['address1'] = addressCtrl.text.trim();
+                                  }
+                                  if (lat != 0.0) payload['lat'] = lat;
+                                  if (lng != 0.0) payload['lng'] = lng;
+
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  var newDoc = await ApiService.instance
+                                      .post('/customers', payload);
+                                  if (onCustomerCreated != null) {
+                                    onCustomerCreated(
+                                        newDoc['id'].toString(),
+                                        '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}',
+                                        lat,
+                                        lng);
+                                  } else {
+                                    _fetchCustomers();
+                                  }
+                                  Navigator.pop(context);
+                                  messenger.showSnackBar(const SnackBar(
+                                      content: Text(
+                                          "Customer created successfully!",
+                                          style: TextStyle(
+                                              color: Colors.white)),
+                                      backgroundColor: Color(0xFF10B981)));
+                                } catch (e) {
+                                  String errorMsg = e.toString().replaceAll('Exception: ', '');
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(
+                                            content: Text(
+                                                "Failed to create customer: $errorMsg",
+                                                style: const TextStyle(
+                                                    color: Colors.white)),
+                                            backgroundColor: const Color(0xFFEF4444)));
+                                  }
+                                }
+                              }
+                            },
+                            child: const Text(
+                              "Create Customer",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               },
-              child: const Text("Save Customer",
-                  style: TextStyle(color: Colors.white)),
-            )
-          ],
+            ),
+          ),
         );
-      }),
+      },
     );
   }
 
-  void _showEditCustomerDialog(
-      String customerId, Map<String, dynamic> customerData) {
+  void _showEditCustomerDialog(dynamic arg1, [Map<String, dynamic>? arg2]) {
+    Map<String, dynamic> customerData = (arg2 != null) ? arg2 : (arg1 is Map<String, dynamic> ? arg1 : {});
+    String customerId = (customerData['id'] ?? arg1).toString();
     TextEditingController firstNameCtrl = TextEditingController(
         text: customerData['first_name'] ??
             customerData['name']?.split(' ').first ??
@@ -661,139 +799,276 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         ? (customerData['lng'] as num).toDouble()
         : 0.0;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) =>
-          StatefulBuilder(builder: (context, setDialogState) {
-        Future<void> searchPlaces(String query) async {
-          if (query.isEmpty) {
-            setDialogState(() => placePredictions = []);
-            return;
-          }
-          try {
-            if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-            final uri = Uri.parse(
-                "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
-            final response = await http.get(uri);
-            if (response.statusCode == 200) {
-              final data = jsonDecode(response.body);
-              if (data['status'] == 'OK') {
-                setDialogState(() => placePredictions =
-                    List<dynamic>.from(data['predictions'] ?? []));
-              }
-            }
-          } catch (e) {
-            debugPrint("Error Autocomplete: $e");
-          }
-        }
-
-        Future<void> getPlaceDetails(String placeId) async {
-          try {
-            if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
-            final uri = Uri.parse(
-                "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
-            final response = await http.get(uri);
-            if (response.statusCode == 200) {
-              final data = jsonDecode(response.body);
-              if (data['status'] == 'OK') {
-                var location = data['result']['geometry']['location'];
-                setDialogState(() {
-                  lat = location['lat'];
-                  lng = location['lng'];
-                });
-              }
-            }
-          } catch (e) {
-            debugPrint("Error Details: $e");
-          }
-        }
-
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: const Text("Edit Customer Info",
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              _buildSimpleTextField(firstNameCtrl, "First Name"),
-              const SizedBox(height: 12),
-              _buildSimpleTextField(lastNameCtrl, "Last Name"),
-              const SizedBox(height: 12),
-              _buildSimpleTextField(phoneCtrl, "Phone Number"),
-              const SizedBox(height: 12),
-              _buildSimpleTextField(emailCtrl, "Email Address"),
-              const SizedBox(height: 12),
-              _buildSimpleTextField(addressCtrl, "Start typing address...",
-                  isAddress: true, onChanged: (val) {
-                if (val.length > 3) {
-                  searchPlaces(val);
-                } else {
-                  setDialogState(() => placePredictions = []);
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.95,
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                Future<void> searchPlaces(String query) async {
+                  if (query.isEmpty) {
+                    setModalState(() => placePredictions = []);
+                    return;
+                  }
+                  try {
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    final uri = Uri.parse(
+                        "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
+                    final response = await http.get(uri);
+                    if (response.statusCode == 200) {
+                      final data = jsonDecode(response.body);
+                      if (data['status'] == 'OK') {
+                        setModalState(() => placePredictions =
+                            List<dynamic>.from(data['predictions'] ?? []));
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint("Error Autocomplete: $e");
+                  }
                 }
-              }),
-              if (placePredictions.isNotEmpty)
-                Material(
-                  color: const Color(0xFF0D1B2A),
-                  borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(12)),
-                  clipBehavior: Clip.hardEdge,
+
+                Future<void> getPlaceDetails(String placeId) async {
+                  try {
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    final uri = Uri.parse(
+                        "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+                    final response = await http.get(uri);
+                    if (response.statusCode == 200) {
+                      final data = jsonDecode(response.body);
+                      if (data['status'] == 'OK') {
+                        var location = data['result']['geometry']['location'];
+                        setModalState(() {
+                          lat = location['lat'];
+                          lng = location['lng'];
+                        });
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint("Error Details: $e");
+                  }
+                }
+
+                return Padding(
+                  padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: placePredictions
-                        .map<Widget>((p) => ListTile(
-                              title: Text(p['description']?.toString() ?? '',
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 13)),
-                              onTap: () async {
-                                String pId = p['place_id']?.toString() ?? '';
-                                setDialogState(() {
-                                  addressCtrl.text =
-                                      p['description']?.toString() ?? '';
-                                  placePredictions.clear();
-                                });
-                                await getPlaceDetails(pId);
-                              },
-                            ))
-                        .toList(),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16, bottom: 8),
+                        child: Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Edit Customer Info",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close,
+                                  color: Colors.white60),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 12),
+                              const Text("First Name",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(firstNameCtrl, "First Name"),
+                              const SizedBox(height: 16),
+                              const Text("Last Name",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(lastNameCtrl, "Last Name"),
+                              const SizedBox(height: 16),
+                              const Text("Phone Number",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(phoneCtrl, "Phone Number"),
+                              const SizedBox(height: 16),
+                              const Text("Email Address",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(emailCtrl, "Email Address"),
+                              const SizedBox(height: 16),
+                              const Text("Service Address",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(
+                                  addressCtrl, "Start typing address...",
+                                  isAddress: true, onChanged: (val) {
+                                if (val.length > 3) {
+                                  searchPlaces(val);
+                                } else {
+                                  setModalState(() => placePredictions = []);
+                                }
+                              }),
+                              if (placePredictions.isNotEmpty)
+                                Material(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: const BorderRadius.only(
+                                      bottomLeft: Radius.circular(12),
+                                      bottomRight: Radius.circular(12)),
+                                  clipBehavior: Clip.hardEdge,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: placePredictions
+                                        .map<Widget>((p) => ListTile(
+                                              title: Text(
+                                                  p['description']?.toString() ??
+                                                      '',
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 13)),
+                                              onTap: () async {
+                                                String pId =
+                                                    p['place_id']?.toString() ?? '';
+                                                setModalState(() {
+                                                  addressCtrl.text =
+                                                      p['description']
+                                                              ?.toString() ??
+                                                          '';
+                                                  placePredictions.clear();
+                                                });
+                                                await getPlaceDetails(pId);
+                                              },
+                                            ))
+                                        .toList(),
+                                  ),
+                                ),
+                              const SizedBox(height: 32),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 16),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF0D1B2A),
+                          border: Border(
+                            top: BorderSide(color: Colors.white10),
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: () async {
+                              if (firstNameCtrl.text.trim().isNotEmpty &&
+                                  lastNameCtrl.text.trim().isNotEmpty) {
+                                try {
+                                  Map<String, dynamic> payload = {
+                                    'first_name': firstNameCtrl.text.trim(),
+                                    'last_name': lastNameCtrl.text.trim(),
+                                  };
+                                  if (phoneCtrl.text.trim().isNotEmpty) payload['phone'] = phoneCtrl.text.trim();
+                                  if (emailCtrl.text.trim().isNotEmpty) payload['email'] = emailCtrl.text.trim();
+                                  if (addressCtrl.text.trim().isNotEmpty) {
+                                    payload['address'] = addressCtrl.text.trim();
+                                    payload['address1'] = addressCtrl.text.trim();
+                                  }
+                                  if (lat != 0.0) payload['lat'] = lat;
+                                  if (lng != 0.0) payload['lng'] = lng;
+
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  await ApiService.instance
+                                      .put('/customers/$customerId', payload);
+                                  Navigator.pop(context);
+                                  Navigator.of(context).maybePop();
+                                  _fetchCustomers();
+                                  messenger.showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              "Customer updated successfully!",
+                                              style: TextStyle(
+                                                  color: Colors.white)),
+                                          backgroundColor: Color(0xFF10B981)));
+                                } catch (e) {
+                                  String errorMsg = e.toString().replaceAll('Exception: ', '');
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                            content: Text(
+                                                "Failed to update customer: $errorMsg",
+                                                style: const TextStyle(
+                                                    color: Colors.white)),
+                                            backgroundColor: const Color(0xFFEF4444)));
+                                  }
+                                }
+                              }
+                            },
+                            child: const Text(
+                              "Save Changes",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-            ]),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text("Cancel",
-                    style: TextStyle(color: Colors.white60))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6)),
-              onPressed: () async {
-                if (firstNameCtrl.text.isNotEmpty &&
-                    lastNameCtrl.text.isNotEmpty) {
-                  await ApiService.instance.put('/customers/$customerId', {
-                    'first_name': firstNameCtrl.text.trim(),
-                    'last_name': lastNameCtrl.text.trim(),
-                    'phone': phoneCtrl.text.trim(),
-                    'email': emailCtrl.text.trim(),
-                    'address1': addressCtrl.text.trim(),
-                    'lat': lat,
-                    'lng': lng,
-                  });
-                  Navigator.pop(dialogContext);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text("Customer updated successfully!",
-                          style: TextStyle(color: Colors.white)),
-                      backgroundColor: Color(0xFF10B981)));
-                }
+                );
               },
-              child: const Text("Save Changes",
-                  style: TextStyle(color: Colors.white)),
-            )
-          ],
+            ),
+          ),
         );
-      }),
+      },
     );
   }
 
@@ -2849,15 +3124,18 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                                 .toIso8601String(),
                                           });
 
+                                          final messenger = ScaffoldMessenger.of(context);
                                           Navigator.pop(context);
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
-                                                  content: Text(
-                                                      "Success! Job assigned.",
-                                                      style: TextStyle(
-                                                          color: Colors.white)),
-                                                  backgroundColor:
-                                                      Color(0xFF10B981)));
+                                          if (widget.onJobCreated != null) {
+                                            widget.onJobCreated!();
+                                          }
+                                          messenger.showSnackBar(const SnackBar(
+                                              content: Text(
+                                                  "Success! Job assigned.",
+                                                  style: TextStyle(
+                                                      color: Colors.white)),
+                                              backgroundColor:
+                                                  Color(0xFF10B981)));
                                         } catch (e) {
                                           setModalState(() => isSaving = false);
                                           ScaffoldMessenger.of(context)
@@ -2903,50 +3181,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_getGreeting(),
-                            style: const TextStyle(
-                                color: Colors.white60, fontSize: 16)),
-                        const SizedBox(height: 4),
-                        Text(_adminName,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold))
-                      ]),
-                  GestureDetector(
-                      onTap: _showAdminProfileModal,
-                      child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: const Color(0xFF3B82F6), width: 2)),
-                          child: Center(
-                              child: Text(_getUserInitial(_adminName),
-                                  style: const TextStyle(
-                                      color: Color(0xFF3B82F6),
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold))))),
-                ],
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
                 child: Row(children: const [
-                  Text("Customer Directory",
+                  Text("Customers",
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold))
+                          color: Colors.white70,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w600))
                 ])),
             const SizedBox(height: 16),
             Expanded(

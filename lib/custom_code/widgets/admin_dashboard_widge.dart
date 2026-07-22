@@ -23,117 +23,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../auth/laravel_auth_manager.dart';
+import '../../shared/job_detail_screen.dart';
 import '../../backend/api_service.dart';
 import '../../components/global_chat_modal.dart';
 
-// =====================================================================
-// 🚀 COMPONENTES DEL EDITOR DE FOTOS (PARA EL CHAT INTEGRADO)
-// =====================================================================
-class DrawingPoint {
-  final Offset point;
-  final Paint paint;
-  DrawingPoint({required this.point, required this.paint});
-}
-
-class ImagePainter extends CustomPainter {
-  final List<DrawingPoint?> points;
-  ImagePainter(this.points);
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (int i = 0; i < points.length - 1; i++) {
-      if (points[i] != null && points[i + 1] != null) {
-        canvas.drawLine(
-            points[i]!.point, points[i + 1]!.point, points[i]!.paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-class ImageEditorScreen extends StatefulWidget {
-  final Uint8List imageBytes;
-  const ImageEditorScreen({Key? key, required this.imageBytes})
-      : super(key: key);
-  @override
-  State<ImageEditorScreen> createState() => _ImageEditorScreenState();
-}
-
-class _ImageEditorScreenState extends State<ImageEditorScreen> {
-  List<DrawingPoint?> points = [];
-  final GlobalKey _globalKey = GlobalKey();
-
-  Future<Uint8List?> _captureEditedImage() async {
-    try {
-      RenderRepaintBoundary boundary = _globalKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-      ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
-      return byteData?.buffer.asUint8List();
-    } catch (e) {
-      return widget.imageBytes;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text("Mark Photo", style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.undo, color: Colors.white),
-            onPressed: () {
-              if (points.isNotEmpty) {
-                setState(() => points.removeLast());
-              }
-            },
-          ),
-          IconButton(
-              icon: const Icon(Icons.send, color: Color(0xFF10B981)),
-              onPressed: () async {
-                Uint8List? editedBytes = await _captureEditedImage();
-                Navigator.pop(context, editedBytes);
-              })
-        ],
-      ),
-      body: Center(
-        child: RepaintBoundary(
-          key: _globalKey,
-          child: Stack(
-            children: [
-              Image.memory(widget.imageBytes, fit: BoxFit.contain),
-              Positioned.fill(
-                child: GestureDetector(
-                  onPanUpdate: (details) {
-                    RenderBox renderBox =
-                        context.findRenderObject() as RenderBox;
-                    setState(() {
-                      points.add(DrawingPoint(
-                          point:
-                              renderBox.globalToLocal(details.globalPosition),
-                          paint: Paint()
-                            ..color = Colors.red
-                            ..strokeWidth = 4.0
-                            ..strokeCap = StrokeCap.round));
-                    });
-                  },
-                  onPanEnd: (details) => setState(() => points.add(null)),
-                  child: CustomPaint(
-                      painter: ImagePainter(points), size: Size.infinite),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+import '../../shared/image_editor_helper.dart';
 
 // =====================================================================
 // 🚀 WIDGET PRINCIPAL: DASHBOARD CON MULTI-FILTROS
@@ -802,6 +696,16 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   }
 
   void _showJobDetailsModal(String jobId, Map<String, dynamic> jobData) {
+    int? parsedId = int.tryParse(jobId);
+    if (parsedId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SharedJobDetailScreen(jobId: parsedId),
+        ),
+      );
+      return;
+    }
     List<dynamic> assignedWorkers = jobData['assigned_workers'] ?? [];
     if (assignedWorkers.isEmpty && jobData['assigned_worker'] != null) {
       assignedWorkers = [jobData['assigned_worker']];
@@ -1357,44 +1261,6 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_getGreeting(),
-                            style: const TextStyle(
-                                color: Colors.white60, fontSize: 16)),
-                        const SizedBox(height: 4),
-                        Text(_adminName,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: _showProfileModal,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                            color: const Color(0xFF1E293B),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: const Color(0xFF3B82F6), width: 2)),
-                        child: Center(
-                            child: Text(_getUserInitial(),
-                                style: const TextStyle(
-                                    color: Color(0xFF3B82F6),
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold))),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
 
                 Row(
                   children: [

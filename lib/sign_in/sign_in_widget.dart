@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/custom_code/widgets/index.dart' as custom_widgets;
 import '/index.dart';
+import '/shared/index.dart' as shared;
 import '../auth/laravel_auth_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -58,12 +59,10 @@ class _SignInWidgetState extends State<SignInWidget> {
             width: double.infinity,
             height: double.infinity,
             onLoginSuccess: () async {
-              final user = currentUser as LaravelAuthUser?;
-              final role = user?.userData?['role']?['slug'] ?? 'technician';
-              if (role == 'admin') {
-                context.pushNamed(AdminDashboardWidget.routeName);
+              if (shared.AuthHelpers.isAdmin) {
+                context.pushNamed('AdminDashboard');
               } else {
-                context.pushNamed(WorkDashboardWidget.routeName);
+                context.pushNamed('WorkDashboard');
               }
 
               safeSetState(() {});

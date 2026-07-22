@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 // Set your widget name, define your parameter, and then add the
 // boilerplate code using the green button on the right!
 import '../../auth/laravel_auth_manager.dart';
+import '../../shared/index.dart' as shared;
 
 class AuthRouterWidge extends StatefulWidget {
   const AuthRouterWidge({
@@ -51,10 +52,7 @@ class _AuthRouterWidgeState extends State<AuthRouterWidge> {
       return;
     }
     try {
-      String role = user.userData!['role']?['slug'] ??
-          'technician'; // Por defecto worker/technician
-
-      if (role == 'admin') {
+      if (shared.AuthHelpers.isAdmin) {
         await widget.onAdminRoute();
       } else {
         await widget.onWorkerRoute();
