@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 import '../backend/api_service.dart';
+import '../shared/job_detail_screen.dart';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -537,12 +538,16 @@ class _ClockInTrackerState extends State<ClockInTracker> {
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 130, bottom: 120),
+                  padding: const EdgeInsets.only(top: 16, bottom: 120),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        height: 460,
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        height: _isShiftExpanded 
+                            ? (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null ? 420 : 365) 
+                            : (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null ? 340 : 280),
                         child: PageView.builder(
                           controller: _pageController,
                           onPageChanged: (index) =>
@@ -621,18 +626,23 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8.0),
-                                    child: Container(
-                                        padding: const EdgeInsets.all(24),
-                                        decoration: BoxDecoration(
-                                            color: card,
-                                            borderRadius:
-                                                BorderRadius.circular(24),
-                                            boxShadow: const [
-                                              BoxShadow(
-                                                  color: Colors.black26,
-                                                  blurRadius: 10)
-                                            ]),
-                                        child: Column(children: [
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                               horizontal: 20, vertical: 16),
+                                          decoration: BoxDecoration(
+                                              color: card,
+                                              borderRadius:
+                                                  BorderRadius.circular(24),
+                                              boxShadow: const [
+                                                BoxShadow(
+                                                    color: Colors.black26,
+                                                    blurRadius: 10)
+                                              ]),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
                                           if (swapRequest != null)
                                             Container(
                                               margin: const EdgeInsets.only(bottom: 16),
@@ -761,6 +771,30 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                                   .redAccent,
                                                               shape: BoxShape
                                                                   .circle)),
+                                                 InkWell(
+                                                   onTap: () {
+                                                     Navigator.push(
+                                                       context,
+                                                       MaterialPageRoute(
+                                                         builder: (context) => SharedJobDetailScreen(jobId: jobId),
+                                                       ),
+                                                     );
+                                                   },
+                                                   borderRadius: BorderRadius.circular(20),
+                                                   child: Container(
+                                                     padding: const EdgeInsets.all(8),
+                                                     decoration: BoxDecoration(
+                                                       color: Colors.white.withOpacity(0.08),
+                                                       shape: BoxShape.circle,
+                                                       border: Border.all(color: Colors.white12),
+                                                     ),
+                                                     child: const Icon(
+                                                       Icons.arrow_forward_ios_rounded,
+                                                       color: Colors.white70,
+                                                       size: 14,
+                                                     ),
+                                                   ),
+                                                 ),
                                               ]),
                                           const SizedBox(height: 20),
                                           Row(
@@ -944,7 +978,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                           'Contact Admin')))
                                             ])
                                           ]
-                                        ])),
+                                        ]))),
                                   );
                                 }); // Closes Builder
                           }, // Closes itemBuilder
@@ -1000,12 +1034,26 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                   
                                   Map<String, dynamic> taskStatusMap = {};
                                   for (var item in safeTasks) {
-                                    taskStatusMap[item['name']] = item['completed'] == true;
+                                    if (item is Map) {
+                                      String? tName = item['name']?.toString();
+                                      if (tName != null) {
+                                        taskStatusMap[tName] = item['completed'] == true;
+                                      }
+                                    } else if (item is String) {
+                                      taskStatusMap[item] = false;
+                                    }
                                   }
 
                                   return Column(
                                       children: safeTasks.map((taskItem) {
-                                    String taskName = taskItem['name'];
+                                    String taskName = '';
+                                    if (taskItem is Map) {
+                                      taskName = taskItem['name']?.toString() ?? '';
+                                    } else if (taskItem is String) {
+                                      taskName = taskItem;
+                                    }
+                                    if (taskName.isEmpty) return const SizedBox.shrink();
+
                                     bool isCompleted = taskStatusMap[taskName] == true;
                                     Color btnColor = isCompleted
                                         ? accentBlue.withOpacity(0.2)

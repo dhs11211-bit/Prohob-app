@@ -23,133 +23,7 @@ import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
-// =====================================================================
-// 🚀 COMPONENTES DEL EDITOR DE FOTOS NATIVO
-// =====================================================================
-class DrawingPoint {
-  final Offset point;
-  final Paint paint;
-  DrawingPoint({required this.point, required this.paint});
-}
-
-class ImagePainter extends CustomPainter {
-  final List<DrawingPoint?> points;
-  ImagePainter(this.points);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (int i = 0; i < points.length - 1; i++) {
-      if (points[i] != null && points[i + 1] != null) {
-        canvas.drawLine(
-          points[i]!.point,
-          points[i + 1]!.point,
-          points[i]!.paint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-class ImageEditorScreen extends StatefulWidget {
-  final Uint8List imageBytes;
-  const ImageEditorScreen({Key? key, required this.imageBytes})
-      : super(key: key);
-
-  @override
-  State<ImageEditorScreen> createState() => _ImageEditorScreenState();
-}
-
-class _ImageEditorScreenState extends State<ImageEditorScreen> {
-  List<DrawingPoint?> points = [];
-  final GlobalKey _globalKey = GlobalKey();
-
-  Future<Uint8List?> _captureEditedImage() async {
-    try {
-      RenderRepaintBoundary boundary = _globalKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-      ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
-      return byteData?.buffer.asUint8List();
-    } catch (e) {
-      debugPrint("Error capturing edited image: $e");
-      return widget.imageBytes;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text(
-          "Mark / Edit Photo",
-          style: TextStyle(color: Colors.white),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.undo, color: Colors.white),
-            onPressed: () {
-              if (points.isNotEmpty) {
-                setState(() => points.removeLast());
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.send, color: Color(0xFF10B981)),
-            onPressed: () async {
-              Uint8List? editedBytes = await _captureEditedImage();
-              Navigator.pop(context, editedBytes);
-            },
-          )
-        ],
-      ),
-      body: Center(
-        child: RepaintBoundary(
-          key: _globalKey,
-          child: Stack(
-            children: [
-              Image.memory(widget.imageBytes, fit: BoxFit.contain),
-              Positioned.fill(
-                child: GestureDetector(
-                  onPanUpdate: (details) {
-                    RenderBox renderBox =
-                        context.findRenderObject() as RenderBox;
-                    setState(() {
-                      points.add(
-                        DrawingPoint(
-                          point:
-                              renderBox.globalToLocal(details.globalPosition),
-                          paint: Paint()
-                            ..color = Colors.red
-                            ..strokeWidth = 4.0
-                            ..strokeCap = StrokeCap.round,
-                        ),
-                      );
-                    });
-                  },
-                  onPanEnd: (details) => setState(() => points.add(null)),
-                  child: CustomPaint(
-                    painter: ImagePainter(points),
-                    size: Size.infinite,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+import '../../shared/image_editor_helper.dart';
 
 // =====================================================================
 // 🚀 WIDGET PRINCIPAL DE LA PANTALLA TEAM
@@ -1882,10 +1756,12 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         'password': _passwordController.text,
         'password_confirmation': _confirmPasswordController.text,
         'hourly_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
+        'cost_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
         'role_id': _selectedRoleId,
       });
 
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         setState(() {
           _firstNameController.clear();
           _lastNameController.clear();
@@ -1895,7 +1771,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
           _hourlyRateController.text = '20';
         });
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(
             content: Text(
               "Worker added successfully!",
@@ -1915,6 +1791,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   void _showAddWorkerModal() {
     String? _createWorkerError;
     bool _obscurePassword = true;
+    bool _obscureConfirmPassword = true;
     bool _isCreatingUserLocal = false;
     bool _isFetchingRolesLocal = false;
 
@@ -1923,35 +1800,32 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return StatefulBuilder(
-            builder: (BuildContext context, StateSetter setModalState) {
-          
-          if (_isLoadingRoles && !_isFetchingRolesLocal) {
-            _isFetchingRolesLocal = true;
-            _rolesFuture?.then((_) {
-              if (mounted) {
-                setModalState(() {});
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.95,
+            child: StatefulBuilder(
+                builder: (BuildContext context, StateSetter setModalState) {
+              if (_isLoadingRoles && !_isFetchingRolesLocal) {
+                _isFetchingRolesLocal = true;
+                _rolesFuture?.then((_) {
+                  if (mounted) {
+                    setModalState(() {});
+                  }
+                });
               }
-            });
-          }
 
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF0D1B2A),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16, bottom: 8),
+                      child: Center(
                         child: Container(
                           width: 40,
                           height: 4,
@@ -1961,157 +1835,228 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      Row(
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          const SizedBox(width: 12),
                           const Text(
-                            "Add New Worker",
+                            "Add New Staff Member",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                color: Colors.white60),
+                            onPressed: () => Navigator.pop(context),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Create an account for your new team member.",
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Stack(
-                        children: [
-                          AbsorbPointer(
-                            absorbing: _isLoadingRoles,
-                            child: Opacity(
-                              opacity: _isLoadingRoles ? 0.5 : 1.0,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (_createWorkerError != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _createWorkerError!,
-                                  style: const TextStyle(color: Color(0xFFEF4444), fontSize: 14),
-                                ),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Create an account for your new team member.",
+                              style: TextStyle(
+                                color: Colors.white60,
+                                fontSize: 14,
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 24),
+                            Stack(
+                              children: [
+                                AbsorbPointer(
+                                  absorbing: _isLoadingRoles,
+                                  child: Opacity(
+                                    opacity: _isLoadingRoles ? 0.5 : 1.0,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (_createWorkerError != null) ...[
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFEF4444)
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                  color: const Color(0xFFEF4444)
+                                                      .withOpacity(0.5)),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.error_outline,
+                                                    color: Color(0xFFEF4444),
+                                                    size: 20),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    _createWorkerError!,
+                                                    style: const TextStyle(
+                                                        color: Color(0xFFEF4444),
+                                                        fontSize: 14),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+                                        _buildTextField(
+                                          controller: _firstNameController,
+                                          label: "First Name",
+                                          icon: Icons.person_outline,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        _buildTextField(
+                                          controller: _lastNameController,
+                                          label: "Last Name",
+                                          icon: Icons.person_outline,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        _buildTextField(
+                                          controller: _emailController,
+                                          label: "Email Address",
+                                          icon: Icons.email_outlined,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1E293B),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: DropdownButtonFormField<int>(
+                                            value: _selectedRoleId,
+                                            isExpanded: true,
+                                            dropdownColor:
+                                                const Color(0xFF1E293B),
+                                            icon: const Padding(
+                                              padding:
+                                                  EdgeInsets.only(right: 8.0),
+                                              child: Icon(Icons.arrow_drop_down,
+                                                  color: Colors.white60),
+                                            ),
+                                            decoration: const InputDecoration(
+                                              prefixIcon: Icon(
+                                                  Icons.work_outline,
+                                                  color: Color(0xFF3B82F6)),
+                                              border: InputBorder.none,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                      vertical: 16),
+                                            ),
+                                            hint: const Text("Select Role",
+                                                style: TextStyle(
+                                                    color: Colors.white38)),
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16),
+                                            items: _availableRoles.map((role) {
+                                              return DropdownMenuItem<int>(
+                                                value: role['id'] as int,
+                                                child: Text(role['name'] ??
+                                                    'Unknown Role'),
+                                              );
+                                            }).toList(),
+                                            onChanged: (int? newValue) {
+                                              setModalState(() {
+                                                _selectedRoleId = newValue;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        _buildTextField(
+                                          controller: _passwordController,
+                                          label: "Password",
+                                          icon: Icons.lock_outline,
+                                          obscure: _obscurePassword,
+                                          suffixIcon: IconButton(
+                                            icon: Icon(
+                                              _obscurePassword
+                                                  ? Icons.visibility_off
+                                                  : Icons.visibility,
+                                              color: Colors.white38,
+                                            ),
+                                            onPressed: () {
+                                              setModalState(() {
+                                                _obscurePassword =
+                                                    !_obscurePassword;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        _buildTextField(
+                                          controller:
+                                              _confirmPasswordController,
+                                          label: "Confirm Password",
+                                          icon: Icons.lock_outline,
+                                          obscure: _obscureConfirmPassword,
+                                          suffixIcon: IconButton(
+                                            icon: Icon(
+                                              _obscureConfirmPassword
+                                                  ? Icons.visibility_off
+                                                  : Icons.visibility,
+                                              color: Colors.white38,
+                                            ),
+                                            onPressed: () {
+                                              setModalState(() {
+                                                _obscureConfirmPassword =
+                                                    !_obscureConfirmPassword;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        _buildTextField(
+                                          controller: _hourlyRateController,
+                                          label: "Hourly Rate (\$)",
+                                          icon: Icons.attach_money,
+                                          keyboardType: const TextInputType
+                                              .numberWithOptions(decimal: true),
+                                        ),
+                                        const SizedBox(height: 32),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (_isLoadingRoles)
+                                  const Positioned.fill(
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                      ],
-                      _buildTextField(
-                        controller: _firstNameController,
-                        label: "First Name",
-                        icon: Icons.person_outline,
                       ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _lastNameController,
-                        label: "Last Name",
-                        icon: Icons.person_outline,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _emailController,
-                        label: "Email Address",
-                        icon: Icons.email_outlined,
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: DropdownButtonFormField<int>(
-                          value: _selectedRoleId,
-                          isExpanded: true,
-                          dropdownColor: const Color(0xFF1E293B),
-                          icon: const Padding(
-                            padding: EdgeInsets.only(right: 8.0),
-                            child: Icon(Icons.arrow_drop_down, color: Colors.white60),
-                          ),
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.work_outline, color: Color(0xFF3B82F6)),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          hint: const Text("Select Role", style: TextStyle(color: Colors.white38)),
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
-                          items: _availableRoles.map((role) {
-                            return DropdownMenuItem<int>(
-                              value: role['id'] as int,
-                              child: Text(role['name'] ?? 'Unknown Role'),
-                            );
-                          }).toList(),
-                          onChanged: (int? newValue) {
-                            setModalState(() {
-                              _selectedRoleId = newValue;
-                            });
-                          },
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 16),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0D1B2A),
+                        border: Border(
+                          top: BorderSide(color: Colors.white10),
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      _buildTextField(
-                        controller: _passwordController,
-                        label: "Temporary Password",
-                        icon: Icons.lock_outline,
-                        obscure: _obscurePassword,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            color: Colors.white38,
-                          ),
-                          onPressed: () {
-                            setModalState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _confirmPasswordController,
-                        label: "Confirm Password",
-                        icon: Icons.lock_outline,
-                        obscure: _obscurePassword,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _hourlyRateController,
-                        label: "Hourly Rate (\$)",
-                        icon: Icons.attach_money,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      ),
-
-
-                      const SizedBox(height: 32),
-                      SizedBox(
+                      child: SizedBox(
                         width: double.infinity,
-                        height: 55,
+                        height: 50,
                         child: ElevatedButton(
                           onPressed: _isCreatingUserLocal
                               ? null
@@ -2126,12 +2071,23 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                       _isCreatingUserLocal = false;
                                       _createWorkerError = error;
                                     });
+                                    if (error != null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            "Failed to create staff member: $error",
+                                            style: const TextStyle(color: Colors.white),
+                                          ),
+                                          backgroundColor: const Color(0xFFEF4444),
+                                        ),
+                                      );
+                                    }
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3B82F6),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                           child: _isCreatingUserLocal
@@ -2153,30 +2109,19 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 ),
                         ),
                       ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (_isLoadingRoles)
-                            const Positioned.fill(
-                              child: Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          );
-        });
+              );
+            }),
+          ),
+        );
       },
     );
   }
 
-  void _showEditRateDialog(String userId, double currentRate) {
+  void _showEditRateDialog(dynamic userId, double currentRate) {
+    String idStr = userId?.toString() ?? '';
     TextEditingController rateCtrl =
         TextEditingController(text: currentRate.toStringAsFixed(2));
 
@@ -2211,26 +2156,43 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
               ),
               onPressed: () async {
                 if (rateCtrl.text.isNotEmpty) {
-                  double newRate =
-                      double.tryParse(rateCtrl.text) ?? currentRate;
-                  
-                  await ApiService.instance.put('/admin/workers/$userId', {
-                    'hourly_rate': newRate
-                  });
+                  try {
+                    double newRate =
+                        double.tryParse(rateCtrl.text) ?? currentRate;
+                    
+                    final messenger = ScaffoldMessenger.of(context);
+                    await ApiService.instance.put('/admin/workers/$idStr', {
+                      'hourly_rate': newRate,
+                      'cost_rate': newRate,
+                    });
 
-                  Navigator.pop(dialogContext);
-                  Navigator.pop(context);
-                  _fetchWorkers(); // Refresh the data
+                    Navigator.pop(dialogContext);
+                    Navigator.pop(context);
+                    _fetchWorkers(); // Refresh the data
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Hourly Rate updated successfully!",
-                        style: TextStyle(color: Colors.white),
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "Hourly Rate updated successfully!",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Color(0xFF10B981),
                       ),
-                      backgroundColor: Color(0xFF10B981),
-                    ),
-                  );
+                    );
+                  } catch (e) {
+                    String errorMsg = e.toString().replaceAll('Exception: ', '');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            "Failed to update hourly rate: $errorMsg",
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          backgroundColor: const Color(0xFFEF4444),
+                        ),
+                      );
+                    }
+                  }
                 }
               },
               child: const Text(
@@ -2244,8 +2206,257 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     );
   }
 
+  void _showEditWorkerModal(Map<String, dynamic> workerData) {
+    String userId = (workerData['uid'] ?? workerData['id'] ?? '').toString();
+    String name = workerData['display_name'] ?? workerData['name'] ?? '';
+    List<String> nameParts = name.trim().split(' ');
+    String defaultFirst = workerData['first_name'] ?? (nameParts.isNotEmpty ? nameParts.first : '');
+    String defaultLast = workerData['last_name'] ?? (nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
+
+    TextEditingController firstNameCtrl = TextEditingController(text: defaultFirst);
+    TextEditingController lastNameCtrl = TextEditingController(text: defaultLast);
+    TextEditingController emailCtrl = TextEditingController(text: workerData['email'] ?? '');
+    TextEditingController phoneCtrl = TextEditingController(text: workerData['phone'] ?? workerData['mobile'] ?? '');
+    TextEditingController addressCtrl = TextEditingController(text: workerData['address'] ?? workerData['address1'] ?? '');
+    double currentRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 20.0;
+    TextEditingController rateCtrl = TextEditingController(text: currentRate.toStringAsFixed(2));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Material(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.95,
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16, bottom: 8),
+                        child: Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Edit Staff Member",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close,
+                                  color: Colors.white60),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 12),
+                              const Text("First Name",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                controller: firstNameCtrl,
+                                label: "First Name",
+                                icon: Icons.person_outline,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("Last Name",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                controller: lastNameCtrl,
+                                label: "Last Name",
+                                icon: Icons.person_outline,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("Email Address",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                controller: emailCtrl,
+                                label: "Email Address",
+                                icon: Icons.email_outlined,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("Phone Number",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                controller: phoneCtrl,
+                                label: "Phone Number",
+                                icon: Icons.phone_outlined,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("Street Address",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                controller: addressCtrl,
+                                label: "Address",
+                                icon: Icons.location_on_outlined,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("Hourly Rate (\$)",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                controller: rateCtrl,
+                                label: "Hourly Rate (\$)",
+                                icon: Icons.attach_money,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                              const SizedBox(height: 32),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 16),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF0D1B2A),
+                          border: Border(
+                            top: BorderSide(color: Colors.white10),
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: () async {
+                              if (firstNameCtrl.text.trim().isNotEmpty &&
+                                  lastNameCtrl.text.trim().isNotEmpty) {
+                                try {
+                                  double newRate =
+                                      double.tryParse(rateCtrl.text.trim()) ??
+                                          currentRate;
+                                  Map<String, dynamic> payload = {
+                                    'first_name': firstNameCtrl.text.trim(),
+                                    'last_name': lastNameCtrl.text.trim(),
+                                    'hourly_rate': newRate,
+                                    'cost_rate': newRate,
+                                  };
+                                  if (emailCtrl.text.trim().isNotEmpty) payload['email'] = emailCtrl.text.trim();
+                                  if (phoneCtrl.text.trim().isNotEmpty) {
+                                    payload['phone'] = phoneCtrl.text.trim();
+                                    payload['mobile'] = phoneCtrl.text.trim();
+                                  }
+                                  if (addressCtrl.text.trim().isNotEmpty) {
+                                    payload['address'] = addressCtrl.text.trim();
+                                    payload['address1'] = addressCtrl.text.trim();
+                                  }
+
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  await ApiService.instance
+                                      .put('/admin/workers/$userId', payload);
+
+                                  Navigator.pop(context);
+                                  Navigator.of(context).maybePop();
+                                  _fetchWorkers();
+
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "Staff info updated successfully!",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  String errorMsg = e.toString().replaceAll('Exception: ', '');
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          "Failed to update staff info: $errorMsg",
+                                          style: const TextStyle(color: Colors.white),
+                                        ),
+                                        backgroundColor: const Color(0xFFEF4444),
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                            child: const Text(
+                              "Save Changes",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showWorkerDetailsModal(Map<String, dynamic> workerData) {
-    double hourlyRate = (workerData['hourly_rate'] ?? 16.0).toDouble();
+    double hourlyRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 16.0;
 
     showModalBottomSheet(
       context: context,
@@ -2360,7 +2571,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                           const SizedBox(width: 12),
                           ElevatedButton(
                             onPressed: () => _showEditRateDialog(
-                              workerData['uid'] ?? '',
+                              workerData['uid']?.toString() ?? workerData['id']?.toString() ?? '',
                               hourlyRate,
                             ),
                             style: ElevatedButton.styleFrom(
@@ -2433,16 +2644,33 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                       ),
                       const SizedBox(height: 32),
                       Row(
-                        children: const [
-                          Icon(Icons.person_outline,
-                              color: Colors.white, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            "Personal Info",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.person_outline,
+                                  color: Colors.white, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                "Personal Info",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () => _showEditWorkerModal(workerData),
+                            icon: const Icon(Icons.edit, color: Colors.white, size: 14),
+                            label: const Text("Edit Info", style: TextStyle(color: Colors.white, fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ],
@@ -2702,60 +2930,6 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         body: SafeArea(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getGreeting(),
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _adminName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: _showAdminProfileModal,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF3B82F6),
-                            width: 2,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _getUserInitial(_adminName),
-                            style: const TextStyle(
-                              color: Color(0xFF3B82F6),
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               TabBar(
                 controller: _tabController,
                 indicatorColor: const Color(0xFF3B82F6),

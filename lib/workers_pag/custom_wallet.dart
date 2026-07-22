@@ -302,7 +302,7 @@ class _CustomWalletState extends State<CustomWallet> {
               parent: BouncingScrollPhysics()),
           child: Padding(
             padding: const EdgeInsets.only(
-                top: 130, bottom: 120, left: 24, right: 24),
+                top: 12, bottom: 120, left: 24, right: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

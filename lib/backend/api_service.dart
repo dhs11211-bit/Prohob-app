@@ -134,6 +134,30 @@ class ApiService {
     }
   }
 
+  // Unified Jobs Endpoint
+  Future<dynamic> getJobs({
+    String? date,
+    String? startDate,
+    String? endDate,
+    String? fromDate,
+    String? untilDate,
+    int? limit,
+    int? page,
+    int? customerId,
+  }) async {
+    final params = <String, dynamic>{};
+    if (date != null) params['date'] = date;
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
+    if (fromDate != null) params['from_date'] = fromDate;
+    if (untilDate != null) params['until_date'] = untilDate;
+    if (limit != null) params['limit'] = limit;
+    if (page != null) params['page'] = page;
+    if (customerId != null) params['customer_id'] = customerId;
+
+    return await get('/jobs', queryParams: params);
+  }
+
   Future<dynamic> getAdminJobs(
       {String? startDate,
       String? endDate,
@@ -141,53 +165,14 @@ class ApiService {
       String? untilDate,
       int? limit,
       int? page}) async {
-    String urlStr = '$baseUrl/admin/jobs';
-
-    List<String> queryParams = [];
-    if (startDate != null) queryParams.add('start_date=$startDate');
-    if (endDate != null) queryParams.add('end_date=$endDate');
-    if (fromDate != null) queryParams.add('from_date=$fromDate');
-    if (untilDate != null) queryParams.add('until_date=$untilDate');
-    if (limit != null) queryParams.add('limit=$limit');
-    if (page != null) queryParams.add('page=$page');
-
-    if (queryParams.isNotEmpty) {
-      urlStr += '?${queryParams.join('&')}';
-    }
-
-    final url = Uri.parse(urlStr);
-    final response = await http.get(url, headers: await _getHeaders());
-
-    final data = jsonDecode(response.body);
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (data is Map && data.containsKey('data')) {
-        var items = data['data'];
-        if (items is List) {
-          data['data'] = items
-              .where((j) =>
-                  j['hide_from_calendar'] != true &&
-                  j['hide_from_calendar'] != 1)
-              .toList();
-        } else if (items is Map && items.containsKey('data')) {
-          var innerItems = items['data'];
-          if (innerItems is List) {
-            items['data'] = innerItems
-                .where((j) =>
-                    j['hide_from_calendar'] != true &&
-                    j['hide_from_calendar'] != 1)
-                .toList();
-          }
-        }
-      } else if (data is List) {
-        return data
-            .where((j) =>
-                j['hide_from_calendar'] != true && j['hide_from_calendar'] != 1)
-            .toList();
-      }
-      return data;
-    } else {
-      throw Exception(data['message'] ?? 'Failed to get admin jobs');
-    }
+    return await getJobs(
+      startDate: startDate,
+      endDate: endDate,
+      fromDate: fromDate,
+      untilDate: untilDate,
+      limit: limit,
+      page: page,
+    );
   }
 
   Future<dynamic> getMyJobs(
@@ -197,32 +182,14 @@ class ApiService {
       String? untilDate,
       int? limit,
       int? page}) async {
-    String urlStr = '$baseUrl/jobs/all';
-
-    List<String> queryParams = [];
-    if (startDate != null && endDate != null) {
-      queryParams.add('start_date=$startDate');
-      queryParams.add('end_date=$endDate');
-    }
-    if (fromDate != null) queryParams.add('from_date=$fromDate');
-    if (untilDate != null) queryParams.add('until_date=$untilDate');
-    if (limit != null) queryParams.add('limit=$limit');
-    if (page != null) queryParams.add('page=$page');
-
-    if (queryParams.isNotEmpty) {
-      urlStr += '?' + queryParams.join('&');
-    }
-
-    final url = Uri.parse(urlStr);
-    final response = await http.get(url, headers: await _getHeaders());
-
-    final data = jsonDecode(response.body);
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      // Return the entire paginated object or the list if not paginated
-      return data;
-    } else {
-      throw Exception(data['message'] ?? 'Failed to load jobs');
-    }
+    return await getJobs(
+      startDate: startDate,
+      endDate: endDate,
+      fromDate: fromDate,
+      untilDate: untilDate,
+      limit: limit,
+      page: page,
+    );
   }
 
   Future<void> updateJobStatus(int jobId, String status) async {
@@ -338,11 +305,23 @@ class ApiService {
   }
 
   // --- Generic Endpoints ---
-  Future<dynamic> get(String endpoint) async {
-    final url = Uri.parse(
-        '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
+  Future<dynamic> get(String endpoint, {Map<String, dynamic>? queryParams}) async {
+    String urlStr = endpoint.startsWith('http')
+        ? endpoint
+        : '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}';
+
+    if (queryParams != null && queryParams.isNotEmpty) {
+      List<String> parts = [];
+      queryParams.forEach((k, v) {
+        if (v != null) parts.add('$k=${Uri.encodeComponent(v.toString())}');
+      });
+      if (parts.isNotEmpty) {
+        urlStr += (urlStr.contains('?') ? '&' : '?') + parts.join('&');
+      }
+    }
+
     final response = await http.get(
-      url,
+      Uri.parse(urlStr),
       headers: await _getHeaders(),
     );
     final data = jsonDecode(response.body);

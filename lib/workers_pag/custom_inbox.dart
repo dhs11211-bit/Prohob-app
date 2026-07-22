@@ -579,7 +579,7 @@ class _CustomInboxState extends State<CustomInbox> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top + 160), // Push below 150px CustomHeader
+          const SizedBox(height: 12),
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
