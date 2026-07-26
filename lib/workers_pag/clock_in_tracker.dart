@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../backend/api_service.dart';
 import '../shared/job_detail_screen.dart';
 import '../components/contact_list_modal.dart';
+import '../components/quick_map_modal.dart';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -126,18 +127,22 @@ class _ClockInTrackerState extends State<ClockInTracker> {
   }
 
   Future<void> _openInAppMap(double? lat, double? lng, String address, String timeLabel) async {
-    if (lat == null || lng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No location available for this job.'), backgroundColor: Colors.redAccent));
-      return;
-    }
-    final url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Could not open map.'), backgroundColor: Colors.redAccent));
-    }
+    final tempJobData = {
+      'address': address,
+      'latitude': lat,
+      'longitude': lng,
+    };
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return QuickMapModal(
+          jobData: tempJobData,
+          title: 'Job Location',
+        );
+      },
+    );
   }
 
   Future<void> _performClockIn(int jobId, double? jobLat, double? jobLng, DateTime? scheduledTime) async {
@@ -604,7 +609,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                 jobData['address'] ?? 'No address set';
 
                             DateTime? scheduledTime =
-                                _parseSafeDate(jobData['scheduled_time']);
+                                _parseSafeDate(jobData['start_date'] ?? jobData['scheduled_time']);
                             String shiftTimeLabel =
                                 DateFormat('hh:mm a').format(scheduledTime);
                             String shiftDateLabel =
@@ -895,13 +900,13 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                         horizontal: 12,
                                                         vertical: 8),
                                                     decoration: BoxDecoration(
-                                                        color: neonAction
+                                                        color: Colors.orange
                                                             .withOpacity(0.1),
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(12),
                                                         border: Border.all(
-                                                            color: neonAction
+                                                            color: Colors.orange
                                                                 .withOpacity(
                                                                     0.3))),
                                                     child: Row(
@@ -909,7 +914,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                           MainAxisSize.min,
                                                       children: [
                                                         Icon(Icons.map_outlined,
-                                                            color: neonAction,
+                                                            color: Colors.orange,
                                                             size: 16),
                                                         const SizedBox(
                                                             width: 6),
@@ -920,7 +925,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                                 : displayAddress,
                                                             style: TextStyle(
                                                                 color:
-                                                                    neonAction,
+                                                                    Colors.orange,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold,

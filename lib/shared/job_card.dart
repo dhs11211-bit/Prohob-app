@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../components/quick_map_modal.dart';
 
 class SharedJobCard extends StatelessWidget {
   const SharedJobCard({
@@ -14,28 +14,18 @@ class SharedJobCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onEditTap;
 
-  void _launchDirections(String? address, BuildContext context) async {
-    if (address == null || address.isEmpty || address == 'No address provided') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No valid address provided for this job.')),
-      );
-      return;
-    }
-    final encodedQuery = Uri.encodeComponent(address);
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$encodedQuery');
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch maps.')),
+  void _showQuickMap(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return QuickMapModal(
+          jobData: jobData,
+          title: jobData['title'] ?? jobData['customer_name'] ?? 'Job Location',
         );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error launching maps.')),
-      );
-    }
+      },
+    );
   }
 
   @override
@@ -231,11 +221,11 @@ class SharedJobCard extends StatelessWidget {
             const SizedBox(width: 8),
             // Map Navigation Button
             GestureDetector(
-              onTap: () => _launchDirections(address, context),
+              onTap: () => _showQuickMap(context),
               child: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: accentBlue.withOpacity(0.15), shape: BoxShape.circle),
-                child: const Icon(Icons.navigation_outlined, color: accentBlue, size: 20),
+                decoration: BoxDecoration(color: goldPill.withOpacity(0.15), shape: BoxShape.circle),
+                child: const Icon(Icons.map_outlined, color: goldPill, size: 20),
               ),
             ),
             const SizedBox(width: 8),

@@ -79,6 +79,18 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getPublicSettings() async {
+    final url = Uri.parse('$baseUrl/public/settings');
+    final response = await http.get(url, headers: {'Accept': 'application/json'});
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return data['data'] ?? {};
+    } else {
+      throw Exception(data['message'] ?? 'Failed to get public settings');
+    }
+  }
+
   // --- Dashboard Endpoints ---
   Future<Map<String, dynamic>> getDashboardStats() async {
     final url = Uri.parse('$baseUrl/dashboard');
@@ -137,6 +149,19 @@ class ApiService {
       return data; // Returns list of jobs
     } else {
       throw Exception(data['message'] ?? 'Failed to load today jobs');
+    }
+  }
+
+  Future<List<dynamic>> getSubscriptionPlans() async {
+    final url = Uri.parse('$baseUrl/subscriptions/plans');
+    final response = await http.get(url, headers: await _getHeaders());
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return data['data'] != null ? data['data'] : data; 
+    } else {
+      throw Exception(data['message'] ?? 'Failed to load subscription plans');
     }
   }
 

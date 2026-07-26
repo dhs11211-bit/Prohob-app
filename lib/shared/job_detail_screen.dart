@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_service.dart';
 import '../components/global_chat_modal.dart';
+import '../components/quick_map_modal.dart';
 import 'auth_helpers.dart';
 
 class SharedJobDetailScreen extends StatefulWidget {
@@ -64,21 +65,19 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     }
   }
 
-  void _launchDirections(String? address) async {
-    if (address == null || address.isEmpty || address == 'No address provided.') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No location address available for this job.')),
-      );
-      return;
-    }
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open map.')),
-      );
-    }
+  void _showQuickMap() {
+    if (_jobData == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return QuickMapModal(
+          jobData: _jobData!,
+          title: _jobData!['title'] ?? _jobData!['customer_name'] ?? 'Job Location',
+        );
+      },
+    );
   }
 
   void _launchCall(String? phone) async {
@@ -1429,22 +1428,22 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                 // MAP Button
                                 Expanded(
                                   child: InkWell(
-                                    onTap: () => _launchDirections(address),
+                                    onTap: () => _showQuickMap(),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       decoration: BoxDecoration(
-                                        color: accentBlue.withOpacity(0.1),
+                                        color: goldColor.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: accentBlue.withOpacity(0.4)),
+                                        border: Border.all(color: goldColor.withOpacity(0.4)),
                                       ),
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.navigation_outlined, color: accentBlue, size: 18),
+                                          Icon(Icons.map_outlined, color: goldColor, size: 18),
                                           const SizedBox(width: 8),
                                           Text(
                                             'MAP',
-                                            style: TextStyle(color: accentBlue, fontWeight: FontWeight.bold, fontSize: 13),
+                                            style: TextStyle(color: goldColor, fontWeight: FontWeight.bold, fontSize: 13),
                                           ),
                                         ],
                                       ),

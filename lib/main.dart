@@ -15,6 +15,7 @@ import '/custom_code/widgets/index.dart' as custom_widgets;
 import '/shared/index.dart' as shared;
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'app_state.dart';
+import '/backend/api_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global role helper — checks the authenticated user's role slug
@@ -274,13 +275,31 @@ class _NavBarPageState extends State<NavBarPage> {
     );
   }
 
-  void _openEvidenceFlow() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const custom_widgets.CustomEvidenceModal(),
-    );
+  void _openEvidenceFlow() async {
+    try {
+      final jobs = await ApiService.instance.getTodayJobs();
+      if (jobs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You have no scheduled jobs today', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              backgroundColor: Color(0xFFF59E0B),
+            ),
+          );
+        }
+        return;
+      }
+      if (mounted) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => const custom_widgets.CustomEvidenceModal(),
+        );
+      }
+    } catch (e) {
+      print("Error opening evidence flow: $e");
+    }
   }
 
   Widget _tabBody() {
