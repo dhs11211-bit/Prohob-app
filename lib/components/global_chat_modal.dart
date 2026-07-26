@@ -16,18 +16,14 @@ class GlobalChatModal {
       int currentUserId = me['id'];
 
       // 1. Fetch all conversations
-      var res = await ApiService.instance.get('/conversations');
+      var res = await ApiService.instance.getConversations();
       // The index endpoint returns a paginated response: {data: {data: [...]}}
       List<dynamic> convs = [];
-      if (res is Map) {
-        final d = res['data'];
-        if (d is Map && d['data'] != null) {
-          convs = d['data'] as List<dynamic>;
-        } else if (d is List) {
-          convs = d;
-        }
-      } else if (res is List) {
-        convs = res;
+      final d = res['data'];
+      if (d is Map && d['data'] != null) {
+        convs = List<dynamic>.from(d['data']);
+      } else if (d is List) {
+        convs = List<dynamic>.from(d);
       }
 
       String? foundChatId;
@@ -66,7 +62,7 @@ class GlobalChatModal {
         }
 
         var createRes =
-            await ApiService.instance.post('/conversations', payload);
+            await ApiService.instance.createConversation(payload);
         foundChatId = createRes['id'].toString();
       }
 
@@ -111,7 +107,7 @@ class GlobalChatModal {
         'participants': workerIds.map((id) => int.parse(id)).toList(),
       };
 
-      var createRes = await ApiService.instance.post('/conversations', payload);
+      var createRes = await ApiService.instance.createConversation(payload);
       String chatId = createRes['id'].toString();
 
       if (context.mounted) {

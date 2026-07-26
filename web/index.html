@@ -53,11 +53,55 @@
 </head>
 <body>
   
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCCepBRzPsX3M20vK0YTX5KINtZCiPkvYE"></script>
-  
-  
-  
   <script>
+    // Dynamically fetch and inject Google Maps API key
+    async function loadGoogleMaps() {
+      let apiKey = null;
+      
+      try {
+        // Attempt to fetch from local or prod backend depending on host
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const baseUrl = isLocal ? 'http://localhost:8000/api/mob' : 'https://api.serviceprohob.com/api/mob';
+        
+        const response = await fetch(`${baseUrl}/public/settings`);
+        if (response.ok) {
+          const res = await response.json();
+          if (res && res.data && res.data.google_maps_api_key) {
+            apiKey = res.data.google_maps_api_key.trim();
+          }
+        }
+      } catch (error) {
+        console.warn('Could not fetch dynamic maps API key (likely not logged in or missing). Loading maps without key to prevent startup crash.');
+      }
+      
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.onload = resolve;
+        script.onerror = resolve; // Resolve even on error so app doesn't hang forever
+        
+        // If apiKey is null/empty, Google Maps SDK will still load but will show an "API Key missing" 
+        // watermark on the map instead of crashing the entire Flutter app!
+        const keyParam = apiKey ? `?key=${apiKey}` : '';
+        script.src = `https://maps.googleapis.com/maps/api/js${keyParam}`;
+        
+        document.head.appendChild(script);
+      });
+    }
+
+    async function startApp() {
+      await loadGoogleMaps();
+      
+      // Now that Google Maps is loaded, we can safely execute Flutter's bootstrap
+      const bootstrapCode = document.getElementById('flutter-bootstrap').textContent;
+      const flutterScript = document.createElement('script');
+      flutterScript.text = bootstrapCode;
+      document.body.appendChild(flutterScript);
+    }
+    
+    startApp();
+  </script>
+  
+  <script id="flutter-bootstrap" type="text/plain">
     {{flutter_bootstrap_js}}
   </script>
 </body>

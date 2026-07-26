@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../backend/api_service.dart';
 import '../shared/job_detail_screen.dart';
+import '../components/contact_list_modal.dart';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -192,14 +193,34 @@ class _ClockInTrackerState extends State<ClockInTracker> {
   }
 
   Future<void> _toggleTaskStatus(int jobId, String taskName, Map<String, dynamic> currentStatusMap) async {
-    bool isDone = (currentStatusMap[taskName] == true) ? false : true; // Assuming boolean now
+    bool isDone = !(currentStatusMap[taskName] == true);
+    if (isDone) {
+      _showConfirmDialog(
+        'Mark Task Completed?',
+        'Are you sure you want to mark "$taskName" as completed?',
+        () async {
+          _executeToggleTask(jobId, taskName, true);
+        },
+      );
+    } else {
+      _executeToggleTask(jobId, taskName, false);
+    }
+  }
+
+  Future<void> _executeToggleTask(int jobId, String taskName, bool isDone) async {
+    setState(() => _isProcessing = true);
     try {
       await ApiService.instance.updateChecklist(jobId, taskName, isDone);
+      await _fetchData();
       if (mounted) setState(() {});
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error updating task: $e'),
-          backgroundColor: Colors.redAccent));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error updating task: $e'),
+            backgroundColor: Colors.redAccent));
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -326,8 +347,27 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                     ]))));
   }
 
+  void _deleteSwapRequest(int jobId) {
+    _showConfirmDialog('Delete Swap Request?', 'Are you sure you want to delete this shift swap request? This action will remove your request from the system.', () async {
+      setState(() => _isProcessing = true);
+      try {
+        await ApiService.instance.cancelSwapRequest(jobId);
+        await _fetchData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Swap request deleted'), backgroundColor: Colors.green));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
+        }
+      } finally {
+        if (mounted) setState(() => _isProcessing = false);
+      }
+    });
+  }
+
   void _cancelSwapRequest(int jobId) {
-    _showConfirmDialog('Cancel Request?', 'Are you sure you want to cancel this shift swap request?', () async {
+    _showConfirmDialog('Cancel Swap Request?', 'Are you sure you want to cancel your shift swap request? You will remain assigned to this shift.', () async {
       setState(() => _isProcessing = true);
       try {
         await ApiService.instance.cancelSwapRequest(jobId);
@@ -546,8 +586,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
                         height: _isShiftExpanded 
-                            ? (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null ? 420 : 365) 
-                            : (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null ? 340 : 280),
+                            ? (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null && todayJobs[_currentJobIndex]['swap_request']['status']?.toString() != '9' ? 420 : 360) 
+                            : (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null && todayJobs[_currentJobIndex]['swap_request']['status']?.toString() != '9' ? 360 : 280),
                         child: PageView.builder(
                           controller: _pageController,
                           onPageChanged: (index) =>
@@ -621,7 +661,34 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                     buttonLabel = 'COMPLETE SHIFT — ${_getFormattedTime(clockInTime!)}';
                                   }
 
-                                  Map<String, dynamic>? swapRequest = jobData['swap_request'];
+                                  Map<String, dynamic>? swapRequest = jobData['swap_request'] is Map ? jobData['swap_request'] : null;
+                                  String swapStatus = 'none';
+                                  if (swapRequest != null) {
+                                    String rawS = swapRequest['status']?.toString().toLowerCase() ?? '0';
+                                    if (rawS == '9' || rawS == 'deleted') {
+                                      swapRequest = null;
+                                      swapStatus = 'none';
+                                    } else if (rawS == '0' || rawS == 'submitted') {
+                                      swapStatus = 'submitted';
+                                    } else if (rawS == '1' || rawS == 'reviewed') {
+                                      swapStatus = 'reviewed';
+                                    } else if (rawS == '2' || rawS == 'pending') {
+                                      swapStatus = 'pending';
+                                    } else if (rawS == '3' || rawS == 'rejected') {
+                                      swapStatus = 'rejected';
+                                    } else if (rawS == '4' || rawS == 'accepted' || rawS == 'approved') {
+                                      swapStatus = 'accepted';
+                                    } else {
+                                      swapStatus = rawS;
+                                    }
+                                  }
+
+                                  Color swapColor = Colors.orange;
+                                  if (swapStatus == 'accepted') swapColor = Colors.green;
+                                  if (swapStatus == 'rejected') swapColor = Colors.red;
+                                  if (swapStatus == 'reviewed') swapColor = Colors.blue;
+
+                                  bool isCancelable = swapStatus == 'submitted' || swapStatus == 'pending';
 
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(
@@ -648,31 +715,31 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                               margin: const EdgeInsets.only(bottom: 16),
                                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                               decoration: BoxDecoration(
-                                                color: swapRequest['status'] == 'pending' ? Colors.orange.withOpacity(0.2) : (swapRequest['status'] == 'approved' ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2)),
+                                                color: swapColor.withOpacity(0.2),
                                                 borderRadius: BorderRadius.circular(12),
-                                                border: Border.all(color: swapRequest['status'] == 'pending' ? Colors.orange.withOpacity(0.5) : (swapRequest['status'] == 'approved' ? Colors.green.withOpacity(0.5) : Colors.red.withOpacity(0.5))),
+                                                border: Border.all(color: swapColor.withOpacity(0.5)),
                                               ),
                                               child: Row(
                                                 children: [
                                                   Icon(
-                                                    swapRequest['status'] == 'pending' ? Icons.pending_actions : (swapRequest['status'] == 'approved' ? Icons.check_circle : Icons.cancel),
-                                                    color: swapRequest['status'] == 'pending' ? Colors.orange : (swapRequest['status'] == 'approved' ? Colors.green : Colors.red),
+                                                    swapStatus == 'accepted' ? Icons.check_circle : (swapStatus == 'rejected' ? Icons.cancel : Icons.pending_actions),
+                                                    color: swapColor,
                                                     size: 20
                                                   ),
                                                   const SizedBox(width: 8),
                                                   Expanded(
                                                     child: Text(
-                                                      'Swap Request: ${swapRequest['status'].toString().toUpperCase()}',
+                                                      'Swap Request: ${swapStatus.toUpperCase()}',
                                                       style: TextStyle(
-                                                        color: swapRequest['status'] == 'pending' ? Colors.orange : (swapRequest['status'] == 'approved' ? Colors.green : Colors.red),
+                                                        color: swapColor,
                                                         fontWeight: FontWeight.bold,
                                                         fontSize: 13
                                                       )
                                                     )
                                                   ),
-                                                  if (swapRequest['status'] == 'pending')
+                                                  if (isCancelable)
                                                     GestureDetector(
-                                                      onTap: () => _cancelSwapRequest(jobId),
+                                                      onTap: () => _deleteSwapRequest(jobId),
                                                       child: const Icon(Icons.delete_outline, color: Colors.orange, size: 20),
                                                     )
                                                 ],
@@ -955,28 +1022,28 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                               )
                                             else
                                               Row(children: [
-                                              Expanded(
-                                                  child: GestureDetector(
-                                                      onTap: () {
-                                                        if (swapRequest == null) {
-                                                          _openSwapShiftModal(jobId);
-                                                        } else if (swapRequest['status'] == 'pending') {
-                                                          _cancelSwapRequest(jobId);
-                                                        }
-                                                      },
-                                                      child: _subBtn(
-                                                          swapRequest != null ? Icons.info_outline : Icons.swap_calls,
-                                                          swapRequest == null 
-                                                            ? 'Swap Shift' 
-                                                            : (swapRequest['status'] == 'pending' ? 'Cancel Swap Request' : 'Swap ${swapRequest['status'].toString().toUpperCase()}')))),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                  child: GestureDetector(
-                                                      onTap: _openAdminMessage,
-                                                      child: _subBtn(
-                                                          Icons.message,
-                                                          'Contact Admin')))
-                                            ])
+                                               Expanded(
+                                                   child: GestureDetector(
+                                                       onTap: () {
+                                                         if (swapRequest == null) {
+                                                           _openSwapShiftModal(jobId);
+                                                         } else if (isCancelable) {
+                                                           _cancelSwapRequest(jobId);
+                                                         }
+                                                       },
+                                                       child: _subBtn(
+                                                           swapRequest != null ? Icons.info_outline : Icons.swap_calls,
+                                                           swapRequest == null 
+                                                             ? 'Swap Shift' 
+                                                             : (isCancelable ? 'Cancel Swap Request' : 'Swap ${swapStatus.toUpperCase()}')))),
+                                               const SizedBox(width: 12),
+                                               Expanded(
+                                                   child: GestureDetector(
+                                                       onTap: () => ContactListModal.show(context),
+                                                       child: _subBtn(
+                                                           Icons.message,
+                                                           'Contact')))
+                                             ])
                                           ]
                                         ]))),
                                   );
@@ -1023,38 +1090,59 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                   var jobData = todayJobs[_currentJobIndex];
                                   int jobId = jobData['id'];
                                   List<dynamic> safeTasks = jobData['checklist'] ?? [];
-
                                   if (safeTasks.isEmpty)
                                     return Text(
                                         'No tasks assigned for this job.',
                                         style: TextStyle(
                                             color: muted, fontSize: 14));
 
+                                  List<dynamic> sortedTasks = List.from(safeTasks);
+                                  sortedTasks.sort((a, b) {
+                                    bool aCompleted = a is Map ? a['completed'] == true : false;
+                                    bool bCompleted = b is Map ? b['completed'] == true : false;
+                                    if (aCompleted == bCompleted) return 0;
+                                    return aCompleted ? 1 : -1;
+                                  });
+
                                   bool hasClockedIn = _clockStatus?['job_id'] == jobId;
                                   
                                   Map<String, dynamic> taskStatusMap = {};
+                                  Map<String, String?> taskCompletedAtMap = {};
                                   for (var item in safeTasks) {
                                     if (item is Map) {
-                                      String? tName = item['name']?.toString();
+                                      String? tName = item['name']?.toString() ?? item['title']?.toString() ?? item['text']?.toString();
                                       if (tName != null) {
                                         taskStatusMap[tName] = item['completed'] == true;
+                                        taskCompletedAtMap[tName] = item['completed_at']?.toString();
                                       }
                                     } else if (item is String) {
                                       taskStatusMap[item] = false;
+                                      taskCompletedAtMap[item] = null;
                                     }
                                   }
 
                                   return Column(
-                                      children: safeTasks.map((taskItem) {
+                                      children: sortedTasks.map((taskItem) {
                                     String taskName = '';
                                     if (taskItem is Map) {
-                                      taskName = taskItem['name']?.toString() ?? '';
+                                      taskName = taskItem['name']?.toString() ?? taskItem['title']?.toString() ?? taskItem['text']?.toString() ?? '';
                                     } else if (taskItem is String) {
                                       taskName = taskItem;
                                     }
                                     if (taskName.isEmpty) return const SizedBox.shrink();
 
                                     bool isCompleted = taskStatusMap[taskName] == true;
+                                    String? completedAt = taskCompletedAtMap[taskName];
+                                    String formattedTime = '';
+                                    if (isCompleted && completedAt != null && completedAt.isNotEmpty) {
+                                      try {
+                                        DateTime? dt = DateTime.tryParse(completedAt);
+                                        if (dt != null) {
+                                          formattedTime = DateFormat('MMM d, h:mm a').format(dt.toLocal());
+                                        }
+                                      } catch (_) {}
+                                    }
+
                                     Color btnColor = isCompleted
                                         ? accentBlue.withOpacity(0.2)
                                         : card;
@@ -1094,14 +1182,39 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                   size: 20)),
                                           const SizedBox(width: 16),
                                           Expanded(
-                                              child: Text(taskName,
-                                                  style: TextStyle(
-                                                      color: isCompleted
-                                                          ? text
-                                                          : Colors.white70,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 15))),
+                                              child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text(taskName,
+                                                        style: TextStyle(
+                                                            color: isCompleted
+                                                                ? text
+                                                                : Colors.white70,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 15,
+                                                            decoration: isCompleted ? TextDecoration.lineThrough : null)),
+                                                    if (isCompleted && formattedTime.isNotEmpty) ...[
+                                                      const SizedBox(height: 4),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: accentBlue.withOpacity(0.15),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: Text(
+                                                          formattedTime,
+                                                          style: TextStyle(
+                                                            color: accentBlue,
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ])),
+                                          const SizedBox(width: 12),
                                           GestureDetector(
                                               onTap: () {
                                                 if (!hasClockedIn) {

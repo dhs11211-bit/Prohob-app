@@ -24,7 +24,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
 // =====================================================================
 // 🚀 COMPONENTES DEL EDITOR DE FOTOS NATIVO (PARA EL CHAT)
 import '../../shared/image_editor_helper.dart';
@@ -32,8 +34,8 @@ import '../../shared/image_editor_helper.dart';
 // =====================================================================
 // 🚀 WIDGET PRINCIPAL DE MAPA
 // =====================================================================
-class AdminMapWidge extends StatefulWidget {
-  const AdminMapWidge({
+class UnifiedMapWidget extends StatefulWidget {
+  const UnifiedMapWidget({
     super.key,
     this.width,
     this.height,
@@ -45,63 +47,279 @@ class AdminMapWidge extends StatefulWidget {
   final Future Function() onLogout;
 
   @override
-  State<AdminMapWidge> createState() => _AdminMapWidgeState();
+  State<UnifiedMapWidget> createState() => _UnifiedMapWidgetState();
 }
 
-class _AdminMapWidgeState extends State<AdminMapWidge> {
+class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
   static const maps.LatLng _centerCoords = maps.LatLng(41.3286, -74.1847);
 
   // Removed Firebase currentUser, using global currentUser from laravel_auth_manager.dart
   String _adminName = "Admin";
   String _adminFirstName = "";
+  int? _adminId;
   String _adminLastName = "";
   maps.GoogleMapController? _mapController;
 
   int _selectedFilter = 0;
+  double _currentZoom = 13.5;
+  double _lastGeneratedZoom = 13.5;
 
   maps.BitmapDescriptor? _jobIcon;
   maps.BitmapDescriptor? _workerIcon;
 
   List<dynamic> _allJobs = [];
+  List<dynamic> _staffLocations = [];
   bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAdminProfile();
-    _loadCustomMarkers();
-    _fetchJobs();
+  bool _isMapCreated = false;
+  String? _googleMapsApiKey;
+  bool get isWorker {
+    if (currentUser == null) return false;
+    try {
+      final data = (currentUser as dynamic).userData;
+      return data?['role'] == 'worker';
+    } catch (_) {
+      return false;
+    }
   }
 
-  Future<void> _fetchJobs() async {
-    try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final jobs = await ApiService.instance
-          .get('/admin/jobs?start_date=$dateStr&end_date=$dateStr');
-      if (mounted) {
-        setState(() {
-          _allJobs = jobs is List ? jobs : [];
-          _isLoading = false;
-        });
+  Future<void> _fitBounds() async {
+    if (_mapController == null || !mounted || !_isMapCreated) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) return _fitBounds();
+      return;
+    }
+    
+    double? minLat, maxLat, minLng, maxLng;
+    
+    void updateBounds(double lat, double lng) {
+      if (minLat == null || lat < minLat!) minLat = lat;
+      if (maxLat == null || lat > maxLat!) maxLat = lat;
+      if (minLng == null || lng < minLng!) minLng = lng;
+      if (maxLng == null || lng > maxLng!) maxLng = lng;
+    }
+
+    if (_selectedFilter == 0 || _selectedFilter == 1) {
+      for (var job in _allJobs) {
+        if (job is Map) {
+          double? lat = job['latitude'] != null ? double.tryParse(job['latitude'].toString()) : null;
+          double? lng = job['longitude'] != null ? double.tryParse(job['longitude'].toString()) : null;
+          if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+            updateBounds(lat, lng);
+          }
+        }
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
+    }
+
+    if (_selectedFilter == 0 || _selectedFilter == 2) {
+      for (var worker in _staffLocations) {
+        if (worker is Map) {
+          double? lat = worker['latitude'] != null ? double.tryParse(worker['latitude'].toString()) : null;
+          double? lng = worker['longitude'] != null ? double.tryParse(worker['longitude'].toString()) : null;
+          if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+            updateBounds(lat, lng);
+          }
+        }
+      }
+    }
+
+    if (minLat != null && maxLat != null && minLng != null && maxLng != null) {
+      if (minLat == maxLat) {
+        minLat = minLat! - 0.005;
+        maxLat = maxLat! + 0.005;
+      }
+      if (minLng == maxLng) {
+        minLng = minLng! - 0.005;
+        maxLng = maxLng! + 0.005;
+      }
+      
+      try {
+        maps.LatLngBounds bounds = maps.LatLngBounds(
+          southwest: maps.LatLng(minLat!, minLng!),
+          northeast: maps.LatLng(maxLat!, maxLng!),
+        );
+        await _mapController!.animateCamera(maps.CameraUpdate.newLatLngBounds(bounds, 50.0));
+      } catch (e) {
+        debugPrint("Error animating camera: $e");
+        await Future.delayed(const Duration(milliseconds: 1000));
+        if (mounted) return _fitBounds();
       }
     }
   }
 
-  Future<void> _loadAdminProfile() async {
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+    _loadCustomMarkers();
+    _fetchGoogleMapsKey().then((_) {
+      Future.wait([
+        _fetchJobs(),
+        _fetchStaffLocations(),
+      ]).then((_) async {
+        await _fitBounds();
+        if (mounted && _isLoading) setState(() => _isLoading = false);
+      });
+    });
+  }
+
+  Future<void> _fetchGoogleMapsKey() async {
+    try {
+      final response = await ApiService.instance.get('/public/settings');
+      if (mounted && response is Map && response.containsKey('data')) {
+        final settings = response['data'];
+        if (settings is Map && settings.containsKey('google_maps_api_key')) {
+          _googleMapsApiKey = settings['google_maps_api_key'];
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching maps key: $e");
+    }
+  }
+
+  Future<Map<String, double>?> _geocodeAddress(String address) async {
+    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty || address.isEmpty) return null;
+    try {
+      final url = Uri.parse("https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$_googleMapsApiKey");
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          final location = data['results'][0]['geometry']['location'];
+          return {
+            'lat': (location['lat'] as num).toDouble(),
+            'lng': (location['lng'] as num).toDouble(),
+          };
+        }
+      }
+    } catch (e) {
+      debugPrint("Geocoding error: $e");
+    }
+    return null;
+  }
+
+  Future<void> _fetchJobs() async {
+    try {
+      final endpoint = '/jobs/locations';
+      final res = await ApiService.instance.get(endpoint);
+      List<dynamic> jobs = [];
+      if (res is List) {
+        jobs = res;
+      } else if (res is Map<String, dynamic> && res['data'] is List) {
+        jobs = res['data'];
+      }
+
+      if (mounted) {
+        setState(() {
+          _allJobs = jobs;
+        });
+      }
+
+      bool updated = false;
+      for (int i = 0; i < jobs.length; i++) {
+        if (jobs[i] is Map<String, dynamic>) {
+          var job = jobs[i];
+          double? lat = job['latitude'] != null ? double.tryParse(job['latitude'].toString()) : null;
+          double? lng = job['longitude'] != null ? double.tryParse(job['longitude'].toString()) : null;
+          String address = job['address']?.toString() ?? '';
+
+          if ((lat == null || lng == null || lat == 0.0 || lng == 0.0) && address.isNotEmpty) {
+            final coords = await _geocodeAddress(address);
+            if (coords != null) {
+              jobs[i]['latitude'] = coords['lat'];
+              jobs[i]['longitude'] = coords['lng'];
+              updated = true;
+            }
+          }
+        }
+      }
+
+      if (mounted && updated) {
+        setState(() {
+          _allJobs = jobs;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching jobs: $e");
+    }
+  }
+
+  Future<void> _fetchStaffLocations() async {
+    try {
+      final res = await ApiService.instance.get('/staff/locations');
+      List<dynamic> locations = [];
+      if (res is List) {
+        locations = res;
+      } else if (res is Map<String, dynamic> && res['data'] is List) {
+        locations = res['data'];
+      }
+      
+      if (mounted) {
+        setState(() {
+          _staffLocations = locations;
+        });
+      }
+
+      bool updated = false;
+      for (int i = 0; i < locations.length; i++) {
+        if (locations[i] is Map<String, dynamic>) {
+          var worker = locations[i];
+          double? lat = worker['latitude'] != null ? double.tryParse(worker['latitude'].toString()) : null;
+          double? lng = worker['longitude'] != null ? double.tryParse(worker['longitude'].toString()) : null;
+          String address = worker['address']?.toString() ?? '';
+
+          if ((lat == null || lng == null || lat == 0.0 || lng == 0.0) && address.isNotEmpty) {
+            final coords = await _geocodeAddress(address);
+            if (coords != null) {
+              locations[i]['latitude'] = coords['lat'];
+              locations[i]['longitude'] = coords['lng'];
+              updated = true;
+              lat = coords['lat'];
+              lng = coords['lng'];
+            }
+          }
+          
+          if (_adminId != null && worker['id'].toString() == _adminId.toString() && (lat == null || lng == null)) {
+            try {
+              bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+              if (serviceEnabled) {
+                LocationPermission permission = await Geolocator.checkPermission();
+                if (permission == LocationPermission.denied) {
+                  permission = await Geolocator.requestPermission();
+                }
+                if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+                  Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+                  locations[i]['latitude'] = position.latitude;
+                  locations[i]['longitude'] = position.longitude;
+                  updated = true;
+                }
+              }
+            } catch (_) {}
+          }
+        }
+      }
+
+      if (mounted && updated) {
+        setState(() {
+          _staffLocations = locations;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching staff locations: $e");
+    }
+  }
+
+  Future<void> _loadUserProfile() async {
     if (currentUser != null) {
       try {
         var doc = await ApiService.instance.getMe();
         if (doc != null) {
           if (mounted) {
             setState(() {
+              _adminId = doc['id'];
               _adminFirstName = doc['first_name'] ?? '';
               _adminLastName = doc['last_name'] ?? '';
               _adminName = '$_adminFirstName $_adminLastName'.trim();
-              if (_adminName.isEmpty) _adminName = 'Admin';
+              if (_adminName.isEmpty) _adminName = isWorker ? 'Worker' : 'Admin';
             });
           }
         }
@@ -121,17 +339,56 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
         .asUint8List();
   }
 
+  Future<maps.BitmapDescriptor> _createIconFromIconData(IconData iconData, Color color, {double size = 80.0}) async {
+    final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(pictureRecorder);
+
+    final Paint paint = Paint()..color = color;
+    canvas.drawCircle(Offset(size / 2, size / 2), size / 2, paint);
+    
+    final Paint borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.0;
+    canvas.drawCircle(Offset(size / 2, size / 2), size / 2, borderPaint);
+
+    final TextPainter textPainter = TextPainter(textDirection: ui.TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(iconData.codePoint),
+      style: TextStyle(
+        fontSize: size * 0.6,
+        fontFamily: iconData.fontFamily,
+        package: iconData.fontPackage,
+        color: Colors.white,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        (size - textPainter.width) / 2,
+        (size - textPainter.height) / 2,
+      ),
+    );
+
+    final ui.Picture picture = pictureRecorder.endRecording();
+    final ui.Image image = await picture.toImage(size.toInt(), size.toInt());
+    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return maps.BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+  }
+
   Future<void> _loadCustomMarkers() async {
     try {
-      final Uint8List jobMarkerIcon =
-          await getBytesFromAsset('assets/images/maletin_icon.png', 45);
-      final Uint8List workerMarkerIcon =
-          await getBytesFromAsset('assets/images/person_icon.png', 45);
+      _lastGeneratedZoom = _currentZoom;
+      double size = (_currentZoom * 3.5).clamp(24.0, 72.0);
+
+      final jobIcon = await _createIconFromIconData(Icons.location_city, const Color(0xFFFBC02D), size: size);
+      final workerIcon = await _createIconFromIconData(Icons.person, const Color(0xFF43A047), size: size);
 
       if (mounted) {
         setState(() {
-          _jobIcon = maps.BitmapDescriptor.fromBytes(jobMarkerIcon);
-          _workerIcon = maps.BitmapDescriptor.fromBytes(workerMarkerIcon);
+          _jobIcon = jobIcon;
+          _workerIcon = workerIcon;
         });
       }
     } catch (e) {
@@ -139,9 +396,9 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
       if (mounted) {
         setState(() {
           _jobIcon = maps.BitmapDescriptor.defaultMarkerWithHue(
-              maps.BitmapDescriptor.hueRed);
+              maps.BitmapDescriptor.hueYellow);
           _workerIcon = maps.BitmapDescriptor.defaultMarkerWithHue(
-              maps.BitmapDescriptor.hueAzure);
+              maps.BitmapDescriptor.hueGreen);
         });
       }
     }
@@ -877,26 +1134,26 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
             const SizedBox(height: 12),
             Padding(
               padding:
-                  const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 16.0),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white10)),
-                child: Row(
-                  children: [
-                    _buildFilterButton("All", 0),
-                    _buildFilterButton("Jobs", 1),
-                    _buildFilterButton("Team", 2),
-                  ],
+                    const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 16.0),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white10)),
+                  child: Row(
+                    children: [
+                      _buildFilterButton("All", 0),
+                      _buildFilterButton("Jobs", 1),
+                      _buildFilterButton("Team", 2),
+                    ],
+                  ),
                 ),
               ),
-            ),
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Builder(
+              child: Stack(
+                children: [
+                  Builder(
                       builder: (context) {
                         Set<maps.Marker> mapMarkers = {};
 
@@ -943,7 +1200,37 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                         }
 
                         // 2. PINTAR TRABAJADORES ACTIVOS (PERSONAS)
-                        // Note: Not implemented yet since no backend endpoint exists for active worker locations.
+                        if (_selectedFilter == 0 || _selectedFilter == 2) {
+                          for (var worker in _staffLocations) {
+                            if (worker is! Map<String, dynamic>) continue;
+                            
+                            double? lat;
+                            double? lng;
+
+                            if (worker['latitude'] != null) {
+                              lat = double.tryParse(worker['latitude'].toString());
+                            }
+                            if (worker['longitude'] != null) {
+                              lng = double.tryParse(worker['longitude'].toString());
+                            }
+
+                            if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+                              mapMarkers.add(
+                                maps.Marker(
+                                  markerId: maps.MarkerId('worker_${worker['id']}'),
+                                  position: maps.LatLng(lat, lng),
+                                  icon: _workerIcon ?? maps.BitmapDescriptor.defaultMarkerWithHue(maps.BitmapDescriptor.hueAzure),
+                                  consumeTapEvents: true,
+                                  onTap: () {
+                                    final workerId = worker['id'].toString();
+                                    final workerName = '${worker['first_name'] ?? ''} ${worker['last_name'] ?? ''}'.trim();
+                                    _showAssignedWorkerOptions(workerId, workerName.isEmpty ? 'Worker' : workerName);
+                                  },
+                                ),
+                              );
+                            }
+                          }
+                        }
 
                         return ClipRRect(
                           borderRadius: const BorderRadius.vertical(
@@ -956,6 +1243,14 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                             zoomControlsEnabled: false,
                             myLocationEnabled: false,
                             myLocationButtonEnabled: false,
+                            onCameraMove: (maps.CameraPosition position) {
+                              _currentZoom = position.zoom;
+                            },
+                            onCameraIdle: () {
+                              if ((_currentZoom - _lastGeneratedZoom).abs() > 0.8) {
+                                _loadCustomMarkers();
+                              }
+                            },
                             onMapCreated:
                                 (maps.GoogleMapController controller) {
                               _mapController = controller;
@@ -976,12 +1271,27 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
                                   debugPrint("Map style error: $e");
                                 }
                               }
+                              Future.delayed(const Duration(milliseconds: 600), () {
+                                if (mounted) {
+                                  _isMapCreated = true;
+                                }
+                              });
                             },
                             markers: mapMarkers,
                           ),
                         );
                       },
                     ),
+                  if (_isLoading)
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0F172A),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                      ),
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
@@ -993,7 +1303,30 @@ class _AdminMapWidgeState extends State<AdminMapWidge> {
     bool isSelected = _selectedFilter == index;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedFilter = index),
+        onTap: () {
+          if (_selectedFilter != index) {
+            setState(() {
+              _selectedFilter = index;
+              _isLoading = true;
+            });
+            if (index == 0) {
+              Future.wait([_fetchJobs(), _fetchStaffLocations()]).then((_) async {
+                await _fitBounds();
+                if (mounted && _isLoading) setState(() => _isLoading = false);
+              });
+            } else if (index == 1) {
+              _fetchJobs().then((_) async {
+                await _fitBounds();
+                if (mounted && _isLoading) setState(() => _isLoading = false);
+              });
+            } else if (index == 2) {
+              _fetchStaffLocations().then((_) async {
+                await _fitBounds();
+                if (mounted && _isLoading) setState(() => _isLoading = false);
+              });
+            }
+          }
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(

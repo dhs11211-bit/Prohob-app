@@ -508,17 +508,13 @@ class _CustomInboxState extends State<CustomInbox> {
       // Look for an existing 1-on-1 internal conversation
       String? foundChatId;
       try {
-        var res = await ApiService.instance.get('/conversations');
+        var res = await ApiService.instance.getConversations();
         List<dynamic> convs = [];
-        if (res is Map) {
-          final d = res['data'];
-          if (d is Map && d['data'] != null) {
-            convs = d['data'] as List<dynamic>;
-          } else if (d is List) {
-            convs = d;
-          }
-        } else if (res is List) {
-          convs = res;
+        final d = res['data'];
+        if (d is Map && d['data'] != null) {
+          convs = List<dynamic>.from(d['data']);
+        } else if (d is List) {
+          convs = List<dynamic>.from(d);
         }
         for (var c in convs) {
           if (c['type'] == 'internal' && c['participants'] != null) {
@@ -533,7 +529,7 @@ class _CustomInboxState extends State<CustomInbox> {
 
       // Create a new conversation if none found
       if (foundChatId == null) {
-        var createRes = await ApiService.instance.post('/conversations', {
+        var createRes = await ApiService.instance.createConversation({
           'type': 'internal',
           'name': memberName,
           'participants': [int.parse(memberId)],

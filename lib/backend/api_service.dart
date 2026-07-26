@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../auth/laravel_auth_manager.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -51,6 +52,7 @@ class ApiService {
     );
 
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       // Success
       return data;
@@ -69,6 +71,7 @@ class ApiService {
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data['data']; // Returns user object
     } else {
@@ -82,6 +85,7 @@ class ApiService {
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -114,6 +118,7 @@ class ApiService {
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
 
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data; // Returns {id, url, filename}
     } else {
@@ -127,6 +132,7 @@ class ApiService {
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data; // Returns list of jobs
     } else {
@@ -199,6 +205,7 @@ class ApiService {
       headers: await _getHeaders(),
       body: jsonEncode({'status': status}),
     );
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final data = jsonDecode(response.body);
       throw Exception(data['message'] ?? 'Failed to update status');
@@ -212,6 +219,7 @@ class ApiService {
       headers: await _getHeaders(),
       body: jsonEncode({'task_name': taskName, 'is_done': isDone}),
     );
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final data = jsonDecode(response.body);
       throw Exception(data['message'] ?? 'Failed to update checklist');
@@ -224,6 +232,7 @@ class ApiService {
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -244,6 +253,7 @@ class ApiService {
       }),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -264,6 +274,7 @@ class ApiService {
       }),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -283,6 +294,7 @@ class ApiService {
       }),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -296,6 +308,7 @@ class ApiService {
       url,
       headers: await _getHeaders(),
     );
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return;
     } else {
@@ -325,6 +338,7 @@ class ApiService {
       headers: await _getHeaders(),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -341,6 +355,7 @@ class ApiService {
       body: jsonEncode(body),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -357,6 +372,7 @@ class ApiService {
       body: jsonEncode(body),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -373,6 +389,7 @@ class ApiService {
       body: jsonEncode(body),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -388,6 +405,7 @@ class ApiService {
       headers: await _getHeaders(),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -404,6 +422,7 @@ class ApiService {
     final response =
         await http.get(Uri.parse(url), headers: await _getHeaders());
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -417,6 +436,7 @@ class ApiService {
     final response =
         await http.get(Uri.parse(url), headers: await _getHeaders());
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -437,6 +457,7 @@ class ApiService {
       }),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -450,6 +471,22 @@ class ApiService {
     await http.post(Uri.parse(url), headers: await _getHeaders());
   }
 
+  Future<Map<String, dynamic>> createConversation(Map<String, dynamic> payload) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/conversations';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+      body: jsonEncode(payload),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to create conversation');
+    }
+  }
+
   // --- Profile Endpoints ---
   Future<Map<String, dynamic>> updateProfile(
       Map<String, dynamic> profileData) async {
@@ -460,6 +497,7 @@ class ApiService {
       body: jsonEncode(profileData),
     );
     final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -489,6 +527,7 @@ class ApiService {
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
 
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -525,6 +564,7 @@ class ApiService {
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
 
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -564,6 +604,7 @@ class ApiService {
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
 
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {

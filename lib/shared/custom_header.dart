@@ -4,6 +4,7 @@ import '/auth/laravel_auth_manager.dart';
 import '/backend/api_service.dart';
 import 'auth_helpers.dart';
 import 'profile_screen.dart';
+import '../components/swap_requests_modal.dart';
 
 class SharedCustomHeader extends StatefulWidget {
   const SharedCustomHeader({Key? key}) : super(key: key);
@@ -262,6 +263,25 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                         onTap: () {
                           Navigator.pop(context);
                           ProfileScreen.showModal(context, initialTab: ProfileTab.documents);
+                        },
+                      ),
+                      const SizedBox(height: 6),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accentBlue.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.swap_calls, color: accentBlue, size: 20),
+                        ),
+                        title: const Text('Swap Requests', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                        subtitle: Text('View & track shift swap requests', style: TextStyle(color: muted, fontSize: 12)),
+                        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                        onTap: () {
+                          Navigator.pop(context);
+                          SwapRequestsModal.show(context);
                         },
                       ),
                       const SizedBox(height: 6),
