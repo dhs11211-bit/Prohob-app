@@ -377,12 +377,71 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
     return maps.BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
   }
 
+  Future<maps.BitmapDescriptor> _createJobIcon(Color color, {double size = 80.0}) async {
+    final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(pictureRecorder);
+
+    final Paint paint = Paint()..color = color;
+    canvas.drawCircle(Offset(size / 2, size / 2), size / 2, paint);
+    
+    final Paint borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.0;
+    canvas.drawCircle(Offset(size / 2, size / 2), size / 2, borderPaint);
+
+    // Draw House
+    final TextPainter housePainter = TextPainter(textDirection: ui.TextDirection.ltr);
+    housePainter.text = TextSpan(
+      text: String.fromCharCode(Icons.home.codePoint),
+      style: TextStyle(
+        fontSize: size * 0.65,
+        fontFamily: Icons.home.fontFamily,
+        package: Icons.home.fontPackage,
+        color: Colors.white,
+      ),
+    );
+    housePainter.layout();
+    housePainter.paint(
+      canvas,
+      Offset(
+        (size - housePainter.width) / 2,
+        (size - housePainter.height) / 2,
+      ),
+    );
+
+    // Draw Wrench
+    final TextPainter wrenchPainter = TextPainter(textDirection: ui.TextDirection.ltr);
+    wrenchPainter.text = TextSpan(
+      text: String.fromCharCode(Icons.build.codePoint),
+      style: TextStyle(
+        fontSize: size * 0.35,
+        fontFamily: Icons.build.fontFamily,
+        package: Icons.build.fontPackage,
+        color: color, // Use the same yellow color so it looks like it's cut out
+      ),
+    );
+    wrenchPainter.layout();
+    wrenchPainter.paint(
+      canvas,
+      Offset(
+        (size - wrenchPainter.width) / 2,
+        (size - wrenchPainter.height) / 2 + (size * 0.05), // slightly shifted down inside the house
+      ),
+    );
+
+    final ui.Picture picture = pictureRecorder.endRecording();
+    final ui.Image image = await picture.toImage(size.toInt(), size.toInt());
+    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return maps.BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+  }
+
   Future<void> _loadCustomMarkers() async {
     try {
       _lastGeneratedZoom = _currentZoom;
       double size = (_currentZoom * 3.5).clamp(24.0, 72.0);
 
-      final jobIcon = await _createIconFromIconData(Icons.location_city, const Color(0xFFFBC02D), size: size);
+      final jobIcon = await _createJobIcon(const Color(0xFFFBC02D), size: size);
       final workerIcon = await _createIconFromIconData(Icons.person, const Color(0xFF43A047), size: size);
 
       if (mounted) {
