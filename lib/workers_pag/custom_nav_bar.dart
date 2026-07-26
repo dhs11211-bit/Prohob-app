@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 import '/custom_code/widgets/index.dart'; // 🟢 ESTO IMPORTA TU NUEVO WIDGET
+import '/backend/api_service.dart';
 
 class CustomNavBar extends StatefulWidget {
   const CustomNavBar({
@@ -43,13 +44,31 @@ class _CustomNavBarState extends State<CustomNavBar> {
   final Color neonAction = const Color(0xFFD4FF00);
 
   // 🟢 LA ORDEN DIRECTA PARA ABRIR EL MODAL INTELIGENTE
-  void _openEvidenceFlow() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const CustomEvidenceModal(),
-    );
+  void _openEvidenceFlow() async {
+    try {
+      final jobs = await ApiService.instance.getTodayJobs();
+      if (jobs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You have no scheduled jobs today', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              backgroundColor: Color(0xFFF59E0B),
+            ),
+          );
+        }
+        return;
+      }
+      if (mounted) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => const CustomEvidenceModal(),
+        );
+      }
+    } catch (e) {
+      print("Error opening evidence flow: $e");
+    }
   }
 
   @override

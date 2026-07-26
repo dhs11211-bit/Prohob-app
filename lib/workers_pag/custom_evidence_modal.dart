@@ -34,6 +34,7 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
   // 🟢 RUTEO INTELIGENTE (SMART ROUTING)
   int? _todayJobId;
   String? _todayJobName;
+  List<dynamic> _todayJobs = [];
   String _photoType = 'before';
 
   // 🟢 PALETA SLATE / NEON
@@ -49,10 +50,6 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
   void initState() {
     super.initState();
     _fetchTodayTasks();
-    // Abre la cámara en chinga en cuanto se carga el modal
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _takePhoto();
-    });
   }
 
   @override
@@ -65,19 +62,43 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
     try {
       final jobs = await ApiService.instance.getTodayJobs();
       if (jobs.isNotEmpty) {
-        // Pick the first job or active job for today
-        final job = jobs.first;
-        _todayJobId = job['id'];
-        _todayJobName = job['title'] ?? 'Job Evidence';
+        _todayJobs = jobs;
+        
+        // Find if there is an active job to auto-select
+        dynamic targetJob = jobs.first;
+        for (var j in jobs) {
+          String s = j['job_status']?.toString().toLowerCase() ?? '';
+          if (s == 'active' || s == 'in progress' || s == 'in_progress') {
+            targetJob = j;
+            break;
+          }
+        }
+        
+        _todayJobId = targetJob['id'];
+        _todayJobName = targetJob['title'] ?? 'Job Evidence';
         
         // Set default photoType based on job status
-        String status = job['job_status'] ?? 'pending';
+        String status = targetJob['job_status']?.toString().toLowerCase() ?? 'pending';
         if (status == 'pending' || status == 'scheduled') {
           _photoType = 'before';
-        } else if (status == 'active' || status == 'in_progress') {
+        } else if (status == 'active' || status == 'in progress' || status == 'in_progress') {
           _photoType = 'during';
         } else if (status == 'completed') {
           _photoType = 'after';
+        }
+        
+        if (mounted) {
+          _takePhoto();
+        }
+      } else {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You have no scheduled jobs today', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              backgroundColor: Color(0xFFF59E0B),
+            ),
+          );
         }
       }
     } catch (e) {
@@ -262,29 +283,33 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                     ),
                     const SizedBox(height: 24),
 
-                    const Text(
-                        'Image Note',
-                        style: TextStyle(
-                            color: muted, fontSize: 13, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 60, // Fixed height reduced to half
-                      child: TextField(
-                        controller: _descController,
-                        maxLines: null,
-                        expands: true, // Let it fill the 120px height
-                        style: const TextStyle(color: text),
-                        decoration: InputDecoration(
-                            hintText: 'Image upload description...',
-                            hintStyle: TextStyle(color: muted.withOpacity(0.5)),
-                            filled: true,
-                            fillColor: card,
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide.none)),
+                    if (_todayJobs.length > 1) ...[
+                      const Text('Target Job', style: TextStyle(color: muted, fontSize: 13, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _todayJobId,
+                            dropdownColor: card,
+                            isExpanded: true,
+                            style: const TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.bold),
+                            icon: const Icon(Icons.work_outline, color: accentBlue),
+                            items: _todayJobs.map((j) {
+                              return DropdownMenuItem<int>(
+                                value: j['id'] as int,
+                                child: Text("${j['job_number'] ?? '#${j['id']}'} - ${j['title'] ?? 'Job'}"),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) setState(() => _todayJobId = val);
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 24),
+                    ],
 
                     // 🟢 PHOTO TYPE SELECTOR (Moved here, above button)
                     const Text('Photo Type',
@@ -317,6 +342,30 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                         },
                       ))),
                     const SizedBox(height: 24),
+
+                    const Text(
+                        'Image Note',
+                        style: TextStyle(
+                            color: muted, fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 60, // Fixed height reduced to half
+                      child: TextField(
+                        controller: _descController,
+                        maxLines: null,
+                        expands: true, // Let it fill the 120px height
+                        style: const TextStyle(color: text),
+                        decoration: InputDecoration(
+                            hintText: 'Image upload description...',
+                            hintStyle: TextStyle(color: muted.withOpacity(0.5)),
+                            filled: true,
+                            fillColor: card,
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none)),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
 
                     // 🟢 BOTÓN DINÁMICO
                     SizedBox(

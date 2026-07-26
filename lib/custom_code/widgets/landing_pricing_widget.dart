@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 // Set your widget name, define your parameter, and then add the
 // boilerplate code using the green button on the right!
 import 'dart:ui';
+import '/backend/api_service.dart';
 
 class LandingPricingWidget extends StatefulWidget {
   const LandingPricingWidget({
@@ -31,6 +32,44 @@ class LandingPricingWidget extends StatefulWidget {
 }
 
 class _LandingPricingWidgetState extends State<LandingPricingWidget> {
+  List<dynamic> _plans = [];
+  String _platformName = "FIELD HANDLE";
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    try {
+      final plansFuture = ApiService.instance.getSubscriptionPlans();
+      final settingsFuture = ApiService.instance.getPublicSettings();
+      
+      final results = await Future.wait([plansFuture, settingsFuture]);
+      final plans = results[0] as List<dynamic>;
+      final settings = results[1] as Map<String, dynamic>;
+
+      if (mounted) {
+        setState(() {
+          _plans = plans;
+          if (settings['platform_name'] != null && settings['platform_name'].toString().isNotEmpty) {
+            _platformName = settings['platform_name'].toString().toUpperCase();
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      print('Error fetching data: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -48,9 +87,9 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "FIELD HANDLE",
-                    style: TextStyle(
+                  Text(
+                    _platformName,
+                    style: const TextStyle(
                       color: Color(0xFF3B82F6),
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -83,11 +122,11 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
               child: Column(
                 children: [
                   Text(
-                    "The Software That Powers\nYour Service Business", // CAMBIO AQUÍ: Universal
+                    "Powering Your\nService Business",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 36,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
                     ),
@@ -107,50 +146,24 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
             // --- PRICING CARDS ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                alignment: WrapAlignment.center,
-                children: [
-                  _buildPricingCard(
-                    title: "STARTER",
-                    price: "\$49",
-                    description:
-                        "Best for solo independent contractors starting their journey.",
-                    features: [
-                      "1 Active User",
-                      "Automatic Invoicing",
-                      "Client Database",
-                      "Support"
-                    ],
-                  ),
-                  _buildPricingCard(
-                    title: "PROFESSIONAL",
-                    price: "\$129",
-                    description:
-                        "Perfect for growing teams of cleaners and supervisors.",
-                    isPopular: true,
-                    features: [
-                      "Up to 5 Users",
-                      "Live GPS Tracking",
-                      "Review Automation",
-                      "Advanced Analytics"
-                    ],
-                  ),
-                  _buildPricingCard(
-                    title: "ENTERPRISE",
-                    price: "\$249",
-                    description:
-                        "Custom solutions for large agencies and commercial giants.",
-                    features: [
-                      "Unlimited Users",
-                      "Predictive AI Logic",
-                      "Dedicated Manager",
-                      "Full API Access"
-                    ],
-                  ),
-                ],
-              ),
+              child: _isLoading 
+                ? const Padding(
+                    padding: EdgeInsets.all(40), 
+                    child: CircularProgressIndicator(color: Color(0xFF3B82F6))
+                  )
+                : _plans.isEmpty 
+                  ? const Padding(
+                      padding: EdgeInsets.all(40), 
+                      child: Text('No plans available', style: TextStyle(color: Colors.white))
+                    )
+                  : Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      alignment: WrapAlignment.center,
+                      children: _plans.map((plan) {
+                        return _buildPricingCard(context: context, plan: plan as Map<String, dynamic>);
+                      }).toList(),
+                    ),
             ),
 
             const SizedBox(height: 80),
@@ -167,14 +180,29 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
   }
 
   Widget _buildPricingCard({
-    required String title,
-    required String price,
-    required String description,
-    required List<String> features,
-    bool isPopular = false,
+    required BuildContext context,
+    required Map<String, dynamic> plan,
   }) {
+    final title = plan['name']?.toString() ?? 'PLAN';
+    final price = plan['price_monthly'] != null ? '\$${plan['price_monthly']}' : '\$0';
+    final description = plan['description']?.toString() ?? '';
+    final isPopular = plan['is_popular'] == true || plan['is_popular'] == 1 || plan['is_popular'] == '1';
+    final planId = plan['id'];
+    
+    final trialDays = plan['trial_days'] is num ? (plan['trial_days'] as num).toInt() : int.tryParse(plan['trial_days']?.toString() ?? '0');
+    final yearlyDiscount = plan['yearly_discount_percentage'] is num ? (plan['yearly_discount_percentage'] as num) : num.tryParse(plan['yearly_discount_percentage']?.toString() ?? '0');
+
+    List<String> features = [];
+    if (plan['features'] != null) {
+      if (plan['features'] is String) {
+        features = plan['features'].split(',');
+      } else if (plan['features'] is List) {
+        features = List<String>.from(plan['features'].map((e) => e.toString()));
+      }
+    }
+
     return Container(
-      width: 320,
+      width: MediaQuery.of(context).size.width > 400 ? 380 : MediaQuery.of(context).size.width - 32,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B), // Card color
@@ -222,6 +250,32 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
               ),
             ],
           ),
+          if (trialDays != null && trialDays > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF10B981)), // Green
+                  borderRadius: BorderRadius.circular(6),
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                ),
+                child: Text("$trialDays Days Free Trial",
+                    style: const TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+          if (yearlyDiscount != null && yearlyDiscount > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text("Save $yearlyDiscount% with yearly billing",
+                  style: const TextStyle(
+                      color: Color(0xFFF59E0B), // Amber
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ),
           const SizedBox(height: 16),
           Text(description,
               style: const TextStyle(
@@ -248,7 +302,8 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
             height: 50,
             child: ElevatedButton(
               onPressed: () async {
-                await widget.onSelectPlan(title);
+                final url = 'https://serviceprohob.com/register?plan=$planId';
+                await launchURL(url);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor:
