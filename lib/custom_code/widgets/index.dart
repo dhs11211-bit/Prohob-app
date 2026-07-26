@@ -4,7 +4,7 @@ export '/custom_code/widgets/admin_dashboard_widge.dart' show AdminDashboardWidg
 export '/custom_code/widgets/admin_team_widge.dart' show AdminTeamWidge;
 export '/workers_pag/clock_in_tracker.dart' show ClockInTracker;
 export '/custom_code/widgets/admin_finances_widge.dart' show AdminFinancesWidge;
-export '/custom_code/widgets/admin_map_widge.dart' show AdminMapWidge;
+export '/custom_code/widgets/unified_map_widget.dart' show UnifiedMapWidget;
 export '/workers_pag/custom_wallet.dart' show CustomWallet;
 export '/workers_pag/custom_inbox.dart' show CustomInbox;
 export '/custom_code/widgets/auth_router_widge.dart' show AuthRouterWidge;

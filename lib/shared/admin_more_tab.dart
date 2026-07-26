@@ -46,7 +46,7 @@ class _AdminMoreTabState extends State<AdminMoreTab> {
     if (_activeSection == 'map') {
       return _buildSubSection(
         title: 'Map View',
-        child: custom_widgets.AdminMapWidge(
+        child: custom_widgets.UnifiedMapWidget(
           width: double.infinity,
           height: double.infinity,
           onLogout: () async {},
