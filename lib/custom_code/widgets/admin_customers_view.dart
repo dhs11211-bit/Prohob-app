@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import 'dart:ui';
 import '../../backend/api_service.dart';
+import '/app_constants.dart';
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
@@ -43,7 +44,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   bool _isLoadingCustomers = true;
   List<dynamic> _customersList = [];
   Timer? _refreshTimer;
-  String? _googleMapsApiKey;
+  String? _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
 
   List<String> _jobTypes = ["Job", "Estimate", "Appointment", "Event"];
   List<String> _availableTasks = ["Dusting", "Vacuuming", "Mopping", "Windows"];
@@ -98,8 +99,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       final settings = await ApiService.instance.get('/settings');
       if (mounted &&
           settings is Map &&
-          settings.containsKey('google_maps_api_key')) {
-        _googleMapsApiKey = settings['google_maps_api_key'];
+          settings.containsKey('data') &&
+          settings['data'] is Map &&
+          settings['data'].containsKey('google_maps_api_key') &&
+          settings['data']['google_maps_api_key'] != null &&
+          settings['data']['google_maps_api_key'].toString().trim().isNotEmpty) {
+        _googleMapsApiKey = settings['data']['google_maps_api_key'];
       }
     } catch (e) {
       debugPrint("Error fetching maps key: $e");
@@ -474,8 +479,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
     TextEditingController addressCtrl = TextEditingController();
 
     List<dynamic> placePredictions = [];
+    String address1 = '';
     double lat = 0.0;
     double lng = 0.0;
+    String city = '';
+    String state = '';
+    String zipCode = '';
+    String country = '';
 
     showModalBottomSheet(
       context: context,
@@ -522,9 +532,37 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                       final data = jsonDecode(response.body);
                       if (data['status'] == 'OK') {
                         var location = data['result']['geometry']['location'];
+                        var components = data['result']['address_components'] as List<dynamic>?;
+                        
+                        String pStreetNumber = '';
+                        String pRoute = '';
+                        String pCity = '';
+                        String pState = '';
+                        String pPostal = '';
+                        String pCountry = '';
+                        
+                        if (components != null) {
+                          for (var c in components) {
+                            List<dynamic> types = c['types'] ?? [];
+                            if (types.contains('street_number')) pStreetNumber = c['long_name'];
+                            if (types.contains('route')) pRoute = c['long_name'];
+                            if (types.contains('locality')) pCity = c['long_name'];
+                            if (types.contains('administrative_area_level_1')) pState = c['short_name'];
+                            if (types.contains('postal_code')) pPostal = c['long_name'];
+                            if (types.contains('country')) pCountry = c['long_name'];
+                          }
+                        }
+
+                        String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+
                         setModalState(() {
                           lat = location['lat'];
                           lng = location['lng'];
+                          address1 = pAddress1;
+                          city = pCity;
+                          state = pState;
+                          zipCode = pPostal;
+                          country = pCountry;
                         });
                       }
                     }
@@ -709,7 +747,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   if (emailCtrl.text.trim().isNotEmpty) payload['email'] = emailCtrl.text.trim();
                                   if (addressCtrl.text.trim().isNotEmpty) {
                                     payload['address'] = addressCtrl.text.trim();
-                                    payload['address1'] = addressCtrl.text.trim();
+                                    payload['address1'] = address1.isNotEmpty ? address1 : addressCtrl.text.trim();
+                                    if (city.isNotEmpty) payload['city'] = city;
+                                    if (state.isNotEmpty) payload['state'] = state;
+                                    if (zipCode.isNotEmpty) payload['zip_code'] = zipCode;
+                                    if (country.isNotEmpty) payload['country'] = country;
                                   }
                                   if (lat != 0.0) payload['lat'] = lat;
                                   if (lng != 0.0) payload['lng'] = lng;
@@ -792,12 +834,17 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                 : ''));
 
     List<dynamic> placePredictions = [];
+    String address1 = addressCtrl.text;
     double lat = customerData['lat'] != null
         ? (customerData['lat'] as num).toDouble()
         : 0.0;
     double lng = customerData['lng'] != null
         ? (customerData['lng'] as num).toDouble()
         : 0.0;
+    String city = customerData['city'] ?? '';
+    String state = customerData['state'] ?? '';
+    String zipCode = customerData['zip_code'] ?? '';
+    String country = customerData['country'] ?? '';
 
     showModalBottomSheet(
       context: context,
@@ -844,9 +891,37 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                       final data = jsonDecode(response.body);
                       if (data['status'] == 'OK') {
                         var location = data['result']['geometry']['location'];
+                        var components = data['result']['address_components'] as List<dynamic>?;
+                        
+                        String pStreetNumber = '';
+                        String pRoute = '';
+                        String pCity = '';
+                        String pState = '';
+                        String pPostal = '';
+                        String pCountry = '';
+                        
+                        if (components != null) {
+                          for (var c in components) {
+                            List<dynamic> types = c['types'] ?? [];
+                            if (types.contains('street_number')) pStreetNumber = c['long_name'];
+                            if (types.contains('route')) pRoute = c['long_name'];
+                            if (types.contains('locality')) pCity = c['long_name'];
+                            if (types.contains('administrative_area_level_1')) pState = c['short_name'];
+                            if (types.contains('postal_code')) pPostal = c['long_name'];
+                            if (types.contains('country')) pCountry = c['long_name'];
+                          }
+                        }
+
+                        String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+
                         setModalState(() {
                           lat = location['lat'];
                           lng = location['lng'];
+                          address1 = pAddress1;
+                          city = pCity;
+                          state = pState;
+                          zipCode = pPostal;
+                          country = pCountry;
                         });
                       }
                     }
@@ -1018,7 +1093,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   if (emailCtrl.text.trim().isNotEmpty) payload['email'] = emailCtrl.text.trim();
                                   if (addressCtrl.text.trim().isNotEmpty) {
                                     payload['address'] = addressCtrl.text.trim();
-                                    payload['address1'] = addressCtrl.text.trim();
+                                    payload['address1'] = address1.isNotEmpty ? address1 : addressCtrl.text.trim();
+                                    if (city.isNotEmpty) payload['city'] = city;
+                                    if (state.isNotEmpty) payload['state'] = state;
+                                    if (zipCode.isNotEmpty) payload['zip_code'] = zipCode;
+                                    if (country.isNotEmpty) payload['country'] = country;
                                   }
                                   if (lat != 0.0) payload['lat'] = lat;
                                   if (lng != 0.0) payload['lng'] = lng;
@@ -1434,6 +1513,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
     String? selectedCustomerId;
     String? selectedCustomerName;
+    
+    List<dynamic> customerAddressesList = [];
+    String? selectedAddressId;
+    bool showNewAddressForm = false;
+    bool saveToCustomerProfile = true;
+    Map<String, dynamic>? newAddressData;
 
     // Items state
     List<Map<String, dynamic>> availableItems = [];
@@ -1444,8 +1529,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
     List<dynamic> placePredictions = [];
     bool isSaving = false;
 
+    String address1 = '';
     double latitude = 0.0;
     double longitude = 0.0;
+    String city = '';
+    String state = '';
+    String postalCode = '';
+    String country = '';
 
     showModalBottomSheet(
       context: context,
@@ -1476,10 +1566,15 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                     if (data['status'] == 'OK') {
                       setModalState(() => placePredictions =
                           List<dynamic>.from(data['predictions'] ?? []));
+                    } else {
+                      setModalState(() => placePredictions = [{'description': 'API Error: ${data['status']}'}]);
                     }
+                  } else {
+                    setModalState(() => placePredictions = [{'description': 'HTTP Error: ${response.statusCode}'}]);
                   }
                 } catch (e) {
                   debugPrint("Cloud Function Error (Autocomplete): $e");
+                  setModalState(() => placePredictions = [{'description': 'Exception: $e'}]);
                 }
               }
 
@@ -1494,9 +1589,37 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                     final data = jsonDecode(response.body);
                     if (data['status'] == 'OK') {
                       var location = data['result']['geometry']['location'];
+                      var components = data['result']['address_components'] as List<dynamic>?;
+                      
+                      String pStreetNumber = '';
+                      String pRoute = '';
+                      String pCity = '';
+                      String pState = '';
+                      String pPostal = '';
+                      String pCountry = '';
+                      
+                      if (components != null) {
+                        for (var c in components) {
+                          List<dynamic> types = c['types'] ?? [];
+                          if (types.contains('street_number')) pStreetNumber = c['long_name'];
+                          if (types.contains('route')) pRoute = c['long_name'];
+                          if (types.contains('locality')) pCity = c['long_name'];
+                          if (types.contains('administrative_area_level_1')) pState = c['short_name'];
+                          if (types.contains('postal_code')) pPostal = c['long_name'];
+                          if (types.contains('country')) pCountry = c['long_name'];
+                        }
+                      }
+
+                      String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+
                       setModalState(() {
                         latitude = location['lat'];
                         longitude = location['lng'];
+                        address1 = pAddress1;
+                        city = pCity;
+                        state = pState;
+                        postalCode = pPostal;
+                        country = pCountry;
                       });
                     }
                   }
@@ -1668,6 +1791,15 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            const Text("Job Title",
+                                style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            _buildSimpleTextField(
+                                jobTitleCtrl, "Enter job title..."),
+                            const SizedBox(height: 16),
                             const Text("Select Customer",
                                 style: TextStyle(
                                     color: Colors.white60,
@@ -1749,55 +1881,15 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                             selectedCustomerName =
                                                 '${selectedDoc['first_name'] ?? ''} ${selectedDoc['last_name'] ?? ''}'
                                                     .trim();
-                                            if (selectedDoc['address1'] !=
-                                                    null &&
-                                                selectedDoc['address1']
-                                                    .toString()
-                                                    .isNotEmpty) {
-                                              addressCtrl.text =
-                                                  selectedDoc['address1'];
-                                              latitude = selectedDoc['lat'] !=
-                                                      null
-                                                  ? (double.tryParse(
-                                                          selectedDoc['lat']
-                                                              .toString()) ??
-                                                      0.0)
-                                                  : 0.0;
-                                              longitude = selectedDoc['lng'] !=
-                                                      null
-                                                  ? (double.tryParse(
-                                                          selectedDoc['lng']
-                                                              .toString()) ??
-                                                      0.0)
-                                                  : 0.0;
-                                            } else if (selectedDoc[
-                                                    'primary_address'] !=
-                                                null) {
-                                              addressCtrl.text =
-                                                  selectedDoc['primary_address']
-                                                          ['address1'] ??
-                                                      '';
-                                              latitude = selectedDoc[
-                                                              'primary_address']
-                                                          ['latitude'] !=
-                                                      null
-                                                  ? (double.tryParse(selectedDoc[
-                                                                  'primary_address']
-                                                              ['latitude']
-                                                          .toString()) ??
-                                                      0.0)
-                                                  : 0.0;
-                                              longitude = selectedDoc[
-                                                              'primary_address']
-                                                          ['longitude'] !=
-                                                      null
-                                                  ? (double.tryParse(selectedDoc[
-                                                                  'primary_address']
-                                                              ['longitude']
-                                                          .toString()) ??
-                                                      0.0)
-                                                  : 0.0;
-                                            }
+                                            customerAddressesList = selectedDoc['addresses'] != null
+                                                ? List.from(selectedDoc['addresses'])
+                                                : [];
+                                            selectedAddressId = null;
+                                            showNewAddressForm = false;
+                                            newAddressData = null;
+                                            addressCtrl.clear();
+                                            latitude = 0.0;
+                                            longitude = 0.0;
                                           });
                                         }
                                       },
@@ -1806,121 +1898,218 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 );
                               },
                             ),
+
                             const SizedBox(height: 16),
-                            const Text("Job Title",
-                                style: TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text("Service Address",
+                                    style: TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold)),
+                                if (selectedCustomerId != null && !showNewAddressForm)
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        showNewAddressForm = true;
+                                        selectedAddressId = null;
+                                        newAddressData = null;
+                                        addressCtrl.clear();
+                                        latitude = 0.0;
+                                        longitude = 0.0;
+                                      });
+                                    },
+                                    icon: const Icon(Icons.add, size: 16, color: Color(0xFF3B82F6)),
+                                    label: const Text("Quick Add Location",
+                                        style: TextStyle(color: Color(0xFF3B82F6), fontSize: 13, fontWeight: FontWeight.bold)),
+                                  ),
+                              ],
+                            ),
                             const SizedBox(height: 8),
-                            _buildSimpleTextField(
-                                jobTitleCtrl, "Enter job title..."),
-                            const SizedBox(height: 16),
-                            const Text("Service Address",
-                                style: TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
-                            Container(
-                              decoration: BoxDecoration(
+
+                            // Addresses List
+                            if (selectedCustomerId == null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
                                   color: const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10)),
-                              child: Column(
-                                children: [
-                                  SizedBox(
-                                    height: 41,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16),
-                                      child: Center(
-                                        child: TextField(
-                                          controller: addressCtrl,
-                                          onChanged: (val) {
-                                            if (val.length > 3) {
-                                              searchPlaces(val);
-                                            } else {
-                                              setModalState(
-                                                  () => placePredictions = []);
-                                            }
-                                          },
-                                          textAlignVertical:
-                                              TextAlignVertical.center,
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13),
-                                          decoration: const InputDecoration(
-                                              hintText:
-                                                  "Start typing address...",
-                                              hintStyle: TextStyle(
-                                                  color: Colors.white38,
-                                                  fontSize: 13),
-                                              prefixIconConstraints:
-                                                  BoxConstraints(
-                                                      minWidth: 36,
-                                                      minHeight: 0),
-                                              prefixIcon: Icon(
-                                                  Icons.location_on,
-                                                  color: Color(0xFF3B82F6),
-                                                  size: 20),
-                                              border: InputBorder.none,
-                                              isDense: true,
-                                              contentPadding: EdgeInsets.zero),
+                                  border: Border.all(color: Colors.white10),
+                                ),
+                                child: const Text("Please select a customer first.", style: TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic)),
+                              )
+                            else if (!showNewAddressForm) ...[
+                              if (customerAddressesList.isEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 20),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1E293B),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white10),
+                                  ),
+                                  child: const Text("No stored addresses found.", style: TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic)),
+                                )
+                              else
+                                ...customerAddressesList.map((addr) {
+                                  bool isSelected = selectedAddressId == addr['id'].toString();
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setModalState(() {
+                                        selectedAddressId = addr['id'].toString();
+                                        showNewAddressForm = false;
+                                        newAddressData = null;
+                                        addressCtrl.text = addr['address1'] ?? '';
+                                        latitude = double.tryParse(addr['latitude']?.toString() ?? '0') ?? 0.0;
+                                        longitude = double.tryParse(addr['longitude']?.toString() ?? '0') ?? 0.0;
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? const Color(0xFF3B82F6).withOpacity(0.2) : const Color(0xFF1E293B),
+                                        border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : Colors.white10),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                                            color: isSelected ? const Color(0xFF3B82F6) : Colors.white60,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              addr['address1'] ?? 'Unknown Address',
+                                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                            ],
+
+                            // New Address Form
+                            if (selectedCustomerId != null && showNewAddressForm) ...[
+                              Container(
+                                decoration: BoxDecoration(
+                                    color: const Color(0xFF1E293B),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white10)),
+                                child: Column(
+                                  children: [
+                                    SizedBox(
+                                      height: 41,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        child: Center(
+                                          child: TextField(
+                                            controller: addressCtrl,
+                                            onChanged: (val) {
+                                              if (val.length > 3) {
+                                                searchPlaces(val);
+                                              } else {
+                                                setModalState(() => placePredictions = []);
+                                              }
+                                            },
+                                            textAlignVertical: TextAlignVertical.center,
+                                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                                            decoration: const InputDecoration(
+                                                hintText: "Start typing address...",
+                                                hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                                                prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 0),
+                                                prefixIcon: Icon(Icons.location_on, color: Color(0xFF3B82F6), size: 20),
+                                                border: InputBorder.none,
+                                                isDense: true,
+                                                contentPadding: EdgeInsets.zero),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  if (placePredictions.isNotEmpty)
-                                    Material(
-                                      color: const Color(0xFF0D1B2A),
-                                      borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(12),
-                                          bottomRight: Radius.circular(12)),
-                                      clipBehavior: Clip.hardEdge,
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: placePredictions
-                                            .map<Widget>((p) => ListTile(
-                                                  title: Text(
-                                                      p['description']
-                                                              ?.toString() ??
-                                                          '',
-                                                      style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 13)),
-                                                  onTap: () async {
-                                                    String pId = p['place_id']
-                                                            ?.toString() ??
-                                                        '';
-                                                    setModalState(() {
-                                                      addressCtrl.text = p[
-                                                                  'description']
-                                                              ?.toString() ??
-                                                          '';
-                                                      placePredictions.clear();
-                                                    });
-                                                    await getPlaceDetails(pId);
-                                                  },
-                                                ))
-                                            .toList(),
-                                      ),
-                                    )
-                                ],
+                                    if (placePredictions.isNotEmpty)
+                                      Material(
+                                        color: const Color(0xFF0D1B2A),
+                                        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+                                        clipBehavior: Clip.hardEdge,
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: placePredictions
+                                              .map<Widget>((p) => ListTile(
+                                                    title: Text(p['description']?.toString() ?? '',
+                                                        style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                                    onTap: () async {
+                                                      String pId = p['place_id']?.toString() ?? '';
+                                                      setModalState(() {
+                                                        addressCtrl.text = p['description']?.toString() ?? '';
+                                                        placePredictions.clear();
+                                                      });
+                                                      await getPlaceDetails(pId);
+                                                      
+                                                      setModalState(() {
+                                                          newAddressData = {
+                                                            'address1': address1.isNotEmpty ? address1 : addressCtrl.text,
+                                                            'city': city,
+                                                            'state': state,
+                                                            'zip_code': postalCode,
+                                                            'country': country,
+                                                            'latitude': latitude,
+                                                            'longitude': longitude,
+                                                          };
+                                                      });
+                                                    },
+                                                  ))
+                                              .toList(),
+                                        ),
+                                      )
+                                  ],
+                                ),
                               ),
-                            ),
-                            if (latitude != 0.0) ...[
-                              const SizedBox(height: 8),
-                              const Row(children: [
-                                Icon(Icons.gps_fixed,
-                                    color: Color(0xFF10B981), size: 14),
-                                SizedBox(width: 6),
-                                Text("Address Confirmed",
-                                    style: TextStyle(
-                                        color: Color(0xFF10B981),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold)),
-                              ]),
+                              if (latitude != 0.0) ...[
+                                const SizedBox(height: 8),
+                                const Row(children: [
+                                  Icon(Icons.gps_fixed, color: Color(0xFF10B981), size: 14),
+                                  SizedBox(width: 6),
+                                  Text("Address Confirmed",
+                                      style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
+                                ]),
+                                if (selectedCustomerId != null)
+                                  Row(
+                                    children: [
+                                      Checkbox(
+                                        value: saveToCustomerProfile,
+                                        activeColor: const Color(0xFF3B82F6),
+                                        checkColor: Colors.white,
+                                        side: const BorderSide(color: Colors.white60),
+                                        onChanged: (val) {
+                                          setModalState(() => saveToCustomerProfile = val ?? true);
+                                        },
+                                      ),
+                                      const Text("Save to customer profile", style: TextStyle(color: Colors.white60, fontSize: 13)),
+                                    ],
+                                  ),
+                              ],
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      showNewAddressForm = false;
+                                      newAddressData = null;
+                                      selectedAddressId = null;
+                                      addressCtrl.clear();
+                                      latitude = 0.0;
+                                      longitude = 0.0;
+                                    });
+                                  },
+                                  child: const Text("Cancel & Back to List", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                ),
+                              ),
                             ],
                             const SizedBox(height: 20),
                             const Text("Job Type",
@@ -3058,71 +3247,56 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                                 '${selectedEndTime!.hour.toString().padLeft(2, '0')}:${selectedEndTime!.minute.toString().padLeft(2, '0')}:00';
                                           }
 
-                                          await ApiService.instance
-                                              .post('/admin/jobs', {
+                                          Map<String, dynamic> payload = {
                                             'title': jobTitleCtrl.text.trim(),
                                             'customer_id': selectedCustomerId,
-                                            'customer_name':
-                                                selectedCustomerName,
+                                            'customer_name': selectedCustomerName,
                                             'address': addressCtrl.text.trim(),
                                             'latitude': latitude,
                                             'longitude': longitude,
-                                            'job_type':
-                                                selectedJobType ?? 'Standard',
+                                            'job_type': selectedJobType ?? 'Standard',
                                             'items': selectedItems,
                                             'is_recurring': isRecurring,
                                             'recurring_pattern': isRecurring
                                                 ? {
                                                     'frequency': recFrequency,
-                                                    'interval': int.tryParse(
-                                                            recIntervalCtrl
-                                                                .text) ??
-                                                        1,
-                                                    'days_of_week':
-                                                        recFrequency == 'weekly'
-                                                            ? recDaysOfWeek
-                                                            : [],
-                                                    'end_type': recEndType ==
-                                                            'occurrences'
+                                                    'interval': int.tryParse(recIntervalCtrl.text) ?? 1,
+                                                    'days_of_week': recFrequency == 'weekly' ? recDaysOfWeek : [],
+                                                    'end_type': recEndType == 'occurrences'
                                                         ? 'after'
-                                                        : (recEndType == 'date'
-                                                            ? 'on_date'
-                                                            : recEndType),
-                                                    'end_date': recEndType ==
-                                                                'date' &&
-                                                            recEndDate != null
+                                                        : (recEndType == 'date' ? 'on_date' : recEndType),
+                                                    'end_date': recEndType == 'date' && recEndDate != null
                                                         ? "${recEndDate!.year.toString().padLeft(4, '0')}-${recEndDate!.month.toString().padLeft(2, '0')}-${recEndDate!.day.toString().padLeft(2, '0')}"
                                                         : null,
-                                                    'end_after_occurrences':
-                                                        recEndType ==
-                                                                'occurrences'
-                                                            ? int.tryParse(
-                                                                recOccurrencesCtrl
-                                                                    .text)
-                                                            : null,
-                                                    'skip_weekends':
-                                                        recSkipWeekends,
-                                                    'auto_notify':
-                                                        recAutoNotify,
+                                                    'end_after_occurrences': recEndType == 'occurrences'
+                                                        ? int.tryParse(recOccurrencesCtrl.text)
+                                                        : null,
+                                                    'skip_weekends': recSkipWeekends,
+                                                    'auto_notify': recAutoNotify,
                                                   }
                                                 : null,
                                             'start_date': startDateStr,
                                             'start_time': startTimeStr,
                                             'end_date': endDateStr,
                                             'end_time': endTimeStr,
-                                            'assigned_workers':
-                                                selectedWorkerIds,
+                                            'assigned_workers': selectedWorkerIds,
                                             'assigned_teams': selectedTeamIds,
-                                            'team_leader_id':
-                                                selectedWorkerIds.length == 1
-                                                    ? selectedWorkerIds[0]
-                                                    : selectedTeamLeaderId,
+                                            'team_leader_id': selectedWorkerIds.length == 1
+                                                ? selectedWorkerIds[0]
+                                                : selectedTeamLeaderId,
                                             'notes': notesCtrl.text.trim(),
-                                            // 🚀 FIX: STATUS INICIAL ES 'ASSIGNED'
                                             'status': 'assigned',
-                                            'created_at': DateTime.now()
-                                                .toIso8601String(),
-                                          });
+                                            'created_at': DateTime.now().toIso8601String(),
+                                          };
+
+                                          if (selectedAddressId != null) {
+                                            payload['address_id'] = selectedAddressId;
+                                          } else if (newAddressData != null) {
+                                            payload['new_address'] = newAddressData;
+                                            payload['save_to_customer'] = saveToCustomerProfile;
+                                          }
+
+                                          await ApiService.instance.post('/admin/jobs', payload);
 
                                           final messenger = ScaffoldMessenger.of(context);
                                           Navigator.pop(context);

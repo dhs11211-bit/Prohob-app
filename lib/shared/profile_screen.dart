@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import '../backend/api_service.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../app_constants.dart';
 
 enum ProfileTab { profile, documents }
 
@@ -36,6 +39,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
 
+  String _address1 = '';
+  String _stateStr = '';
+  String _zipCode = '';
+  String _country = '';
+  double _lat = 0.0;
+  double _lng = 0.0;
+  List<dynamic> _placePredictions = [];
+  String? _googleMapsApiKey;
+
   String _userEmail = '';
   String _userRole = 'User';
   String _userName = '';
@@ -64,6 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _activeTab = widget.initialTab;
     _loadUserProfile();
+    _fetchGoogleMapsApiKey();
   }
 
   @override
@@ -159,48 +172,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'first_name': _firstNameController.text.trim(),
         'last_name': _lastNameController.text.trim(),
         'phone': _phoneController.text.trim(),
+        'address1': _address1.isNotEmpty ? _address1 : _addressController.text.trim(),
         'address': _addressController.text.trim(),
         'city': _cityController.text.trim(),
+        'state': _stateStr,
+        'zip_code': _zipCode,
+        'country': _country,
+        'latitude': _lat,
+        'longitude': _lng,
       };
 
-      final updatedRes = await ApiService.instance.updateProfile(payload);
-      final updatedUser = updatedRes['data'] ?? updatedRes;
-
-      final newName = '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'.trim();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_name', newName);
-
+      await ApiService.instance.updateProfile(payload);
+      
       if (mounted) {
-        setState(() {
-          _userName = newName;
-          if (updatedUser != null && updatedUser is Map) {
-            if (updatedUser['phone'] != null) _phoneController.text = updatedUser['phone'].toString();
-            if (updatedUser['address'] != null) _addressController.text = updatedUser['address'].toString();
-            if (updatedUser['city'] != null) _cityController.text = updatedUser['city'].toString();
-          }
-        });
-
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Profile updated successfully!'),
-            backgroundColor: accentGreen,
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text('Profile updated successfully!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update profile: $e'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      debugPrint("Error updating profile: $e");
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _fetchGoogleMapsApiKey() async {
+    try {
+      final response = await ApiService.instance.get('/settings');
+      if (response != null && response['success'] == true) {
+        final settings = response['data'] as List<dynamic>;
+        final mapSetting = settings.firstWhere(
+          (s) => s['setting_key'] == 'google_maps_api_key',
+          orElse: () => null,
+        );
+        setState(() {
+          _googleMapsApiKey = mapSetting != null ? mapSetting['setting_value'] : AppConstants.fallbackGoogleMapsApiKey;
+        });
+      } else {
+        setState(() {
+          _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
+      });
+      debugPrint("Error fetching Google Maps API Key: $e");
+    }
+  }
+
+  Future<void> searchPlaces(String query) async {
+    if (query.isEmpty) {
+      setState(() => _placePredictions = []);
+      return;
+    }
+    try {
+      if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+      final uri = Uri.parse(
+          "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&types=address&key=$_googleMapsApiKey");
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'OK') {
+          setState(() => _placePredictions = List<dynamic>.from(data['predictions'] ?? []));
+        }
+      }
+    } catch (e) {
+      debugPrint("Error Autocomplete: $e");
+    }
+  }
+
+  Future<void> getPlaceDetails(String placeId) async {
+    try {
+      if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+      final uri = Uri.parse(
+          "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'OK') {
+          var location = data['result']['geometry']['location'];
+          var components = data['result']['address_components'] as List<dynamic>?;
+          
+          String pStreetNumber = '';
+          String pRoute = '';
+          String pCity = '';
+          String pState = '';
+          String pPostal = '';
+          String pCountry = '';
+          
+          if (components != null) {
+            for (var c in components) {
+              List<dynamic> types = c['types'] ?? [];
+              if (types.contains('street_number')) pStreetNumber = c['long_name'];
+              if (types.contains('route')) pRoute = c['long_name'];
+              if (types.contains('locality')) pCity = c['long_name'];
+              if (types.contains('administrative_area_level_1')) pState = c['short_name'];
+              if (types.contains('postal_code')) pPostal = c['long_name'];
+              if (types.contains('country')) pCountry = c['long_name'];
+            }
+          }
+
+          String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+
+          setState(() {
+            _lat = location['lat'].toDouble();
+            _lng = location['lng'].toDouble();
+            _address1 = pAddress1;
+            _addressController.text = pAddress1;
+            _cityController.text = pCity;
+            _stateStr = pState;
+            _zipCode = pPostal;
+            _country = pCountry;
+            _placePredictions = [];
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error Details: $e");
     }
   }
 
@@ -467,25 +557,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 12),
 
-            Row(
+            Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  flex: 2,
-                  child: _buildTextField(
-                    label: 'Street Address',
-                    controller: _addressController,
-                    icon: Icons.location_on_outlined,
-                  ),
+                _buildTextField(
+                  label: 'Street Address',
+                  controller: _addressController,
+                  icon: Icons.location_on_outlined,
+                  onChanged: searchPlaces,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 1,
-                  child: _buildTextField(
-                    label: 'City',
-                    controller: _cityController,
-                    icon: Icons.location_city_outlined,
+                if (_placePredictions.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: _placePredictions.map<Widget>((p) => ListTile(
+                        title: Text(p['description']?.toString() ?? '',
+                            style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        onTap: () async {
+                          String pId = p['place_id']?.toString() ?? '';
+                          setState(() {
+                            _addressController.text = p['description']?.toString() ?? '';
+                            _placePredictions.clear();
+                          });
+                          await getPlaceDetails(pId);
+                        },
+                      )).toList(),
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -679,6 +783,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,6 +802,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             controller: controller,
             keyboardType: keyboardType,
             validator: validator,
+            onChanged: onChanged,
             style: TextStyle(color: textWhite, fontSize: 14),
             decoration: InputDecoration(
               prefixIcon: Icon(icon, color: accentBlue, size: 18),
