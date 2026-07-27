@@ -22,6 +22,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../app_constants.dart';
 
 import '../../shared/image_editor_helper.dart';
 
@@ -60,6 +63,17 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  final TextEditingController _addressController = TextEditingController();
+  List<dynamic> _placePredictions = [];
+  double _lat = 0.0;
+  double _lng = 0.0;
+  String _address1 = '';
+  String _city = '';
+  String _state = '';
+  String _zipCode = '';
+  String _country = '';
+  String? _googleMapsApiKey;
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _hourlyRateController = TextEditingController(text: '20');
   bool _isCreatingUser = false;
@@ -199,6 +213,19 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
 
   Future<void> _fetchWorkers() async {
     try {
+      final settingsRes = await ApiService.instance.get('/settings');
+      if (settingsRes is Map<String, dynamic> && settingsRes.containsKey('data')) {
+        final data = settingsRes['data'] as Map<String, dynamic>;
+        if (data.containsKey('google_maps_api_key') && 
+            data['google_maps_api_key'] != null && 
+            data['google_maps_api_key'].toString().trim().isNotEmpty) {
+          _googleMapsApiKey = data['google_maps_api_key'].toString();
+        }
+      }
+      if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) {
+        _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
+      }
+      
       final res = await ApiService.instance.get('/admin/workers');
       if (mounted) {
         setState(() {
@@ -1758,6 +1785,14 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         'hourly_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
         'cost_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
         'role_id': _selectedRoleId,
+        'address1': _address1.isNotEmpty ? _address1 : _addressController.text.trim(),
+        'address': _addressController.text.trim(),
+        'city': _city,
+        'state': _state,
+        'zip_code': _zipCode,
+        'country': _country.isNotEmpty ? _country : 'USA',
+        'latitude': _lat != 0.0 ? _lat : null,
+        'longitude': _lng != 0.0 ? _lng : null,
       });
 
       if (mounted) {
@@ -1767,6 +1802,13 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
           _lastNameController.clear();
           _emailController.clear();
           _passwordController.clear();
+          _addressController.clear();
+          _city = '';
+          _state = '';
+          _zipCode = '';
+          _country = '';
+          _lat = 0.0;
+          _lng = 0.0;
           _confirmPasswordController.clear();
           _hourlyRateController.text = '20';
         });
@@ -1815,6 +1857,77 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                     setModalState(() {});
                   }
                 });
+              }
+
+              Future<void> searchPlaces(String query) async {
+                if (query.isEmpty) {
+                  setModalState(() => _placePredictions = []);
+                  return;
+                }
+                try {
+                  if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                  final uri = Uri.parse(
+                      "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
+                  final response = await http.get(uri);
+                  if (response.statusCode == 200) {
+                    final data = jsonDecode(response.body);
+                    if (data['status'] == 'OK') {
+                      setModalState(() => _placePredictions =
+                          List<dynamic>.from(data['predictions'] ?? []));
+                    }
+                  }
+                } catch (e) {
+                  debugPrint("Error Autocomplete: $e");
+                }
+              }
+
+              Future<void> getPlaceDetails(String placeId) async {
+                try {
+                  if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                  final uri = Uri.parse(
+                      "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+                  final response = await http.get(uri);
+                  if (response.statusCode == 200) {
+                    final data = jsonDecode(response.body);
+                    if (data['status'] == 'OK') {
+                      var location = data['result']['geometry']['location'];
+                      var components = data['result']['address_components'] as List<dynamic>?;
+                      
+                      String pStreetNumber = '';
+                      String pRoute = '';
+                      String pCity = '';
+                      String pState = '';
+                      String pPostal = '';
+                      String pCountry = '';
+                      
+                      if (components != null) {
+                        for (var c in components) {
+                          List<dynamic> types = c['types'] ?? [];
+                          if (types.contains('street_number')) pStreetNumber = c['long_name'];
+                          if (types.contains('route')) pRoute = c['long_name'];
+                          if (types.contains('locality')) pCity = c['long_name'];
+                          if (types.contains('administrative_area_level_1')) pState = c['short_name'];
+                          if (types.contains('postal_code')) pPostal = c['long_name'];
+                          if (types.contains('country')) pCountry = c['long_name'];
+                        }
+                      }
+
+                      String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+
+                      setModalState(() {
+                        _lat = location['lat'];
+                        _lng = location['lng'];
+                        _address1 = pAddress1;
+                        _city = pCity;
+                        _state = pState;
+                        _zipCode = pPostal;
+                        _country = pCountry;
+                      });
+                    }
+                  }
+                } catch (e) {
+                  debugPrint("Error Details: $e");
+                }
               }
 
               return Padding(
@@ -1930,6 +2043,47 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                           label: "Email Address",
                                           icon: Icons.email_outlined,
                                         ),
+                                        const SizedBox(height: 16),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1E293B),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: TextField(
+                                            controller: _addressController,
+                                            style: const TextStyle(color: Colors.white, fontSize: 16),
+                                            onChanged: (val) => searchPlaces(val),
+                                            decoration: const InputDecoration(
+                                              prefixIcon: Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                                              labelText: "Staff Address",
+                                              labelStyle: TextStyle(color: Colors.white38),
+                                              border: InputBorder.none,
+                                              contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                            ),
+                                          ),
+                                        ),
+                                        if (_placePredictions.isNotEmpty)
+                                          Container(
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF1E293B),
+                                              borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                                            ),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: _placePredictions.map<Widget>((p) => ListTile(
+                                                title: Text(p['description']?.toString() ?? '',
+                                                    style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                                onTap: () async {
+                                                  String pId = p['place_id']?.toString() ?? '';
+                                                  setModalState(() {
+                                                    _addressController.text = p['description']?.toString() ?? '';
+                                                    _placePredictions.clear();
+                                                  });
+                                                  await getPlaceDetails(pId);
+                                                },
+                                              )).toList(),
+                                            ),
+                                          ),
                                         const SizedBox(height: 16),
                                         Container(
                                           decoration: BoxDecoration(
@@ -2221,6 +2375,15 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     double currentRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 20.0;
     TextEditingController rateCtrl = TextEditingController(text: currentRate.toStringAsFixed(2));
 
+    List<dynamic> placePredictions = [];
+    String address1 = '';
+    double lat = double.tryParse(workerData['latitude']?.toString() ?? '0') ?? 0.0;
+    double lng = double.tryParse(workerData['longitude']?.toString() ?? '0') ?? 0.0;
+    String city = workerData['city'] ?? '';
+    String stateStr = workerData['state'] ?? '';
+    String zipCode = workerData['zip_code'] ?? '';
+    String country = workerData['country'] ?? '';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2234,6 +2397,78 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
             height: MediaQuery.of(context).size.height * 0.95,
             child: StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
+
+                Future<void> searchPlaces(String query) async {
+                  if (query.isEmpty) {
+                    setModalState(() => placePredictions = []);
+                    return;
+                  }
+                  try {
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    final uri = Uri.parse(
+                        "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
+                    final response = await http.get(uri);
+                    if (response.statusCode == 200) {
+                      final data = jsonDecode(response.body);
+                      if (data['status'] == 'OK') {
+                        setModalState(() => placePredictions =
+                            List<dynamic>.from(data['predictions'] ?? []));
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint("Error Autocomplete: $e");
+                  }
+                }
+
+                Future<void> getPlaceDetails(String placeId) async {
+                  try {
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    final uri = Uri.parse(
+                        "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+                    final response = await http.get(uri);
+                    if (response.statusCode == 200) {
+                      final data = jsonDecode(response.body);
+                      if (data['status'] == 'OK') {
+                        var location = data['result']['geometry']['location'];
+                        var components = data['result']['address_components'] as List<dynamic>?;
+                        
+                        String pStreetNumber = '';
+                        String pRoute = '';
+                        String pCity = '';
+                        String pState = '';
+                        String pPostal = '';
+                        String pCountry = '';
+                        
+                        if (components != null) {
+                          for (var c in components) {
+                            List<dynamic> types = c['types'] ?? [];
+                            if (types.contains('street_number')) pStreetNumber = c['long_name'];
+                            if (types.contains('route')) pRoute = c['long_name'];
+                            if (types.contains('locality')) pCity = c['long_name'];
+                            if (types.contains('administrative_area_level_1')) pState = c['short_name'];
+                            if (types.contains('postal_code')) pPostal = c['long_name'];
+                            if (types.contains('country')) pCountry = c['long_name'];
+                          }
+                        }
+
+                        String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+
+                        setModalState(() {
+                          lat = location['lat'];
+                          lng = location['lng'];
+                          address1 = pAddress1;
+                          city = pCity;
+                          stateStr = pState;
+                          zipCode = pPostal;
+                          country = pCountry;
+                        });
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint("Error Details: $e");
+                  }
+                }
+
                 return Padding(
                   padding: EdgeInsets.only(
                       bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -2335,11 +2570,46 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildTextField(
-                                controller: addressCtrl,
-                                label: "Address",
-                                icon: Icons.location_on_outlined,
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: TextField(
+                                  controller: addressCtrl,
+                                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                                  onChanged: (val) => searchPlaces(val),
+                                  decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.location_on_outlined, color: Colors.white38),
+                                    labelText: "Address",
+                                    labelStyle: TextStyle(color: Colors.white38),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                  ),
+                                ),
                               ),
+                              if (placePredictions.isNotEmpty)
+                                Container(
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF1E293B),
+                                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: placePredictions.map<Widget>((p) => ListTile(
+                                      title: Text(p['description']?.toString() ?? '',
+                                          style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                      onTap: () async {
+                                        String pId = p['place_id']?.toString() ?? '';
+                                        setModalState(() {
+                                          addressCtrl.text = p['description']?.toString() ?? '';
+                                          placePredictions.clear();
+                                        });
+                                        await getPlaceDetails(pId);
+                                      },
+                                    )).toList(),
+                                  ),
+                                ),
                               const SizedBox(height: 16),
                               const Text("Hourly Rate (\$)",
                                   style: TextStyle(
@@ -2397,7 +2667,13 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   }
                                   if (addressCtrl.text.trim().isNotEmpty) {
                                     payload['address'] = addressCtrl.text.trim();
-                                    payload['address1'] = addressCtrl.text.trim();
+                                    payload['address1'] = address1.isNotEmpty ? address1 : addressCtrl.text.trim();
+                                    payload['city'] = city;
+                                    payload['state'] = stateStr;
+                                    payload['zip_code'] = zipCode;
+                                    payload['country'] = country.isNotEmpty ? country : 'USA';
+                                    if (lat != 0.0) payload['latitude'] = lat;
+                                    if (lng != 0.0) payload['longitude'] = lng;
                                   }
 
                                   final messenger = ScaffoldMessenger.of(context);

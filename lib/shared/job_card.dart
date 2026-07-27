@@ -159,9 +159,9 @@ class SharedJobCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
-                  // Row 3: Single/Series Job Badge + Location + Status Pill
+                  // Row 3: Single/Series Job Badge + Location + Status Pill + Map Button
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -213,19 +213,19 @@ class SharedJobCard extends StatelessWidget {
                           style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      // Map Navigation Button (Moved here)
+                      GestureDetector(
+                        onTap: () => _showQuickMap(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(color: goldPill.withOpacity(0.15), shape: BoxShape.circle),
+                          child: const Icon(Icons.map_outlined, color: goldPill, size: 16),
+                        ),
+                      ),
                     ],
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Map Navigation Button
-            GestureDetector(
-              onTap: () => _showQuickMap(context),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: goldPill.withOpacity(0.15), shape: BoxShape.circle),
-                child: const Icon(Icons.map_outlined, color: goldPill, size: 20),
               ),
             ),
             const SizedBox(width: 8),

@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as maps;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import '/backend/api_service.dart';
+import '/app_constants.dart';
 
 class QuickMapModal extends StatefulWidget {
   final Map<String, dynamic> jobData;
@@ -28,7 +29,7 @@ class _QuickMapModalState extends State<QuickMapModal> {
   String _address = '';
   double? _latitude;
   double? _longitude;
-  String? _googleMapsApiKey;
+  String? _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
   maps.GoogleMapController? _mapController;
   maps.BitmapDescriptor? _jobIcon;
 
@@ -64,7 +65,10 @@ class _QuickMapModalState extends State<QuickMapModal> {
       final response = await ApiService.instance.get('/public/settings');
       if (mounted && response is Map && response.containsKey('data')) {
         final settings = response['data'];
-        if (settings is Map && settings.containsKey('google_maps_api_key')) {
+        if (settings is Map && 
+            settings.containsKey('google_maps_api_key') &&
+            settings['google_maps_api_key'] != null &&
+            settings['google_maps_api_key'].toString().trim().isNotEmpty) {
           _googleMapsApiKey = settings['google_maps_api_key'];
         }
       }

@@ -17,6 +17,7 @@ import 'package:flutter/rendering.dart'; // 🚀 FIX: Librería para el editor d
 import 'dart:io'; // 🚀 FIX: Librería para subir archivos
 import 'dart:typed_data'; // 🚀 FIX: Librería para procesar imágenes
 import '/backend/api_service.dart';
+import '/app_constants.dart';
 import '../../auth/laravel_auth_manager.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as maps;
 import 'package:intl/intl.dart';
@@ -71,7 +72,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
   List<dynamic> _staffLocations = [];
   bool _isLoading = true;
   bool _isMapCreated = false;
-  String? _googleMapsApiKey;
+  String? _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
   bool get isWorker {
     if (currentUser == null) return false;
     try {
@@ -167,7 +168,10 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
       final response = await ApiService.instance.get('/public/settings');
       if (mounted && response is Map && response.containsKey('data')) {
         final settings = response['data'];
-        if (settings is Map && settings.containsKey('google_maps_api_key')) {
+        if (settings is Map && 
+            settings.containsKey('google_maps_api_key') &&
+            settings['google_maps_api_key'] != null &&
+            settings['google_maps_api_key'].toString().trim().isNotEmpty) {
           _googleMapsApiKey = settings['google_maps_api_key'];
         }
       }
