@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../backend/api_service.dart';
 import '/shared/toast_service.dart';
+import '../shared/job_parser.dart';
 
 class SwapRequestsModal extends StatefulWidget {
   const SwapRequestsModal({Key? key}) : super(key: key);
@@ -191,10 +192,8 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                           String status = _normalizeStatus(swapReq?['status']);
                           Color statusColor = _getStatusColor(status);
 
-                          DateTime? schedDate;
-                          if (item['scheduled_time'] != null) {
-                            schedDate = DateTime.tryParse(item['scheduled_time'].toString());
-                          } else if (swapReq?['created_at'] != null) {
+                          DateTime? schedDate = JobParser.getStartDate(item);
+                          if (schedDate == null && swapReq?['created_at'] != null) {
                             schedDate = DateTime.tryParse(swapReq!['created_at'].toString());
                           }
                           String dateStr = schedDate != null

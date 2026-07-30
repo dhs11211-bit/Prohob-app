@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../components/quick_map_modal.dart';
+import 'job_parser.dart';
 
 class SharedJobCard extends StatelessWidget {
   const SharedJobCard({
@@ -50,29 +51,20 @@ class SharedJobCard extends StatelessWidget {
     if (status == 'COMPLETED') statusColor = seriesPurple;
 
     String timeStr = "Time not set";
-    if (jobData['scheduled_time'] != null) {
-      try {
-        DateTime parsedTime = DateTime.parse(jobData['scheduled_time'].toString().trim()).toLocal();
-        String startStr = DateFormat.jm().format(parsedTime);
-        timeStr = startStr;
-        if (jobData['start_time'] != null && jobData['start_time'].toString().trim().isNotEmpty) {
-          try {
-            DateTime startParsed = DateTime.parse("1970-01-01 " + jobData['start_time'].toString().trim());
-            startStr = DateFormat.jm().format(startParsed);
-            timeStr = startStr;
-          } catch (_) {}
-        }
-        if (jobData['end_time'] != null && jobData['end_time'].toString().trim().isNotEmpty) {
-          try {
-            DateTime endParsed = DateTime.parse("1970-01-01 " + jobData['end_time'].toString().trim());
-            String endStr = DateFormat.jm().format(endParsed);
-            timeStr = "$startStr - $endStr";
-          } catch (_) {}
-        }
-      } catch (_) {}
+    DateTime? jobDate = JobParser.getStartDate(jobData);
+    if (jobDate != null) {
+      String startStr = DateFormat.jm().format(jobDate);
+      timeStr = startStr;
+      if (jobData['end_time'] != null && jobData['end_time'].toString().trim().isNotEmpty) {
+        try {
+          DateTime endParsed = DateTime.parse("1970-01-01 " + jobData['end_time'].toString().trim());
+          String endStr = DateFormat.jm().format(endParsed);
+          timeStr = "$startStr - $endStr";
+        } catch (_) {}
+      }
     }
 
-    final isRecurring = (jobData['recurring'] == 1 || jobData['recurring'] == true || jobData['is_recurring'] == 1 || jobData['is_recurring'] == true || jobData['job_type'] == 'recurring' || jobData['is_recurring_instance'] == true);
+    final isRecurring = JobParser.isRecurring(jobData);
     final badgeColor = isRecurring ? seriesPurple : accentBlue;
     final badgeLabel = isRecurring ? 'Recurring Job' : 'Single Job';
 

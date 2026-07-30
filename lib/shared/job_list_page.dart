@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '/backend/api_service.dart';
 import 'job_card.dart';
 import 'job_detail_screen.dart';
+import 'job_parser.dart';
 
 class SharedJobListPage extends StatefulWidget {
   const SharedJobListPage({
@@ -113,13 +114,9 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
   List<dynamic> _getJobsForDate(List<dynamic> jobs, DateTime date) {
     return jobs.where((job) {
       final data = job as Map<String, dynamic>;
-      if (data['scheduled_time'] == null) return false;
-      try {
-        DateTime d = DateTime.parse(data['scheduled_time'].toString()).toLocal();
-        return d.year == date.year && d.month == date.month && d.day == date.day;
-      } catch (_) {
-        return false;
-      }
+      DateTime? d = JobParser.getStartDate(data);
+      if (d == null) return false;
+      return d.year == date.year && d.month == date.month && d.day == date.day;
     }).toList();
   }
 
@@ -364,12 +361,7 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                   String? lastDateStr;
                   for (var job in _allJobs) {
                     final data = job as Map<String, dynamic>;
-                    DateTime jobTime = DateTime.now();
-                    if (data['scheduled_time'] != null) {
-                      try {
-                        jobTime = DateTime.parse(data['scheduled_time'].toString()).toLocal();
-                      } catch (_) {}
-                    }
+                    DateTime jobTime = JobParser.getStartDate(data) ?? DateTime.now();
 
                     String currentDateStr = DateFormat('EEEE, MMM d, yyyy').format(jobTime);
                     if (lastDateStr != currentDateStr) {
@@ -402,12 +394,15 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                     widgets.add(
                       SharedJobCard(
                         jobData: data,
-                        onTap: () {
-                          Navigator.of(context).push(
+                        onTap: () async {
+                          final result = await Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => SharedJobDetailScreen(jobId: data['id']),
                             ),
                           );
+                          if (result == true) {
+                            _fetchJobs(reset: true);
+                          }
                         },
                       ),
                     );

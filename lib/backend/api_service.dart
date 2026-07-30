@@ -223,6 +223,60 @@ class ApiService {
     );
   }
 
+  Future<void> cancelJob(int jobId) async {
+    final url = Uri.parse('$baseUrl/jobs/$jobId/cancel');
+    final response = await http.put(
+      url,
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to cancel job');
+    }
+  }
+
+  Future<void> softDeleteJob(int jobId) async {
+    final url = Uri.parse('$baseUrl/jobs/$jobId/soft-delete');
+    final response = await http.delete(
+      url,
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete job');
+    }
+  }
+
+  Future<void> cancelRecurringJob(int parentId) async {
+    final base = baseUrl.replaceAll('/mob', '');
+    final url = Uri.parse('$base/recurring-jobs/$parentId/cancel');
+    final response = await http.put(
+      url,
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to cancel recurring job');
+    }
+  }
+
+  Future<void> deleteRecurringJob(int parentId) async {
+    final base = baseUrl.replaceAll('/mob', '');
+    final url = Uri.parse('$base/recurring-jobs/$parentId');
+    final response = await http.delete(
+      url,
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete recurring job');
+    }
+  }
+
   Future<void> updateJobStatus(int jobId, String status) async {
     final url = Uri.parse('$baseUrl/jobs/$jobId/status');
     final response = await http.put(
@@ -267,7 +321,8 @@ class ApiService {
 
   // --- Clock Endpoints ---
   Future<Map<String, dynamic>> getClockStatus() async {
-    final url = Uri.parse('$baseUrl/clock/status');
+    // Add timestamp to prevent browser/OS level caching of the GET request
+    final url = Uri.parse('$baseUrl/clock/status?_t=${DateTime.now().millisecondsSinceEpoch}');
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
@@ -318,6 +373,27 @@ class ApiService {
       return data;
     } else {
       throw Exception(data['message'] ?? 'Failed to clock out');
+    }
+  }
+
+  Future<Map<String, dynamic>> clockBreak(
+      int jobId, double? lat, double? lng) async {
+    final url = Uri.parse('$baseUrl/clock/break');
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'job_id': jobId,
+        'latitude': lat,
+        'longitude': lng,
+      }),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to toggle break');
     }
   }
 

@@ -5,7 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_service.dart';
 import '../components/global_chat_modal.dart';
 import '../components/quick_map_modal.dart';
+import '../shared/job_action_buttons.dart';
 import 'auth_helpers.dart';
+import 'job_parser.dart';
 import '/shared/toast_service.dart';
 import '/workers_pag/custom_evidence_modal.dart';
 
@@ -32,6 +34,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
   final Color neonAction = const Color(0xFFD4FF00);
 
   bool _isLoading = true;
+  Map<String, dynamic>? _clockStatus;
   Map<String, dynamic>? _jobData;
   String? _errorMessage;
   bool _showAddTaskInput = false;
@@ -52,9 +55,14 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
   Future<void> _loadJobDetail() async {
     try {
       final res = await ApiService.instance.get('/jobs/${widget.jobId}');
+      Map<String, dynamic>? clockRes;
+      try {
+        clockRes = await ApiService.instance.getClockStatus();
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _jobData = res is Map<String, dynamic> ? (res['data'] ?? res) : res;
+          _clockStatus = clockRes;
           _isLoading = false;
         });
       }
@@ -355,7 +363,100 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     );
   }
 
-  void _confirmDeleteJob() {
+  int? get _recurringParentId {
+    if (_jobData == null) return null;
+    final parentId = _jobData!['recurring_parent_id'];
+    if (parentId != null && parentId != 0 && parentId != '') {
+      return int.tryParse(parentId.toString());
+    }
+    if (_jobData!['is_template'] == true) {
+      return int.tryParse(_jobData!['id'].toString());
+    }
+    return null;
+  }
+
+  void _confirmCancelJob(bool isRecurringJob) {
+    _showActionDialog(
+      title: 'Cancel Job',
+      content: isRecurringJob
+          ? 'Do you want to cancel only this job or the entire series?'
+          : 'Are you sure you want to cancel this job?',
+      icon: Icons.cancel_outlined,
+      color: Colors.orangeAccent,
+      actionText: 'Cancel',
+      isRecurring: isRecurringJob,
+      onSingleAction: () async {
+        try {
+          await ApiService.instance.cancelJob(widget.jobId);
+          if (mounted) {
+            ToastService.success(context, 'Job cancelled successfully');
+            Navigator.pop(context, true);
+          }
+        } catch (e) {
+          if (mounted) ToastService.error(context, 'Failed to cancel job: $e');
+        }
+      },
+      onSeriesAction: () async {
+        if (_recurringParentId == null) return;
+        try {
+          await ApiService.instance.cancelRecurringJob(_recurringParentId!);
+          if (mounted) {
+            ToastService.success(context, 'Series cancelled successfully');
+            Navigator.pop(context, true);
+          }
+        } catch (e) {
+          if (mounted) ToastService.error(context, 'Failed to cancel series: $e');
+        }
+      },
+    );
+  }
+
+  void _confirmDeleteJob(bool isRecurringJob) {
+    _showActionDialog(
+      title: 'Delete Job',
+      content: isRecurringJob
+          ? 'Do you want to delete only this job or the entire series? This action cannot be undone.'
+          : 'Are you sure you want to delete this job? This action cannot be undone.',
+      icon: Icons.warning_amber_rounded,
+      color: Colors.redAccent,
+      actionText: 'Delete',
+      isRecurring: isRecurringJob,
+      onSingleAction: () async {
+        try {
+          await ApiService.instance.softDeleteJob(widget.jobId);
+          if (mounted) {
+            ToastService.error(context, 'Job deleted successfully');
+            Navigator.pop(context, true);
+          }
+        } catch (e) {
+          if (mounted) ToastService.error(context, 'Failed to delete job: $e');
+        }
+      },
+      onSeriesAction: () async {
+        if (_recurringParentId == null) return;
+        try {
+          await ApiService.instance.deleteRecurringJob(_recurringParentId!);
+          if (mounted) {
+            ToastService.error(context, 'Series deleted successfully');
+            Navigator.pop(context, true);
+          }
+        } catch (e) {
+          if (mounted) ToastService.error(context, 'Failed to delete series: $e');
+        }
+      },
+    );
+  }
+
+  void _showActionDialog({
+    required String title,
+    required String content,
+    required IconData icon,
+    required Color color,
+    required String actionText,
+    required bool isRecurring,
+    required Future<void> Function() onSingleAction,
+    required Future<void> Function() onSeriesAction,
+  }) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -363,41 +464,56 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
+            Icon(icon, color: color, size: 28),
             const SizedBox(width: 10),
-            Text('Delete Job', style: TextStyle(color: textWhite, fontWeight: FontWeight.bold)),
+            Text(title, style: TextStyle(color: textWhite, fontWeight: FontWeight.bold)),
           ],
         ),
         content: Text(
-          'Are you sure you want to delete this job? This action cannot be undone.',
+          content,
           style: TextStyle(color: muted, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: muted)),
+            child: Text('Close', style: TextStyle(color: muted)),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          if (isRecurring) ...[
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                onSingleAction();
+              },
+              child: Text('Only this job', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await ApiService.instance.delete('/jobs/${widget.jobId}');
-                if (mounted) {
-                  ToastService.error(context, 'Job deleted successfully');
-                  Navigator.pop(context, true);
-                }
-              } catch (e) {
-                if (mounted) {
-                  ToastService.error(context, 'Failed to delete job: $e');
-                }
-              }
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                onSeriesAction();
+              },
+              child: Text('Full series', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ] else ...[
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                onSingleAction();
+              },
+              child: Text(actionText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
         ],
       ),
     );
@@ -440,12 +556,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                     final String title = job['title'] ?? 'Job Details';
                     final String status = (job['job_status'] ?? job['status'] ?? 'SCHEDULED').toString().toUpperCase();
                     
-                    DateTime? sTime;
-                    if (job['scheduled_time'] != null) {
-                      try {
-                        sTime = DateTime.parse(job['scheduled_time'].toString()).toLocal();
-                      } catch (_) {}
-                    }
+                    DateTime? sTime = JobParser.getStartDate(job);
                     final String dateStr = sTime != null ? DateFormat('MMM d, yyyy').format(sTime) : 'No date';
                     final bool isCurrent = job['id'] == widget.jobId;
 
@@ -655,13 +766,14 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     String? gateCode = _jobData?['gate_code']?.toString();
     String? addressNotes = _jobData?['address_notes']?.toString();
     String description = _jobData?['description'] ?? _jobData?['notes'] ?? 'No notes provided.';
-    bool isRecurring = _jobData?['is_recurring'] == true || _jobData?['recurring_pattern'] != null || _jobData?['is_recurring_instance'] == true || _jobData?['recurring'] == true || _jobData?['recurring'] == 1;
+    bool isRecurring = JobParser.isRecurring(_jobData);
+  
+    DateTime? scheduledTime = JobParser.getStartDate(_jobData);
 
-    DateTime? scheduledTime;
-    if (_jobData?['scheduled_time'] != null) {
-      try {
-        scheduledTime = DateTime.parse(_jobData!['scheduled_time'].toString()).toLocal();
-      } catch (_) {}
+    bool isToday = false;
+    if (scheduledTime != null) {
+      final now = DateTime.now();
+      isToday = scheduledTime.year == now.year && scheduledTime.month == now.month && scheduledTime.day == now.day;
     }
 
     String dateStr = scheduledTime != null
@@ -688,15 +800,54 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
         ),
         centerTitle: true,
         actions: [
-          if (canEditJob && _jobData != null)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, color: Colors.white),
-              onPressed: _openEditModal,
-            ),
-          if (canDeleteJob && _jobData != null)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              onPressed: _confirmDeleteJob,
+          if ((canEditJob || canDeleteJob) && _jobData != null)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              color: cardBg,
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _openEditModal();
+                } else if (value == 'cancel') {
+                  _confirmCancelJob(isRecurring);
+                } else if (value == 'delete') {
+                  _confirmDeleteJob(isRecurring);
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                if (canEditJob)
+                  PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: const [
+                        Icon(Icons.edit_outlined, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Edit Job', style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                if (canDeleteJob) // Typically if you can delete, you can cancel
+                  PopupMenuItem<String>(
+                    value: 'cancel',
+                    child: Row(
+                      children: const [
+                        Icon(Icons.cancel_outlined, color: Colors.orangeAccent),
+                        SizedBox(width: 8),
+                        Text('Cancel Job', style: TextStyle(color: Colors.orangeAccent)),
+                      ],
+                    ),
+                  ),
+                if (canDeleteJob)
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: const [
+                        Icon(Icons.delete_outline, color: Colors.redAccent),
+                        SizedBox(width: 8),
+                        Text('Delete Job', style: TextStyle(color: Colors.redAccent)),
+                      ],
+                    ),
+                  ),
+              ],
             ),
         ],
       ),
@@ -790,6 +941,17 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                 ],
                               ),
                               const SizedBox(height: 16),
+
+                              if (isToday) ...[
+                                JobActionButtons(
+                                  jobId: widget.jobId,
+                                  jobStatus: status,
+                                  clockStatus: _clockStatus,
+                                  onStateChanged: _loadJobDetail,
+                                  compact: false,
+                                ),
+                                const SizedBox(height: 24),
+                              ],
 
                               // LOCATION Section
                               _buildSectionHeader('LOCATION'),
