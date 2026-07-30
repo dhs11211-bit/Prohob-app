@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import 'package:intl/intl.dart';
 import '../backend/api_service.dart';
+import '/shared/toast_service.dart';
 
 class CustomWallet extends StatefulWidget {
   const CustomWallet({Key? key, this.width, this.height}) : super(key: key);
@@ -256,8 +257,7 @@ class _CustomWalletState extends State<CustomWallet> {
                           color: accentBlue, fontWeight: FontWeight.bold)),
                   onPressed: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Downloading receipt...')));
+                    ToastService.info(context, 'Downloading receipt...');
                   }))
         ]));
   }

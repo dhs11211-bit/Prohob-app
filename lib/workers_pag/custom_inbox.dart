@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../components/global_chat_modal.dart';
 import '/backend/api_service.dart';
 import '/backend/reverb_service.dart';
+import '/shared/toast_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 
@@ -557,10 +558,7 @@ class _CustomInboxState extends State<CustomInbox> {
       // Pop loading dialog on error too
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not open chat: $e'),
-          backgroundColor: Colors.redAccent,
-        ));
+        ToastService.error(context, 'Could not open chat: $e');
       }
     }
   }

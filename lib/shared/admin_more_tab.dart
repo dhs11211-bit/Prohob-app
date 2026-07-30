@@ -116,7 +116,7 @@ class _AdminMoreTabState extends State<AdminMoreTab> {
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 1.1,
+              childAspectRatio: 1.4,
               children: [
                 _menuCard(
                   title: 'Team',

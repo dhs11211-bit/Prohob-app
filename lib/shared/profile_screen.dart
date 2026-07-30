@@ -5,6 +5,7 @@ import '../backend/api_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../app_constants.dart';
+import '/shared/toast_service.dart';
 
 enum ProfileTab { profile, documents }
 
@@ -38,6 +39,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
+  final TextEditingController _address2Controller = TextEditingController();
+  final TextEditingController _gateCodeController = TextEditingController();
+  final TextEditingController _entryNotesController = TextEditingController();
 
   String _address1 = '';
   String _stateStr = '';
@@ -86,6 +90,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController.dispose();
     _addressController.dispose();
     _cityController.dispose();
+    _address2Controller.dispose();
+    _gateCodeController.dispose();
+    _entryNotesController.dispose();
     super.dispose();
   }
 
@@ -136,6 +143,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (userData['address'] != null) _addressController.text = userData['address'].toString();
           if (userData['city'] != null) _cityController.text = userData['city'].toString();
           if (userData['email'] != null) _userEmail = userData['email'].toString();
+          
+          Map<String, dynamic> addrData = {};
+          if (userData['primary_address'] is Map) {
+            addrData = userData['primary_address'] as Map<String, dynamic>;
+          } else if (userData['addresses'] is List && (userData['addresses'] as List).isNotEmpty) {
+            addrData = (userData['addresses'] as List)[0] as Map<String, dynamic>;
+          }
+
+          if (userData['address2'] != null) {
+            _address2Controller.text = userData['address2'].toString();
+          } else if (addrData['address2'] != null) {
+            _address2Controller.text = addrData['address2'].toString();
+          }
+
+          if (userData['gate_code'] != null) {
+            _gateCodeController.text = userData['gate_code'].toString();
+          } else if (addrData['gate_code'] != null) {
+            _gateCodeController.text = addrData['gate_code'].toString();
+          }
+
+          if (userData['notes'] != null) {
+            _entryNotesController.text = userData['notes'].toString();
+          } else if (userData['address_notes'] != null) {
+            _entryNotesController.text = userData['address_notes'].toString();
+          } else if (addrData['notes'] != null) {
+            _entryNotesController.text = addrData['notes'].toString();
+          } else if (addrData['address_notes'] != null) {
+            _entryNotesController.text = addrData['address_notes'].toString();
+          }
 
           if (userData['role'] != null) {
             if (userData['role'] is Map) {
@@ -180,14 +216,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'country': _country,
         'latitude': _lat,
         'longitude': _lng,
+        if (_address2Controller.text.trim().isNotEmpty) 'address2': _address2Controller.text.trim(),
+        if (_gateCodeController.text.trim().isNotEmpty) 'gate_code': _gateCodeController.text.trim(),
+        if (_entryNotesController.text.trim().isNotEmpty) 'notes': _entryNotesController.text.trim(),
       };
 
       await ApiService.instance.updateProfile(payload);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Profile updated successfully!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
-        );
+        ToastService.success(context, 'Profile updated successfully!');
         Navigator.pop(context);
       }
     } catch (e) {
@@ -307,9 +344,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final file = result.files.first;
       if (file.bytes == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not read file bytes.')),
-          );
+          ToastService.info(context, 'Could not read file bytes.');
         }
         return;
       }
@@ -330,23 +365,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$docType uploaded successfully!'),
-            backgroundColor: accentGreen,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ToastService.success(context, '$docType uploaded successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Upload failed: $e'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ToastService.error(context, 'Upload failed: $e');
       }
     } finally {
       if (mounted) setState(() => _uploadingDocType = null);
@@ -592,6 +615,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
               ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    label: 'Unit / Apartment #',
+                    controller: _address2Controller,
+                    icon: Icons.apartment_outlined,
+                    hint: 'e.g. Unit 203',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildTextField(
+                    label: 'Gate / Lock Code',
+                    controller: _gateCodeController,
+                    icon: Icons.lock_outline,
+                    hint: 'e.g. 1234#',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              label: 'Notes / Key Notes',
+              controller: _entryNotesController,
+              icon: Icons.notes_outlined,
+              hint: 'Key under mat, ring bell twice...',
+              maxLines: 3,
+            ),
             const SizedBox(height: 24),
 
             // Save Button
@@ -781,6 +834,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String label,
     required TextEditingController controller,
     required IconData icon,
+    String? hint,
+    int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
@@ -803,9 +858,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             keyboardType: keyboardType,
             validator: validator,
             onChanged: onChanged,
+            maxLines: maxLines,
             style: TextStyle(color: textWhite, fontSize: 14),
             decoration: InputDecoration(
-              prefixIcon: Icon(icon, color: accentBlue, size: 18),
+              prefixIcon: maxLines == 1 ? Icon(icon, color: accentBlue, size: 18) : null,
+              hintText: hint,
+              hintStyle: TextStyle(color: muted.withOpacity(0.5), fontSize: 13),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               isDense: true,

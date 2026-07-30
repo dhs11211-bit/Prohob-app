@@ -16,6 +16,7 @@ import '/shared/index.dart' as shared;
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'app_state.dart';
 import '/backend/api_service.dart';
+import '/shared/toast_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global role helper — checks the authenticated user's role slug
@@ -107,11 +108,10 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      scaffoldMessengerKey: globalMessengerKey,
       debugShowCheckedModeBanner: false,
       title: 'Workers',
       scrollBehavior: MyAppScrollBehavior(),
-      localizationsDelegates: [
+      localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -127,6 +127,31 @@ class _MyAppState extends State<MyApp> {
       ),
       themeMode: _themeMode,
       routerConfig: _router,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            snackBarTheme: SnackBarThemeData(
+              behavior: SnackBarBehavior.floating,
+              elevation: 100,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          child: Overlay(
+            initialEntries: [
+              OverlayEntry(
+                builder: (context) {
+                  return ScaffoldMessenger(
+                    key: globalMessengerKey,
+                    child: child!,
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -280,12 +305,7 @@ class _NavBarPageState extends State<NavBarPage> {
       final jobs = await ApiService.instance.getTodayJobs();
       if (jobs.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You have no scheduled jobs today', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-              backgroundColor: Color(0xFFF59E0B),
-            ),
-          );
+          ToastService.warning(context, 'You have no scheduled jobs today');
         }
         return;
       }

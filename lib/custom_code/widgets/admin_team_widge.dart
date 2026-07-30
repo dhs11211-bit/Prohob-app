@@ -27,6 +27,7 @@ import 'package:http/http.dart' as http;
 import '../../app_constants.dart';
 
 import '../../shared/image_editor_helper.dart';
+import '/shared/toast_service.dart';
 
 // =====================================================================
 // 🚀 WIDGET PRINCIPAL DE LA PANTALLA TEAM
@@ -73,6 +74,9 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   String _state = '';
   String _zipCode = '';
   String _country = '';
+  String _address2 = '';
+  String _gateCode = '';
+  String _notes = '';
   String? _googleMapsApiKey;
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _hourlyRateController = TextEditingController(text: '20');
@@ -433,12 +437,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                   }
 
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Upload failed: $e'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
+                  ToastService.error(context, 'Upload failed: $e');
                 } finally {
                   if (mounted) {
                     setModalState(() => isSending = false);
@@ -495,12 +494,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                   }
 
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Upload failed: $e'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
+                  ToastService.error(context, 'Upload failed: $e');
                 } finally {
                   if (mounted) {
                     setModalState(() => isSending = false);
@@ -1594,18 +1588,9 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                             setState(() => _adminName =
                                                 '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}');
                                             Navigator.pop(ctx);
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(const SnackBar(
-                                                    content: Text(
-                                                        'Profile updated successfully!'),
-                                                    backgroundColor:
-                                                        Color(0xFF10B981)));
+                                            ToastService.success(context, 'Profile updated successfully!');
                                           } catch (e) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(SnackBar(
-                                                    content: Text('Error: $e'),
-                                                    backgroundColor:
-                                                        Colors.redAccent));
+                                            ToastService.error(context, 'Error: $e');
                                           } finally {
                                             setModalState(
                                                 () => isSaving = false);
@@ -1793,10 +1778,13 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         'country': _country.isNotEmpty ? _country : 'USA',
         'latitude': _lat != 0.0 ? _lat : null,
         'longitude': _lng != 0.0 ? _lng : null,
+        'address2': _address2,
+        'gate_code': _gateCode,
+        'address_notes': _notes,
+        'notes': _notes,
       });
 
       if (mounted) {
-        final messenger = ScaffoldMessenger.of(context);
         setState(() {
           _firstNameController.clear();
           _lastNameController.clear();
@@ -1807,21 +1795,16 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
           _state = '';
           _zipCode = '';
           _country = '';
+          _address2 = '';
+          _gateCode = '';
+          _notes = '';
           _lat = 0.0;
           _lng = 0.0;
           _confirmPasswordController.clear();
           _hourlyRateController.text = '20';
         });
         Navigator.pop(context);
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Worker added successfully!",
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Color(0xFF10B981),
-          ),
-        );
+        ToastService.success(context, 'Worker added successfully!');
         _fetchWorkers(); // Refresh the list
       }
       return null;
@@ -2085,6 +2068,70 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                             ),
                                           ),
                                         const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF1E293B),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: TextField(
+                                                  onChanged: (val) => _address2 = val,
+                                                  style: const TextStyle(color: Colors.white),
+                                                  decoration: const InputDecoration(
+                                                    hintText: "Unit / Apartment #",
+                                                    hintStyle: TextStyle(color: Colors.white38),
+                                                    prefixIcon: Icon(Icons.apartment_outlined, color: Color(0xFF3B82F6)),
+                                                    border: InputBorder.none,
+                                                    contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF1E293B),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: TextField(
+                                                  onChanged: (val) => _gateCode = val,
+                                                  style: const TextStyle(color: Colors.white),
+                                                  decoration: const InputDecoration(
+                                                    hintText: "Gate / Door / Lock Code",
+                                                    hintStyle: TextStyle(color: Colors.white38),
+                                                    prefixIcon: Icon(Icons.lock_outline, color: Color(0xFF3B82F6)),
+                                                    border: InputBorder.none,
+                                                    contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1E293B),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: TextField(
+                                            onChanged: (val) => _notes = val,
+                                            style: const TextStyle(color: Colors.white),
+                                            maxLines: 3,
+                                            minLines: 1,
+                                            decoration: const InputDecoration(
+                                              hintText: "Notes / Key Notes",
+                                              hintStyle: TextStyle(color: Colors.white38),
+                                              prefixIcon: Icon(Icons.notes_outlined, color: Color(0xFF3B82F6)),
+                                              border: InputBorder.none,
+                                              contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
                                         Container(
                                           decoration: BoxDecoration(
                                             color: const Color(0xFF1E293B),
@@ -2226,15 +2273,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                       _createWorkerError = error;
                                     });
                                     if (error != null) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            "Failed to create staff member: $error",
-                                            style: const TextStyle(color: Colors.white),
-                                          ),
-                                          backgroundColor: const Color(0xFFEF4444),
-                                        ),
-                                      );
+                                      ToastService.error(context, 'Failed to create staff member: $error');
                                     }
                                   }
                                 },
@@ -2314,7 +2353,6 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                     double newRate =
                         double.tryParse(rateCtrl.text) ?? currentRate;
                     
-                    final messenger = ScaffoldMessenger.of(context);
                     await ApiService.instance.put('/admin/workers/$idStr', {
                       'hourly_rate': newRate,
                       'cost_rate': newRate,
@@ -2324,27 +2362,11 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                     Navigator.pop(context);
                     _fetchWorkers(); // Refresh the data
 
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Hourly Rate updated successfully!",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        backgroundColor: Color(0xFF10B981),
-                      ),
-                    );
+                    ToastService.success(context, 'Hourly Rate updated successfully!');
                   } catch (e) {
                     String errorMsg = e.toString().replaceAll('Exception: ', '');
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            "Failed to update hourly rate: $errorMsg",
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          backgroundColor: const Color(0xFFEF4444),
-                        ),
-                      );
+                      ToastService.error(context, 'Failed to update hourly rate: $errorMsg');
                     }
                   }
                 }
@@ -2371,18 +2393,30 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     TextEditingController lastNameCtrl = TextEditingController(text: defaultLast);
     TextEditingController emailCtrl = TextEditingController(text: workerData['email'] ?? '');
     TextEditingController phoneCtrl = TextEditingController(text: workerData['phone'] ?? workerData['mobile'] ?? '');
-    TextEditingController addressCtrl = TextEditingController(text: workerData['address'] ?? workerData['address1'] ?? '');
+    Map<String, dynamic> addrData = {};
+    if (workerData['primary_address'] is Map) {
+      addrData = workerData['primary_address'] as Map<String, dynamic>;
+    } else if (workerData['addresses'] is List && (workerData['addresses'] as List).isNotEmpty) {
+      addrData = (workerData['addresses'] as List)[0] as Map<String, dynamic>;
+    }
+
+    TextEditingController addressCtrl = TextEditingController(text: workerData['address'] ?? workerData['address1'] ?? addrData['address1'] ?? addrData['address'] ?? '');
+    
+    final unitCtrl = TextEditingController(text: workerData['address2']?.toString() ?? addrData['address2']?.toString() ?? '');
+    final gateCtrl = TextEditingController(text: workerData['gate_code']?.toString() ?? addrData['gate_code']?.toString() ?? '');
+    final notesCtrl = TextEditingController(text: workerData['address_notes']?.toString() ?? workerData['notes']?.toString() ?? addrData['address_notes']?.toString() ?? addrData['notes']?.toString() ?? '');
+
     double currentRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 20.0;
     TextEditingController rateCtrl = TextEditingController(text: currentRate.toStringAsFixed(2));
 
     List<dynamic> placePredictions = [];
     String address1 = '';
-    double lat = double.tryParse(workerData['latitude']?.toString() ?? '0') ?? 0.0;
-    double lng = double.tryParse(workerData['longitude']?.toString() ?? '0') ?? 0.0;
-    String city = workerData['city'] ?? '';
-    String stateStr = workerData['state'] ?? '';
-    String zipCode = workerData['zip_code'] ?? '';
-    String country = workerData['country'] ?? '';
+    double lat = double.tryParse(workerData['latitude']?.toString() ?? addrData['latitude']?.toString() ?? '0') ?? 0.0;
+    double lng = double.tryParse(workerData['longitude']?.toString() ?? addrData['longitude']?.toString() ?? '0') ?? 0.0;
+    String city = workerData['city'] ?? addrData['city'] ?? '';
+    String stateStr = workerData['state'] ?? addrData['state'] ?? '';
+    String zipCode = workerData['zip_code'] ?? addrData['zip_code'] ?? '';
+    String country = workerData['country'] ?? addrData['country'] ?? '';
 
     showModalBottomSheet(
       context: context,
@@ -2611,6 +2645,75 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   ),
                                 ),
                               const SizedBox(height: 16),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("Unit / Apartment #",
+                                            style: TextStyle(
+                                                color: Colors.white60,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 8),
+                                        _buildTextField(
+                                          controller: unitCtrl,
+                                          label: "Unit / Apartment #",
+                                          icon: Icons.apartment_outlined,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("Gate / Door / Lock Code",
+                                            style: TextStyle(
+                                                color: Colors.white60,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 8),
+                                        _buildTextField(
+                                          controller: gateCtrl,
+                                          label: "Gate / Door / Lock Code",
+                                          icon: Icons.lock_outline,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("Notes / Key Notes",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: TextField(
+                                  controller: notesCtrl,
+                                  style: const TextStyle(color: Colors.white),
+                                  maxLines: 3,
+                                  minLines: 1,
+                                  decoration: const InputDecoration(
+                                    hintText: "Notes / Key Notes",
+                                    hintStyle: TextStyle(color: Colors.white38),
+                                    prefixIcon: Icon(Icons.notes_outlined, color: Color(0xFF3B82F6)),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
                               const Text("Hourly Rate (\$)",
                                   style: TextStyle(
                                       color: Colors.white60,
@@ -2675,8 +2778,12 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                     if (lat != 0.0) payload['latitude'] = lat;
                                     if (lng != 0.0) payload['longitude'] = lng;
                                   }
+                                  
+                                  payload['address2'] = unitCtrl.text.trim();
+                                  payload['gate_code'] = gateCtrl.text.trim();
+                                  payload['address_notes'] = notesCtrl.text.trim();
+                                  payload['notes'] = notesCtrl.text.trim();
 
-                                  final messenger = ScaffoldMessenger.of(context);
                                   await ApiService.instance
                                       .put('/admin/workers/$userId', payload);
 
@@ -2684,27 +2791,11 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   Navigator.of(context).maybePop();
                                   _fetchWorkers();
 
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        "Staff info updated successfully!",
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                      backgroundColor: Color(0xFF10B981),
-                                    ),
-                                  );
+                                  ToastService.success(context, 'Staff info updated successfully!');
                                 } catch (e) {
                                   String errorMsg = e.toString().replaceAll('Exception: ', '');
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          "Failed to update staff info: $errorMsg",
-                                          style: const TextStyle(color: Colors.white),
-                                        ),
-                                        backgroundColor: const Color(0xFFEF4444),
-                                      ),
-                                    );
+                                    ToastService.error(context, 'Failed to update staff info: $errorMsg');
                                   }
                                 }
                               }
@@ -2733,6 +2824,17 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
 
   void _showWorkerDetailsModal(Map<String, dynamic> workerData) {
     double hourlyRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 16.0;
+    
+    Map<String, dynamic> addrData = {};
+    if (workerData['primary_address'] is Map) {
+      addrData = workerData['primary_address'] as Map<String, dynamic>;
+    } else if (workerData['addresses'] is List && (workerData['addresses'] as List).isNotEmpty) {
+      addrData = (workerData['addresses'] as List)[0] as Map<String, dynamic>;
+    }
+
+    String unitNumber = workerData['address2']?.toString() ?? addrData['address2']?.toString() ?? '';
+    String gateCode = workerData['gate_code']?.toString() ?? addrData['gate_code']?.toString() ?? '';
+    String notes = workerData['address_notes']?.toString() ?? workerData['notes']?.toString() ?? addrData['address_notes']?.toString() ?? addrData['notes']?.toString() ?? '';
 
     showModalBottomSheet(
       context: context,
@@ -2965,28 +3067,6 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                         "Full Legal Name",
                         workerData['display_name'] ?? '-',
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInfoField(
-                              "Date of Birth",
-                              workerData['dob']?.isNotEmpty == true
-                                  ? workerData['dob']
-                                  : '-',
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildInfoField(
-                              "Emergency Contact",
-                              workerData['emergency_name']?.isNotEmpty == true
-                                  ? workerData['emergency_name']
-                                  : '-',
-                            ),
-                          ),
-                        ],
-                      ),
                       const SizedBox(height: 24),
                       const Text(
                         "CONTACT & ADDRESS",
@@ -3011,12 +3091,15 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                             : '-',
                       ),
                       const SizedBox(height: 12),
-                      _buildInfoField(
-                        "City, Zip",
-                        workerData['city']?.isNotEmpty == true
-                            ? workerData['city']
-                            : '-',
+                      Row(
+                        children: [
+                          Expanded(child: _buildInfoField("Unit / Apartment #", unitNumber.isNotEmpty ? unitNumber : '-')),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildInfoField("Gate / Door / Lock Code", gateCode.isNotEmpty ? gateCode : '-')),
+                        ],
                       ),
+                      const SizedBox(height: 12),
+                      _buildInfoField("Notes / Key Notes", notes.isNotEmpty ? notes : '-'),
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -3071,20 +3154,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
           try {
             await launchUrl(Uri.parse(fileUrl));
           } catch (e) {
-            ScaffoldMessenger.of(modalContext).showSnackBar(
-              SnackBar(
-                content: Text("Could not open document: $e"),
-                backgroundColor: const Color(0xFFEF4444),
-              ),
-            );
+            ToastService.error(modalContext, 'Could not open document: $e');
           }
         } else {
-          ScaffoldMessenger.of(modalContext).showSnackBar(
-            const SnackBar(
-              content: Text("No document uploaded yet."),
-              backgroundColor: Color(0xFFF59E0B),
-            ),
-          );
+          ToastService.warning(modalContext, 'No document uploaded yet.');
         }
       },
       child: Container(
@@ -3564,9 +3637,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                                 onClose: () => _fetchChats(),
                                               );
                                             } else {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('User profile not loaded yet.')),
-                                              );
+                                              ToastService.info(context, 'User profile not loaded yet.');
                                             }
                                           },
                                           child: Container(

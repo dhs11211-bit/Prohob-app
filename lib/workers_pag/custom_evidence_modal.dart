@@ -7,6 +7,7 @@ import '/flutter_flow/custom_functions.dart'; // Imports custom functions
 import 'package:flutter/material.dart';
 // Begin custom widget code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+import '/shared/toast_service.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -14,10 +15,12 @@ import 'dart:typed_data';
 import '../backend/api_service.dart';
 
 class CustomEvidenceModal extends StatefulWidget {
-  const CustomEvidenceModal({Key? key, this.width, this.height})
+  const CustomEvidenceModal({Key? key, this.width, this.height, this.jobId, this.jobTitle})
       : super(key: key);
   final double? width;
   final double? height;
+  final int? jobId;
+  final String? jobTitle;
 
   @override
   State<CustomEvidenceModal> createState() => _CustomEvidenceModalState();
@@ -49,7 +52,17 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
   @override
   void initState() {
     super.initState();
-    _fetchTodayTasks();
+    if (widget.jobId != null) {
+      _todayJobId = widget.jobId;
+      _todayJobName = widget.jobTitle ?? 'Job Evidence';
+      _todayJobs = [{'id': widget.jobId, 'title': widget.jobTitle ?? 'Job', 'job_number': '#${widget.jobId}'}];
+      _isLoadingTasks = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _takePhoto();
+      });
+    } else {
+      _fetchTodayTasks();
+    }
   }
 
   @override
@@ -93,12 +106,7 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
       } else {
         if (mounted) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You have no scheduled jobs today', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-              backgroundColor: Color(0xFFF59E0B),
-            ),
-          );
+          ToastService.warning(context, 'You have no scheduled jobs today');
         }
       }
     } catch (e) {
@@ -127,15 +135,11 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
 
   Future<void> _submitEvidence() async {
     if (_imageBytesList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Take at least one photo!'),
-          backgroundColor: accentRed));
+      ToastService.error(context, 'Take at least one photo!');
       return;
     }
     if (_todayJobId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No active job found today.'),
-          backgroundColor: accentRed));
+      ToastService.error(context, 'No active job found today.');
       return;
     }
 
@@ -159,15 +163,12 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Evidence submitted successfully!'),
-            backgroundColor: Colors.green));
+        ToastService.success(context, 'Evidence submitted successfully!');
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: accentRed));
+        ToastService.error(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);

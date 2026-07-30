@@ -72,9 +72,9 @@ class SharedJobCard extends StatelessWidget {
       } catch (_) {}
     }
 
-    final isRecurring = (jobData['recurring'] == 1 || jobData['recurring'] == true || jobData['is_recurring'] == 1 || jobData['is_recurring'] == true || jobData['job_type'] == 'recurring');
+    final isRecurring = (jobData['recurring'] == 1 || jobData['recurring'] == true || jobData['is_recurring'] == 1 || jobData['is_recurring'] == true || jobData['job_type'] == 'recurring' || jobData['is_recurring_instance'] == true);
     final badgeColor = isRecurring ? seriesPurple : accentBlue;
-    final badgeLabel = isRecurring ? 'Series Job' : 'Single Job';
+    final badgeLabel = isRecurring ? 'Recurring Job' : 'Single Job';
 
     return GestureDetector(
       onTap: onTap,

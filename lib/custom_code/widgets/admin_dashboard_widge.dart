@@ -26,6 +26,7 @@ import '../../auth/laravel_auth_manager.dart';
 import '../../shared/job_detail_screen.dart';
 import '../../backend/api_service.dart';
 import '../../components/global_chat_modal.dart';
+import '/shared/toast_service.dart';
 
 import '../../shared/image_editor_helper.dart';
 
@@ -320,12 +321,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                                       .trim();
                                             });
                                           Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
-                                                  content:
-                                                      Text('Profile updated!'),
-                                                  backgroundColor:
-                                                      Color(0xFF10B981)));
+                                          ToastService.success(context, 'Profile updated!');
                                         } catch (e) {
                                         } finally {
                                           setModalState(() => isSaving = false);
@@ -512,10 +508,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                         await ApiService.instance.delete('/admin/jobs/$jobId');
                         Navigator.pop(ctx);
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Job deleted"),
-                                backgroundColor: Color(0xFFEF4444)));
+                        ToastService.error(context, 'Job deleted');
                       },
                       child: const Text("Delete",
                           style: TextStyle(color: Colors.white)))
@@ -673,11 +666,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                           });
                                           Navigator.pop(ctx);
                                           Navigator.pop(context);
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
-                                                  content: Text('Job updated!'),
-                                                  backgroundColor:
-                                                      Color(0xFF10B981)));
+                                          ToastService.success(context, 'Job updated!');
                                         } catch (e) {
                                         } finally {
                                           setModalState(() => isSaving = false);
@@ -951,11 +940,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                             await ApiService.instance.put(
                                 '/admin/jobs/$jobId', {'status': 'completed'});
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text('Job successfully completed!'),
-                                    backgroundColor: Color(0xFF10B981)));
+                            ToastService.success(context, 'Job successfully completed!');
                           })),
                 ],
                 const SizedBox(height: 20),

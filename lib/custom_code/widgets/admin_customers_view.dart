@@ -166,34 +166,43 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   }
 
   Widget _buildSimpleTextField(TextEditingController ctrl, String hint,
-      {bool isAddress = false, Function(String)? onChanged}) {
+      {bool isAddress = false, Function(String)? onChanged, IconData? icon, int maxLines = 1}) {
     return Container(
-      height: 41,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: maxLines > 1 ? null : 41,
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 0),
       decoration: BoxDecoration(
           color: const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white10)),
-      child: Center(
-        child: TextField(
-          controller: ctrl,
-          onChanged: onChanged,
-          textAlignVertical: TextAlignVertical.center,
-          style: const TextStyle(color: Colors.white, fontSize: 13),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-            prefixIconConstraints: isAddress
-                ? const BoxConstraints(minWidth: 36, minHeight: 0)
-                : null,
-            prefixIcon: isAddress
-                ? const Icon(Icons.location_on,
-                    color: Color(0xFF3B82F6), size: 20)
-                : null,
-            border: InputBorder.none,
-            isDense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
+      alignment: maxLines > 1 ? Alignment.topLeft : Alignment.center,
+      child: TextField(
+        controller: ctrl,
+        onChanged: onChanged,
+        maxLines: maxLines,
+        minLines: maxLines > 1 ? 3 : 1,
+        textAlignVertical: maxLines > 1 ? TextAlignVertical.top : TextAlignVertical.center,
+        style: const TextStyle(color: Colors.white, fontSize: 13),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+          prefixIconConstraints: (isAddress || icon != null)
+              ? BoxConstraints(minWidth: 36, minHeight: maxLines > 1 ? 24 : 0)
+              : null,
+          prefixIcon: isAddress
+              ? const Icon(Icons.location_on, color: Color(0xFF3B82F6), size: 20)
+              : (icon != null
+                  ? Container(
+                      alignment: maxLines > 1 ? Alignment.topCenter : Alignment.center,
+                      width: 36,
+                      child: Padding(
+                        padding: EdgeInsets.only(top: maxLines > 1 ? 0 : 0),
+                        child: Icon(icon, color: const Color(0xFF3B82F6), size: 20),
+                      ),
+                    )
+                  : null),
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: maxLines > 1 ? const EdgeInsets.only(top: 2) : EdgeInsets.zero,
         ),
       ),
     );
@@ -477,6 +486,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
     TextEditingController phoneCtrl = TextEditingController();
     TextEditingController emailCtrl = TextEditingController();
     TextEditingController addressCtrl = TextEditingController();
+    TextEditingController unitCtrl = TextEditingController();
+    TextEditingController gateCtrl = TextEditingController();
+    TextEditingController notesCtrl = TextEditingController();
 
     List<dynamic> placePredictions = [];
     String address1 = '';
@@ -711,6 +723,60 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                           fontWeight: FontWeight.bold)),
                                 ]),
                               ],
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("Unit / Apartment #",
+                                            style: TextStyle(
+                                                color: Colors.white60,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 8),
+                                        _buildSimpleTextField(
+                                          unitCtrl,
+                                          "Unit / Apartment #",
+                                          icon: Icons.apartment_outlined,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("Gate / Door / Lock Code",
+                                            style: TextStyle(
+                                                color: Colors.white60,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 8),
+                                        _buildSimpleTextField(
+                                          gateCtrl,
+                                          "Gate / Door / Lock Code",
+                                          icon: Icons.lock_outline,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("Notes / Key Notes",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(
+                                notesCtrl,
+                                "Notes / Key Notes",
+                                maxLines: 3,
+                              ),
                               const SizedBox(height: 32),
                             ],
                           ),
@@ -753,6 +819,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     if (zipCode.isNotEmpty) payload['zip_code'] = zipCode;
                                     if (country.isNotEmpty) payload['country'] = country;
                                   }
+                                  payload['address2'] = unitCtrl.text.trim();
+                                  payload['gate_code'] = gateCtrl.text.trim();
+                                  payload['address_notes'] = notesCtrl.text.trim();
+                                  payload['notes'] = notesCtrl.text.trim();
                                   if (lat != 0.0) payload['lat'] = lat;
                                   if (lng != 0.0) payload['lng'] = lng;
 
@@ -831,6 +901,21 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         text: customerData['address1'] ??
             (customerData['primary_address'] != null
                 ? customerData['primary_address']['address1']
+                : ''));
+    TextEditingController unitCtrl = TextEditingController(
+        text: customerData['address2'] ??
+            (customerData['primary_address'] != null
+                ? customerData['primary_address']['address2']
+                : ''));
+    TextEditingController gateCtrl = TextEditingController(
+        text: customerData['gate_code'] ??
+            (customerData['primary_address'] != null
+                ? customerData['primary_address']['gate_code']
+                : ''));
+    TextEditingController notesCtrl = TextEditingController(
+        text: customerData['address_notes'] ?? customerData['notes'] ??
+            (customerData['primary_address'] != null
+                ? (customerData['primary_address']['address_notes'] ?? customerData['primary_address']['notes'])
                 : ''));
 
     List<dynamic> placePredictions = [];
@@ -1057,6 +1142,60 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                         .toList(),
                                   ),
                                 ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("Unit / Apartment #",
+                                            style: TextStyle(
+                                                color: Colors.white60,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 8),
+                                        _buildSimpleTextField(
+                                          unitCtrl,
+                                          "Unit / Apartment #",
+                                          icon: Icons.apartment_outlined,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("Gate / Door / Lock Code",
+                                            style: TextStyle(
+                                                color: Colors.white60,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 8),
+                                        _buildSimpleTextField(
+                                          gateCtrl,
+                                          "Gate / Door / Lock Code",
+                                          icon: Icons.lock_outline,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("Notes / Key Notes",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              _buildSimpleTextField(
+                                notesCtrl,
+                                "Notes / Key Notes",
+                                maxLines: 3,
+                              ),
                               const SizedBox(height: 32),
                             ],
                           ),
@@ -1099,6 +1238,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     if (zipCode.isNotEmpty) payload['zip_code'] = zipCode;
                                     if (country.isNotEmpty) payload['country'] = country;
                                   }
+                                  payload['address2'] = unitCtrl.text.trim();
+                                  payload['gate_code'] = gateCtrl.text.trim();
+                                  payload['address_notes'] = notesCtrl.text.trim();
+                                  payload['notes'] = notesCtrl.text.trim();
                                   if (lat != 0.0) payload['lat'] = lat;
                                   if (lng != 0.0) payload['lng'] = lng;
 
@@ -1344,6 +1487,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   }
 
   void _showCustomerDetailsModal(String id, Map<String, dynamic> customerData) {
+    String unitNumber = customerData['address2']?.toString() ??
+        (customerData['primary_address'] != null ? customerData['primary_address']['address2']?.toString() ?? '' : '');
+    String gateCode = customerData['gate_code']?.toString() ??
+        (customerData['primary_address'] != null ? customerData['primary_address']['gate_code']?.toString() ?? '' : '');
+    String notes = customerData['address_notes']?.toString() ?? customerData['notes']?.toString() ??
+        (customerData['primary_address'] != null ? (customerData['primary_address']['address_notes']?.toString() ?? customerData['primary_address']['notes']?.toString() ?? '') : '');
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1354,7 +1504,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
               color: Color(0xFF0D1B2A),
               borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
           child: SafeArea(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1363,12 +1513,22 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                   Stack(
                     alignment: Alignment.center,
                     children: [
-                      Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                              color: Colors.white24,
-                              borderRadius: BorderRadius.circular(2))),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Icon(Icons.close, color: Colors.white70, size: 24),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(2))),
+                      ),
                       Align(
                           alignment: Alignment.centerRight,
                           child: GestureDetector(
@@ -1434,6 +1594,20 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                       customerData['address']?.isNotEmpty == true
                           ? customerData['address']
                           : '-'),
+                  if (unitNumber.isNotEmpty || gateCode.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: _buildInfoField("Unit / Apartment #", unitNumber.isNotEmpty ? unitNumber : '-')),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildInfoField("Gate / Door / Lock Code", gateCode.isNotEmpty ? gateCode : '-')),
+                      ],
+                    ),
+                  ],
+                  if (notes.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildInfoField("Notes / Key Notes", notes),
+                  ],
                   const SizedBox(height: 24),
                   Row(
                     children: [
@@ -1626,6 +1800,92 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                 } catch (e) {
                   debugPrint("Cloud Function Error (Details): $e");
                 }
+              }
+              void _showEditJobItemModal(int index) {
+                var item = selectedItems[index];
+                TextEditingController nameCtrl = TextEditingController(text: item['description']?.toString() ?? '');
+                TextEditingController priceCtrl = TextEditingController(text: item['price']?.toString() ?? '0');
+                TextEditingController qtyCtrl = TextEditingController(text: item['quantity']?.toString() ?? '1');
+                bool saveOnlyToJob = item['update_catalog_item'] != true;
+                bool isFromCatalog = item['item_id'] != null;
+
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (ctx) => StatefulBuilder(
+                    builder: (ctx, setEditState) {
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF0D1B2A),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("Edit Item", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 16),
+                              _buildSimpleTextField(nameCtrl, "Item Name"),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(child: _buildSimpleTextField(priceCtrl, "Price", isAddress: false)),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _buildSimpleTextField(qtyCtrl, "Quantity", isAddress: false)),
+                                ],
+                              ),
+                              if (isFromCatalog) ...[
+                                const SizedBox(height: 16),
+                                CheckboxListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                  title: const Text("Save these changes only to this job", style: TextStyle(color: Colors.white, fontSize: 13)),
+                                  value: saveOnlyToJob,
+                                  activeColor: const Color(0xFF3B82F6),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setEditState(() => saveOnlyToJob = val);
+                                    }
+                                  },
+                                ),
+                              ],
+                              const SizedBox(height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6)),
+                                    onPressed: () {
+                                      setModalState(() {
+                                        selectedItems[index]['description'] = nameCtrl.text.trim();
+                                        selectedItems[index]['price'] = double.tryParse(priceCtrl.text) ?? 0.0;
+                                        selectedItems[index]['quantity'] = int.tryParse(qtyCtrl.text) ?? 1;
+                                        if (isFromCatalog) {
+                                          selectedItems[index]['update_catalog_item'] = !saveOnlyToJob;
+                                        }
+                                      });
+                                      Navigator.pop(ctx);
+                                    },
+                                    child: const Text("Save", style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
               }
 
               void showAssignmentDialog(
@@ -2349,6 +2609,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                               style: const TextStyle(
                                                   color: Colors.white60,
                                                   fontSize: 13)),
+                                          const SizedBox(width: 12),
+                                          GestureDetector(
+                                            onTap: () => _showEditJobItemModal(idx),
+                                            child: const Icon(Icons.edit,
+                                                color: Colors.white70,
+                                                size: 18),
+                                          ),
                                           const SizedBox(width: 12),
                                           GestureDetector(
                                             onTap: () => setModalState(() =>

@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import '/backend/api_service.dart';
 import '/app_constants.dart';
+import '/shared/toast_service.dart';
 
 class QuickMapModal extends StatefulWidget {
   final Map<String, dynamic> jobData;
@@ -174,18 +175,61 @@ class _QuickMapModalState extends State<QuickMapModal> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not launch Google Maps.')),
-          );
+          ToastService.info(context, 'Could not launch Google Maps.');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error launching Google Maps.')),
-        );
+        ToastService.info(context, 'Error launching Google Maps.');
       }
     }
+  }
+
+  void _showStreetViewImage() {
+    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty || _latitude == null || _longitude == null) return;
+    final imageUrl = 'https://maps.googleapis.com/maps/api/streetview?size=800x800&location=$_latitude,$_longitude&key=$_googleMapsApiKey';
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(
+                imageUrl, 
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 300,
+                    height: 200,
+                    padding: const EdgeInsets.all(20),
+                    color: Colors.black87,
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'Street View image not available (or API not enabled).',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -250,38 +294,74 @@ class _QuickMapModalState extends State<QuickMapModal> {
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator())
               : (_latitude != null && _longitude != null)
-                  ? maps.GoogleMap(
-                      initialCameraPosition: maps.CameraPosition(
-                        target: maps.LatLng(_latitude!, _longitude!),
-                        zoom: 15.0,
-                      ),
-                      markers: {
-                        if (_jobIcon != null)
-                          maps.Marker(
-                            markerId: const maps.MarkerId('job_location'),
-                            position: maps.LatLng(_latitude!, _longitude!),
-                            icon: _jobIcon!,
+                  ? Stack(
+                      children: [
+                        maps.GoogleMap(
+                          initialCameraPosition: maps.CameraPosition(
+                            target: maps.LatLng(_latitude!, _longitude!),
+                            zoom: 15.0,
                           ),
-                      },
-                      onMapCreated: (controller) {
-                        _mapController = controller;
-                        if (!kIsWeb) {
-                          try {
-                            _mapController?.setMapStyle('''
-                            [
-                              { "elementType": "geometry", "stylers": [{ "color": "#1e293b" }] },
-                              { "elementType": "labels.text.fill", "stylers": [{ "color": "#94a3b8" }] },
-                              { "elementType": "labels.text.stroke", "stylers": [{ "color": "#0f172a" }] },
-                              { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#334155" }] },
-                              { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#0f172a" }] }
-                            ]
-                            ''');
-                          } catch (_) {}
-                        }
-                      },
-                      zoomControlsEnabled: false,
-                      myLocationButtonEnabled: false,
-                      mapToolbarEnabled: false,
+                          markers: {
+                            if (_jobIcon != null)
+                              maps.Marker(
+                                markerId: const maps.MarkerId('job_location'),
+                                position: maps.LatLng(_latitude!, _longitude!),
+                                icon: _jobIcon!,
+                              ),
+                          },
+                          onMapCreated: (controller) {
+                            _mapController = controller;
+                            if (!kIsWeb) {
+                              try {
+                                _mapController?.setMapStyle('''
+                                [
+                                  { "elementType": "geometry", "stylers": [{ "color": "#1e293b" }] },
+                                  { "elementType": "labels.text.fill", "stylers": [{ "color": "#94a3b8" }] },
+                                  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#0f172a" }] },
+                                  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#334155" }] },
+                                  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#0f172a" }] }
+                                ]
+                                ''');
+                              } catch (_) {}
+                            }
+                          },
+                          zoomControlsEnabled: true,
+                          myLocationButtonEnabled: false,
+                          mapToolbarEnabled: false,
+                        ),
+                        if (_googleMapsApiKey != null && _googleMapsApiKey!.isNotEmpty)
+                          Positioned(
+                            left: 12,
+                            bottom: 12,
+                            child: GestureDetector(
+                              onTap: _showStreetViewImage,
+                                child: Container(
+                                  width: 70,
+                                  height: 70,
+                                  clipBehavior: Clip.antiAlias,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.white, width: 2),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black45,
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      )
+                                    ],
+                                  ),
+                                  child: Image.network(
+                                    'https://maps.googleapis.com/maps/api/streetview?size=200x200&location=$_latitude,$_longitude&key=$_googleMapsApiKey',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      color: Colors.grey[800],
+                                      child: const Center(child: Icon(Icons.streetview, color: Colors.white54, size: 30)),
+                                    ),
+                                  ),
+                                ),
+                            ),
+                          ),
+                      ],
                     )
                   : const Center(
                       child: Text(
