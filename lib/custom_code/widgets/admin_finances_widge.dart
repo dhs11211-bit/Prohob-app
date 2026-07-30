@@ -35,6 +35,7 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
 
   bool _isShowingPayroll = false;
   String _timeFilter = "This Month";
+  DateTimeRange? _customDateRange;
   final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
   // Data State
@@ -66,8 +67,11 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final summary =
-          await _api.get('admin/finance/dashboard?period=$_timeFilter');
+      String url = 'admin/finance/dashboard?period=$_timeFilter';
+      if (_timeFilter == 'Custom Date Range' && _customDateRange != null) {
+        url += '&start_date=${_customDateRange!.start.toIso8601String()}&end_date=${_customDateRange!.end.toIso8601String()}';
+      }
+      final summary = await _api.get(url);
       final data = summary['data'] ?? summary;
 
       _totalRevenue = (data['total_revenue'] ?? 0).toDouble();
@@ -792,11 +796,15 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                   'Today',
                                   'This Week',
                                   'This Month',
-                                  'This Year'
+                                  'This Year',
+                                  'Custom Date Range'
                                 ]
                                     .map((f) => DropdownMenuItem(
                                           value: f,
-                                          child: Text(f,
+                                          child: Text(
+                                              f == 'Custom Date Range' && _customDateRange != null && _timeFilter == 'Custom Date Range'
+                                                  ? '${DateFormat('MMM d').format(_customDateRange!.start)} - ${DateFormat('MMM d').format(_customDateRange!.end)}'
+                                                  : f,
                                               style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 12,
@@ -804,12 +812,40 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                                       FontWeight.w600)),
                                         ))
                                     .toList(),
-                                onChanged: (val) {
+                                onChanged: (val) async {
                                   if (val != null) {
-                                    setState(() {
-                                      _timeFilter = val;
-                                      _loadDashboardData();
-                                    });
+                                    if (val == 'Custom Date Range') {
+                                      final picked = await showDateRangePicker(
+                                        context: context,
+                                        firstDate: DateTime(2020),
+                                        lastDate: DateTime(2100),
+                                        builder: (context, child) {
+                                          return Theme(
+                                            data: ThemeData.dark().copyWith(
+                                              colorScheme: const ColorScheme.dark(
+                                                primary: Color(0xFF3B82F6),
+                                                onPrimary: Colors.white,
+                                                surface: Color(0xFF1E293B),
+                                                onSurface: Colors.white,
+                                              ),
+                                            ),
+                                            child: child!,
+                                          );
+                                        },
+                                      );
+                                      if (picked != null) {
+                                        setState(() {
+                                          _customDateRange = picked;
+                                          _timeFilter = val;
+                                          _loadDashboardData();
+                                        });
+                                      }
+                                    } else {
+                                      setState(() {
+                                        _timeFilter = val;
+                                        _loadDashboardData();
+                                      });
+                                    }
                                   }
                                 },
                               ),

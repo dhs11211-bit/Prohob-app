@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../backend/api_service.dart';
 import '../backend/reverb_service.dart';
+import '/shared/toast_service.dart';
 
 class GlobalChatModal {
   static Future<void> openChatWithUser(
@@ -80,9 +81,7 @@ class GlobalChatModal {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Failed to open chat: $e'),
-            backgroundColor: Colors.redAccent));
+        ToastService.error(context, 'Failed to open chat: $e');
       }
     }
   }
@@ -123,9 +122,7 @@ class GlobalChatModal {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Failed to open group chat: $e'),
-            backgroundColor: Colors.redAccent));
+        ToastService.error(context, 'Failed to open group chat: $e');
       }
     }
   }
@@ -478,10 +475,7 @@ class GlobalChatModal {
                               ApiService.instance
                                   .sendMessage(int.parse(chatId), textMsg)
                                   .catchError((e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text('Failed to send: $e'),
-                                        backgroundColor: Colors.redAccent));
+                                ToastService.error(context, 'Failed to send: $e');
                               });
 
                               // Optimistic update

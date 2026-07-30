@@ -12,6 +12,7 @@ import '../backend/api_service.dart';
 import '../shared/job_detail_screen.dart';
 import '../components/contact_list_modal.dart';
 import '../components/quick_map_modal.dart';
+import '/shared/toast_service.dart';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -91,7 +92,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingJobs = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading data: $e')));
+        ToastService.error(context, 'Error loading data: $e');
       }
     }
   }
@@ -161,8 +162,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
         if (mounted) setState(() {});
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Error: $e'), backgroundColor: Colors.redAccent));
+          ToastService.error(context, 'Error: $e');
         }
       } finally {
         if (mounted) setState(() => _isProcessing = false);
@@ -188,8 +188,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
         if (mounted) setState(() {});
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Error: $e'), backgroundColor: Colors.redAccent));
+          ToastService.error(context, 'Error: $e');
         }
       } finally {
         if (mounted) setState(() => _isProcessing = false);
@@ -220,9 +219,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error updating task: $e'),
-            backgroundColor: Colors.redAccent));
+        ToastService.error(context, 'Error updating task: $e');
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -329,15 +326,11 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                   await ApiService.instance.submitSwapRequest(jobId, swapReason, detailsController.text.trim());
                                   if (mounted) {
                                     Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Swap request sent to Admin!'), backgroundColor: Colors.green)
-                                    );
+                                    ToastService.success(context, 'Swap request sent to Admin!');
                                   }
                                 } catch (e) {
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
-                                    );
+                                    ToastService.error(context, 'Error: $e');
                                     setModal(() => isSubmitting = false);
                                   }
                                 }
@@ -359,11 +352,11 @@ class _ClockInTrackerState extends State<ClockInTracker> {
         await ApiService.instance.cancelSwapRequest(jobId);
         await _fetchData();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Swap request deleted'), backgroundColor: Colors.green));
+          ToastService.success(context, 'Swap request deleted');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
+          ToastService.error(context, 'Error: $e');
         }
       } finally {
         if (mounted) setState(() => _isProcessing = false);
@@ -378,11 +371,11 @@ class _ClockInTrackerState extends State<ClockInTracker> {
         await ApiService.instance.cancelSwapRequest(jobId);
         await _fetchData();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Swap request cancelled'), backgroundColor: Colors.green));
+          ToastService.success(context, 'Swap request cancelled');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
+          ToastService.error(context, 'Error: $e');
         }
       } finally {
         if (mounted) setState(() => _isProcessing = false);
@@ -452,17 +445,10 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                         // TODO: Phase 4 - Connect to Laravel Chat API
                                         await Future.delayed(const Duration(seconds: 1));
                                         Navigator.pop(context);
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(const SnackBar(
-                                                content: Text('Alert sent!'),
-                                                backgroundColor: Colors.green));
+                                        ToastService.success(context, 'Alert sent!');
                                       } catch (e) {
                                         setModal(() => isSending = false);
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(
-                                                content: Text('Error: $e'),
-                                                backgroundColor:
-                                                    Colors.redAccent));
+                                        ToastService.error(context, 'Error: $e');
                                       }
                                     },
                               child: isSending
@@ -1223,12 +1209,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                           GestureDetector(
                                               onTap: () {
                                                 if (!hasClockedIn) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(const SnackBar(
-                                                          content: Text(
-                                                              'You must Clock In first!'),
-                                                          backgroundColor:
-                                                              Colors.orange));
+                                                  ToastService.warning(context, 'You must Clock In first!');
                                                   return;
                                                 }
                                                 _toggleTaskStatus(jobId,

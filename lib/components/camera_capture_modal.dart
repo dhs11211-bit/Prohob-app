@@ -6,6 +6,7 @@ import '../backend/api_service.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '/shared/toast_service.dart';
 
 class CameraCaptureModal extends StatefulWidget {
   final int? initialJobId;
@@ -92,9 +93,7 @@ class _CameraCaptureModalState extends State<CameraCaptureModal> {
     // we would show a searchable dropdown to find a Job/Customer.
     // For this prototype, we'll enforce that we need an ID.
     if (_selectedEntityId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an entity to attach the media to.')),
-      );
+      ToastService.info(context, 'Please select an entity to attach the media to.');
       return;
     }
 
@@ -114,16 +113,12 @@ class _CameraCaptureModalState extends State<CameraCaptureModal> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Media uploaded successfully!')),
-        );
+        ToastService.success(context, 'Media uploaded successfully!');
         Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload: $e')),
-        );
+        ToastService.error(context, 'Failed to upload: $e');
       }
     } finally {
       if (mounted) {

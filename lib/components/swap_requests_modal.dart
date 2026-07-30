@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../backend/api_service.dart';
+import '/shared/toast_service.dart';
 
 class SwapRequestsModal extends StatefulWidget {
   const SwapRequestsModal({Key? key}) : super(key: key);
@@ -321,15 +322,11 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                 await ApiService.instance.cancelSwapRequest(jobId);
                 await _fetchSwapRequests();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Swap request deleted'), backgroundColor: Colors.green),
-                  );
+                  ToastService.success(context, 'Swap request deleted');
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-                  );
+                  ToastService.error(context, 'Error: $e');
                 }
               }
             },

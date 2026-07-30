@@ -251,6 +251,20 @@ class ApiService {
     }
   }
 
+  Future<void> deleteChecklist(int jobId, String taskName) async {
+    final url = Uri.parse('$baseUrl/jobs/$jobId/checklist');
+    final response = await http.delete(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode({'task_name': taskName}),
+    );
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete checklist');
+    }
+  }
+
   // --- Clock Endpoints ---
   Future<Map<String, dynamic>> getClockStatus() async {
     final url = Uri.parse('$baseUrl/clock/status');

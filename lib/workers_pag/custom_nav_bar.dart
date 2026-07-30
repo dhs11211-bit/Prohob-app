@@ -7,6 +7,7 @@ import '/flutter_flow/custom_functions.dart'; // Imports custom functions
 import 'package:flutter/material.dart';
 // Begin custom widget code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
+import '/shared/toast_service.dart';
 
 import '/custom_code/widgets/index.dart'; // 🟢 ESTO IMPORTA TU NUEVO WIDGET
 import '/backend/api_service.dart';
@@ -49,12 +50,7 @@ class _CustomNavBarState extends State<CustomNavBar> {
       final jobs = await ApiService.instance.getTodayJobs();
       if (jobs.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You have no scheduled jobs today', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-              backgroundColor: Color(0xFFF59E0B),
-            ),
-          );
+          ToastService.warning(context, 'You have no scheduled jobs today');
         }
         return;
       }
@@ -73,15 +69,17 @@ class _CustomNavBarState extends State<CustomNavBar> {
 
   @override
   Widget build(BuildContext context) {
+    final double bottomPadding = MediaQuery.of(context).padding.bottom;
     return SizedBox(
       width: widget.width ?? double.infinity,
-      height: 90,
+      height: 90 + bottomPadding,
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
           Container(
             width: double.infinity,
-            height: 65,
+            height: 65 + bottomPadding,
+            padding: EdgeInsets.only(bottom: bottomPadding),
             decoration: BoxDecoration(color: card, boxShadow: [
               BoxShadow(
                   color: Colors.black.withOpacity(0.3),

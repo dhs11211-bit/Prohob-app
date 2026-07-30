@@ -18,6 +18,7 @@ import 'dart:io'; // 🚀 FIX: Librería para subir archivos
 import 'dart:typed_data'; // 🚀 FIX: Librería para procesar imágenes
 import '/backend/api_service.dart';
 import '/app_constants.dart';
+import '/shared/toast_service.dart';
 import '../../auth/laravel_auth_manager.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as maps;
 import 'package:intl/intl.dart';
@@ -1059,18 +1060,9 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                                               });
                                             }
                                             Navigator.pop(ctx);
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(const SnackBar(
-                                                    content: Text(
-                                                        'Profile updated successfully!'),
-                                                    backgroundColor:
-                                                        Color(0xFF10B981)));
+                                            ToastService.success(context, 'Profile updated successfully!');
                                           } catch (e) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(SnackBar(
-                                                    content: Text('Error: $e'),
-                                                    backgroundColor:
-                                                        Colors.redAccent));
+                                            ToastService.error(context, 'Error: $e');
                                           } finally {
                                             setModalState(
                                                 () => isSaving = false);
@@ -1303,7 +1295,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                             initialCameraPosition: const maps.CameraPosition(
                                 target: _centerCoords, zoom: 13.5),
                             mapToolbarEnabled: false,
-                            zoomControlsEnabled: false,
+                            zoomControlsEnabled: true,
                             myLocationEnabled: false,
                             myLocationButtonEnabled: false,
                             onCameraMove: (maps.CameraPosition position) {

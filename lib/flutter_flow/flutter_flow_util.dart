@@ -12,6 +12,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../main.dart';
+import '../shared/toast_service.dart';
 
 import 'lat_lng.dart';
 
@@ -272,34 +273,19 @@ extension StringDocRef on String {
 void setDarkModeSetting(BuildContext context, ThemeMode themeMode) =>
     MyApp.of(context).setThemeMode(themeMode);
 
+/// Delegates to [ToastService.info] — kept for backward compatibility.
 void showSnackbar(
   BuildContext context,
   String message, {
   bool loading = false,
   int duration = 4,
 }) {
-  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Row(
-        children: [
-          if (loading)
-            Padding(
-              padding: EdgeInsetsDirectional.only(end: 10.0),
-              child: Container(
-                height: 20,
-                width: 20,
-                child: const CircularProgressIndicator(
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          Text(message),
-        ],
-      ),
-      duration: Duration(seconds: duration),
-    ),
-  );
+  if (loading) {
+    // If loading spinner is needed we still use info type
+    ToastService.info(context, message, duration: duration);
+  } else {
+    ToastService.info(context, message, duration: duration);
+  }
 }
 
 extension FFStringExt on String {

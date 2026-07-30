@@ -8,6 +8,7 @@ import 'dart:io' show Platform;
 import '../app_state.dart';
 import 'package:flutter/material.dart';
 import '../auth/base_auth_user_provider.dart';
+import '../shared/toast_service.dart';
 
 class ReverbService {
   static final ReverbService instance = ReverbService._internal();
@@ -104,23 +105,14 @@ class ReverbService {
         if (data['last_message'] != null) {
           final currentUserId = currentUser?.uid;
           final senderId = data['sender_id']?.toString();
-          
+
           if (senderId != null && senderId != currentUserId) {
-            if (globalMessengerKey.currentState != null) {
-              globalMessengerKey.currentState!.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    "New Message: ${data['last_message']}",
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                  backgroundColor: const Color(0xFF3B82F6), // accentBlue
-                  behavior: SnackBarBehavior.floating,
-                  margin: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  duration: const Duration(seconds: 4),
-                  elevation: 6,
-                  dismissDirection: DismissDirection.horizontal,
-                )
+            final messenger = globalMessengerKey.currentState;
+            if (messenger != null) {
+              ToastService.showWithMessenger(
+                messenger,
+                "New Message: ${data['last_message']}",
+                type: ToastType.info,
               );
             }
           }

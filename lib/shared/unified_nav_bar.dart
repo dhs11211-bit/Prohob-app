@@ -34,10 +34,12 @@ class UnifiedNavBar extends StatelessWidget {
 
   /// 5-tab layout for Admin / Manager roles
   Widget _buildAdminNavBar(BuildContext context) {
+    final double bottomPadding = MediaQuery.of(context).padding.bottom;
     return SizedBox(
       width: width ?? double.infinity,
-      height: 65,
+      height: 65 + bottomPadding,
       child: Container(
+        padding: EdgeInsets.only(bottom: bottomPadding),
         decoration: BoxDecoration(
           color: cardBg,
           boxShadow: [
@@ -90,16 +92,18 @@ class UnifiedNavBar extends StatelessWidget {
   Widget _buildWorkerNavBar(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double itemWidth = (screenWidth - 80) / 4;
+    final double bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return SizedBox(
       width: width ?? double.infinity,
-      height: height,
+      height: height + bottomPadding,
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
           Container(
             width: double.infinity,
-            height: 65,
+            height: 65 + bottomPadding,
+            padding: EdgeInsets.only(bottom: bottomPadding),
             decoration: BoxDecoration(
               color: cardBg,
               boxShadow: [
