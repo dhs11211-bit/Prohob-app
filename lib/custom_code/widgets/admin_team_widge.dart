@@ -180,7 +180,11 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       if (res != null && mounted) {
         setState(() {
           List<dynamic> roles = res;
-          _availableRoles = roles.map((r) => Map<String, dynamic>.from(r)).toList();
+          _availableRoles = roles.map((r) {
+            final m = Map<String, dynamic>.from(r);
+            m['id'] = int.tryParse(m['id']?.toString() ?? '0') ?? 0;
+            return m;
+          }).toList();
           if (_availableRoles.isNotEmpty) {
             _selectedRoleId = _availableRoles.first['id'];
           }
@@ -2388,6 +2392,22 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     List<String> nameParts = name.trim().split(' ');
     String defaultFirst = workerData['first_name'] ?? (nameParts.isNotEmpty ? nameParts.first : '');
     String defaultLast = workerData['last_name'] ?? (nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
+    
+    int? currentRoleId;
+    if (workerData['role_id'] != null) {
+      currentRoleId = int.tryParse(workerData['role_id'].toString());
+    } else if (workerData['role'] is Map && workerData['role']['id'] != null) {
+      currentRoleId = int.tryParse(workerData['role']['id'].toString());
+    }
+    String currentRoleSlug = '';
+    if (workerData['role_slug'] != null) {
+      currentRoleSlug = workerData['role_slug'].toString().toLowerCase();
+    } else if (workerData['role'] is Map && workerData['role']['slug'] != null) {
+      currentRoleSlug = workerData['role']['slug'].toString().toLowerCase();
+    } else if (workerData['role'] is String) {
+      currentRoleSlug = workerData['role'].toString().toLowerCase();
+    }
+    bool isAdmin = currentRoleSlug == 'admin' || currentRoleSlug == 'super-admin';
 
     TextEditingController firstNameCtrl = TextEditingController(text: defaultFirst);
     TextEditingController lastNameCtrl = TextEditingController(text: defaultLast);
@@ -2573,6 +2593,55 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 label: "Last Name",
                                 icon: Icons.person_outline,
                               ),
+                              const SizedBox(height: 16),
+                              const Text("Role",
+                                  style: TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              if (isAdmin)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1E293B),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  width: double.infinity,
+                                  child: const Text("Admin (Cannot be changed)", style: TextStyle(color: Colors.white38, fontSize: 16)),
+                                )
+                              else
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1E293B),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: DropdownButtonFormField<int>(
+                                    value: currentRoleId,
+                                    isExpanded: true,
+                                    dropdownColor: const Color(0xFF1E293B),
+                                    icon: const Padding(
+                                      padding: EdgeInsets.only(right: 8.0),
+                                      child: Icon(Icons.arrow_drop_down, color: Colors.white38)),
+                                    decoration: const InputDecoration(
+                                      prefixIcon: Icon(Icons.badge_outlined, color: Colors.white38),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                    ),
+                                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                                    items: _availableRoles.map((role) {
+                                      return DropdownMenuItem<int>(
+                                        value: role['id'] as int,
+                                        child: Text(role['name'] ?? 'Unknown Role'),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      setModalState(() {
+                                        currentRoleId = val;
+                                      });
+                                    },
+                                  ),
+                                ),
                               const SizedBox(height: 16),
                               const Text("Email Address",
                                   style: TextStyle(
@@ -2783,6 +2852,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   payload['gate_code'] = gateCtrl.text.trim();
                                   payload['address_notes'] = notesCtrl.text.trim();
                                   payload['notes'] = notesCtrl.text.trim();
+                                  
+                                  if (!isAdmin && currentRoleId != null) {
+                                    payload['role_id'] = currentRoleId;
+                                  }
 
                                   await ApiService.instance
                                       .put('/admin/workers/$userId', payload);

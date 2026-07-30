@@ -27,6 +27,7 @@ import '../../shared/job_detail_screen.dart';
 import '../../backend/api_service.dart';
 import '../../components/global_chat_modal.dart';
 import '/shared/toast_service.dart';
+import '../../shared/job_parser.dart';
 
 import '../../shared/image_editor_helper.dart';
 
@@ -133,8 +134,8 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   }
 
   List<DateTime> _generateOccurrences(Map<String, dynamic> data) {
-    if (data['scheduled_time'] == null) return [];
-    DateTime start = DateTime.parse(data['scheduled_time'].toString());
+    DateTime? start = JobParser.getStartDate(data);
+    if (start == null) return [];
     String freq = data['frequency'] ?? 'One-time';
     String? durationStr = data['duration'];
     List<dynamic> customDays = data['custom_days'] ?? [];
@@ -518,10 +519,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   void _showEditJobModal(String jobId, Map<String, dynamic> jobData) {
     TextEditingController notesCtrl =
         TextEditingController(text: jobData['notes'] ?? '');
-    DateTime initialDate = DateTime.now();
-    if (jobData['scheduled_time'] != null) {
-      initialDate = DateTime.parse(jobData['scheduled_time'].toString());
-    }
+    DateTime initialDate = JobParser.getStartDate(jobData) ?? DateTime.now();
 
     DateTime tempDate = initialDate;
     TimeOfDay tempTime =
@@ -660,8 +658,8 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                               tempTime.minute);
                                           await ApiService.instance.put(
                                               '/admin/jobs/$jobId', {
-                                            'scheduled_time':
-                                                newFullDate.toIso8601String(),
+                                            'start_date': DateFormat('yyyy-MM-dd').format(newFullDate),
+                                            'start_time': DateFormat('HH:mm:ss').format(newFullDate),
                                             'notes': notesCtrl.text.trim()
                                           });
                                           Navigator.pop(ctx);
@@ -684,15 +682,18 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                         ])))));
   }
 
-  void _showJobDetailsModal(String jobId, Map<String, dynamic> jobData) {
+  void _showJobDetailsModal(String jobId, Map<String, dynamic> jobData) async {
     int? parsedId = int.tryParse(jobId);
     if (parsedId != null) {
-      Navigator.push(
+      final result = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => SharedJobDetailScreen(jobId: parsedId),
         ),
       );
+      if (result == true) {
+        _refreshData();
+      }
       return;
     }
     List<dynamic> assignedWorkers = jobData['assigned_workers'] ?? [];
@@ -805,12 +806,9 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                     const SizedBox(width: 8),
                     Expanded(
                         child: Text(
-                            jobData['scheduled_time'] != null
+                            JobParser.getStartDate(jobData) != null
                                 ? DateFormat('EEEE, MMM d, yyyy • hh:mm a')
-                                    .format(DateTime.parse(
-                                            jobData['scheduled_time']
-                                                .toString())
-                                        .toLocal())
+                                    .format(JobParser.getStartDate(jobData)!)
                                 : "No Time",
                             style: const TextStyle(
                                 color: Colors.white60, fontSize: 14)))
@@ -1229,6 +1227,74 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
         ));
   }
 
+  Widget _buildSplitKPICard({
+    required String title1,
+    required String value1,
+    required String title2,
+    required String value2,
+    required IconData icon,
+    required Color accentColor,
+  }) {
+    return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white10)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8)),
+                child: Icon(icon, color: accentColor, size: 20)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(value1,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(title1,
+                          style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 35,
+                  color: Colors.white10,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(value2,
+                          style: TextStyle(
+                              color: accentColor,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(title2,
+                          style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          ],
+        ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1259,12 +1325,13 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                             subtitle: "This Month")),
                     const SizedBox(width: 16),
                     Expanded(
-                        child: _buildClickableKPICard(
-                            title: "Active Jobs",
-                            value: "${_dashboardMetrics?['active_jobs'] ?? 0}",
+                        child: _buildSplitKPICard(
+                            title1: "Scheduled",
+                            value1: "${_dashboardMetrics?['scheduled_jobs'] ?? 0}",
+                            title2: "Live",
+                            value2: "${_dashboardMetrics?['live_jobs'] ?? 0}",
                             icon: Icons.work_outline,
-                            accentColor: const Color(0xFF3B82F6),
-                            subtitle: "Live")),
+                            accentColor: const Color(0xFF3B82F6))),
                   ],
                 ),
                 const SizedBox(height: 16),

@@ -9,7 +9,9 @@ import 'package:flutter/material.dart';
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 import '../backend/api_service.dart';
+import '../shared/job_action_buttons.dart';
 import '../shared/job_detail_screen.dart';
+import '../shared/job_parser.dart';
 import '../components/contact_list_modal.dart';
 import '../components/quick_map_modal.dart';
 import '/shared/toast_service.dart';
@@ -507,8 +509,13 @@ class _ClockInTrackerState extends State<ClockInTracker> {
 
   DateTime _parseSafeDate(dynamic val) {
     if (val == null) return DateTime.now();
-    if (val is String) return DateTime.parse(val);
-    if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+    if (val is String) {
+      String s = val.trim();
+      if (!s.endsWith('Z') && !s.contains('+')) {
+        s = s.replaceAll(' ', 'T') + 'Z';
+      }
+      return DateTime.tryParse(s)?.toLocal() ?? DateTime.now();
+    }
     return DateTime.now();
   }
 
@@ -577,8 +584,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
                         height: _isShiftExpanded 
-                            ? (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null && todayJobs[_currentJobIndex]['swap_request']['status']?.toString() != '9' ? 420 : 360) 
-                            : (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null && todayJobs[_currentJobIndex]['swap_request']['status']?.toString() != '9' ? 360 : 280),
+                            ? (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null && todayJobs[_currentJobIndex]['swap_request']['status']?.toString() != '9' ? 490 : 430) 
+                            : (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null && todayJobs[_currentJobIndex]['swap_request']['status']?.toString() != '9' ? 430 : 350),
                         child: PageView.builder(
                           controller: _pageController,
                           onPageChanged: (index) =>
@@ -594,9 +601,9 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                             String displayAddress =
                                 jobData['address'] ?? 'No address set';
 
-                            DateTime? scheduledTime =
-                                _parseSafeDate(jobData['start_date'] ?? jobData['scheduled_time']);
-                            String shiftTimeLabel =
+                              DateTime scheduledTime =
+                                  JobParser.getStartDate(jobData) ?? DateTime.now();
+                              String shiftTimeLabel =
                                 DateFormat('hh:mm a').format(scheduledTime);
                             String shiftDateLabel =
                                 DateFormat('EEEE, MMM d').format(scheduledTime);
@@ -637,7 +644,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                   bool isOnBreak = rawStatus == 'on_hold';
 
                                   DateTime? clockInTime = isCurrentJobActive && _clockStatus?['clock_in_time'] != null
-                                      ? DateTime.tryParse(_clockStatus!['clock_in_time'])
+                                      ? _parseSafeDate(_clockStatus!['clock_in_time'])
                                       : null;
 
                                   bool hasClockedIn = isCurrentJobActive && clockInTime != null;
@@ -830,13 +837,14 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                               shape: BoxShape
                                                                   .circle)),
                                                  InkWell(
-                                                   onTap: () {
-                                                     Navigator.push(
+                                                   onTap: () async {
+                                                     await Navigator.push(
                                                        context,
                                                        MaterialPageRoute(
                                                          builder: (context) => SharedJobDetailScreen(jobId: jobId),
                                                        ),
                                                      );
+                                                     _fetchData();
                                                    },
                                                    borderRadius: BorderRadius.circular(20),
                                                    child: Container(
@@ -926,46 +934,15 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                               color: Colors.white10),
                                           Row(children: [
                                             Expanded(
-                                                child: SizedBox(
-                                                    height: 55,
-                                                    child: ElevatedButton(
-                                                        style: ElevatedButton.styleFrom(
-                                                            backgroundColor: hasClockedOut
-                                                                ? Colors.green.shade700
-                                                                : (isOnBreak
-                                                                    ? Colors.deepOrange
-                                                                    : (hasClockedIn
-                                                                        ? accentRed
-                                                                        : neonAction)),
-                                                            foregroundColor: (hasClockedOut || isOnBreak || hasClockedIn)
-                                                                ? Colors.white
-                                                                : Colors.black,
-                                                            shape: RoundedRectangleBorder(
-                                                                borderRadius: BorderRadius.circular(16))),
-                                                        // Completed jobs: disable the main button. Clock-in opens fresh.
-                                                        onPressed: _isProcessing || hasClockedOut
-                                                            ? null
-                                                            : (hasClockedIn
-                                                                ? () => _performClockOut(
-                                                                    jobId,
-                                                                    clockInTime!,
-                                                                    clientName)
-                                                                : () => _performClockIn(
-                                                                    jobId, jobLat, jobLng, scheduledTime)),
-                                                        child: _isProcessing
-                                                            ? const CircularProgressIndicator(color: Colors.white)
-                                                            : Row(
-                                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                                children: [
-                                                                  if (hasClockedOut)
-                                                                    const Icon(Icons.check_circle_outline, size: 18),
-                                                                  if (hasClockedOut) const SizedBox(width: 8),
-                                                                  Text(buttonLabel,
-                                                                      style: const TextStyle(
-                                                                          fontWeight: FontWeight.bold,
-                                                                          fontSize: 16)),
-                                                                ],
-                                                              )))),
+                                                child: JobActionButtons(
+                                                  jobId: jobId,
+                                                  jobStatus: jobData['job_status'] ?? '',
+                                                  clockStatus: _clockStatus,
+                                                  onStateChanged: _fetchData,
+                                                  compact: true,
+                                                  scheduledTime: scheduledTime,
+                                                ),
+                                            ),
                                             const SizedBox(width: 12),
                                             GestureDetector(
                                                 onTap: () => setState(() =>
@@ -1127,10 +1104,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                     String formattedTime = '';
                                     if (isCompleted && completedAt != null && completedAt.isNotEmpty) {
                                       try {
-                                        DateTime? dt = DateTime.tryParse(completedAt);
-                                        if (dt != null) {
-                                          formattedTime = DateFormat('MMM d, h:mm a').format(dt.toLocal());
-                                        }
+                                        DateTime dt = _parseSafeDate(completedAt);
+                                        formattedTime = DateFormat('MMM d, h:mm a').format(dt);
                                       } catch (_) {}
                                     }
 

@@ -68,9 +68,13 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
 
   maps.BitmapDescriptor? _jobIcon;
   maps.BitmapDescriptor? _workerIcon;
+  Map<String, maps.BitmapDescriptor> _workerIconsCache = {};
+  maps.BitmapDescriptor? _customerIcon;
+  Map<String, maps.BitmapDescriptor> _customerIconsCache = {};
 
   List<dynamic> _allJobs = [];
   List<dynamic> _staffLocations = [];
+  List<dynamic> _customerLocations = [];
   bool _isLoading = true;
   bool _isMapCreated = false;
   String? _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
@@ -157,6 +161,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
       Future.wait([
         _fetchJobs(),
         _fetchStaffLocations(),
+        _fetchCustomerLocations(),
       ]).then((_) async {
         await _fitBounds();
         if (mounted && _isLoading) setState(() => _isLoading = false);
@@ -313,6 +318,53 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
     }
   }
 
+  Future<void> _fetchCustomerLocations() async {
+    try {
+      final response = await ApiService.instance.get('/admin/customers');
+      List<dynamic> locations = [];
+      if (response is List) {
+        locations = response;
+      } else if (response is Map && response['data'] is List) {
+        locations = response['data'];
+      }
+      
+      if (mounted) {
+        setState(() {
+          _customerLocations = locations;
+        });
+      }
+
+      bool updated = false;
+      for (int i = 0; i < locations.length; i++) {
+        if (locations[i] is Map<String, dynamic>) {
+          var customer = locations[i];
+          double? lat = customer['lat'] != null ? double.tryParse(customer['lat'].toString()) : (customer['latitude'] != null ? double.tryParse(customer['latitude'].toString()) : null);
+          double? lng = customer['lng'] != null ? double.tryParse(customer['lng'].toString()) : (customer['longitude'] != null ? double.tryParse(customer['longitude'].toString()) : null);
+          String address = customer['address']?.toString() ?? '';
+
+          if ((lat == null || lng == null || lat == 0.0 || lng == 0.0) && address.isNotEmpty) {
+            final coords = await _geocodeAddress(address);
+            if (coords != null) {
+              locations[i]['lat'] = coords['lat'];
+              locations[i]['lng'] = coords['lng'];
+              locations[i]['latitude'] = coords['lat'];
+              locations[i]['longitude'] = coords['lng'];
+              updated = true;
+            }
+          }
+        }
+      }
+
+      if (mounted && updated) {
+        setState(() {
+          _customerLocations = locations;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching customer locations: $e");
+    }
+  }
+
   Future<void> _loadUserProfile() async {
     if (currentUser != null) {
       try {
@@ -441,30 +493,119 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
     return maps.BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
   }
 
+  Future<maps.BitmapDescriptor> _createIconWithText(String name, Color color, {double size = 80.0, bool showText = false}) async {
+    final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(pictureRecorder);
+
+    double iconSize = size;
+    double canvasWidth = size;
+    double canvasHeight = size;
+
+    TextPainter? namePainter;
+    if (showText && name.isNotEmpty) {
+      namePainter = TextPainter(
+        text: TextSpan(
+          text: name,
+          style: TextStyle(
+            fontSize: size * 0.35,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      );
+      namePainter.layout();
+      
+      canvasWidth = namePainter.width > size ? namePainter.width + 16 : size;
+      canvasHeight = size + namePainter.height + 12;
+    }
+
+    double dx = (canvasWidth - iconSize) / 2;
+    
+    final Paint paint = Paint()..color = color;
+    canvas.drawCircle(Offset(dx + iconSize / 2, iconSize / 2), iconSize / 2, paint);
+    
+    final IconData iconData = Icons.person;
+    TextPainter iconPainter = TextPainter(textDirection: ui.TextDirection.ltr);
+    iconPainter.text = TextSpan(
+      text: String.fromCharCode(iconData.codePoint),
+      style: TextStyle(
+        fontSize: iconSize * 0.6,
+        fontFamily: iconData.fontFamily,
+        color: Colors.white,
+      ),
+    );
+    iconPainter.layout();
+    iconPainter.paint(
+      canvas,
+      Offset(
+        dx + (iconSize - iconPainter.width) / 2,
+        (iconSize - iconPainter.height) / 2,
+      ),
+    );
+
+    if (showText && namePainter != null) {
+      final Paint bgPaint = Paint()
+        ..color = Colors.black.withOpacity(0.6)
+        ..style = PaintingStyle.fill;
+        
+      final RRect bgRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, iconSize + 4, canvasWidth, namePainter.height + 8),
+        const Radius.circular(4),
+      );
+      canvas.drawRRect(bgRect, bgPaint);
+      
+      namePainter.paint(
+        canvas,
+        Offset((canvasWidth - namePainter.width) / 2, iconSize + 8),
+      );
+    }
+
+    final ui.Image image = await pictureRecorder.endRecording().toImage(canvasWidth.toInt(), canvasHeight.toInt());
+    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return maps.BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+  }
+
   Future<void> _loadCustomMarkers() async {
     try {
       _lastGeneratedZoom = _currentZoom;
       double size = (_currentZoom * 3.5).clamp(24.0, 72.0);
 
       final jobIcon = await _createJobIcon(const Color(0xFFFBC02D), size: size);
-      final workerIcon = await _createIconFromIconData(Icons.person, const Color(0xFF43A047), size: size);
+      
+      bool showText = _currentZoom > 12.0;
+      Map<String, maps.BitmapDescriptor> newStaffIcons = {};
+      
+      for (var worker in _staffLocations) {
+        if (worker is! Map) continue;
+        String wId = worker['id'].toString();
+        String wName = '${worker['first_name'] ?? ''} ${worker['last_name'] ?? ''}'.trim();
+        if (wName.isEmpty) wName = worker['name'] ?? 'Staff';
+        newStaffIcons[wId] = await _createIconWithText(wName, const Color(0xFF43A047), size: size, showText: showText);
+      }
+      final defaultStaffIcon = await _createIconWithText("", const Color(0xFF43A047), size: size, showText: false);
+
+      Map<String, maps.BitmapDescriptor> newCustomerIcons = {};
+      for (var customer in _customerLocations) {
+        if (customer is! Map) continue;
+        String cId = customer['id'].toString();
+        String cName = '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'.trim();
+        if (cName.isEmpty) cName = customer['name'] ?? 'Customer';
+        newCustomerIcons[cId] = await _createIconWithText(cName, const Color(0xFF9C27B0), size: size, showText: showText);
+      }
+      final defaultCustomerIcon = await _createIconWithText("", const Color(0xFF9C27B0), size: size, showText: false);
 
       if (mounted) {
         setState(() {
           _jobIcon = jobIcon;
-          _workerIcon = workerIcon;
+          _workerIcon = defaultStaffIcon;
+          _workerIconsCache = newStaffIcons;
+          _customerIcon = defaultCustomerIcon;
+          _customerIconsCache = newCustomerIcons;
         });
       }
     } catch (e) {
       debugPrint("Error cargando marcadores visuales: $e");
-      if (mounted) {
-        setState(() {
-          _jobIcon = maps.BitmapDescriptor.defaultMarkerWithHue(
-              maps.BitmapDescriptor.hueYellow);
-          _workerIcon = maps.BitmapDescriptor.defaultMarkerWithHue(
-              maps.BitmapDescriptor.hueGreen);
-        });
-      }
     }
   }
 
@@ -524,7 +665,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
   // =====================================================================
   // 🚀 MINI-PERFIL DEL TRABAJADOR PARA MANDAR MENSAJE
   // =====================================================================
-  void _showAssignedWorkerOptions(String workerId, String workerName) {
+  void _showAssignedStaffOptions(String workerId, String workerName, [String? workerPhone, bool popOuter = false]) {
     showDialog(
         context: context,
         builder: (ctx) => Dialog(
@@ -550,9 +691,42 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                           fontSize: 22,
                           fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  const Text("Assigned Team Member",
+                  const Text("Assigned Staff",
                       style: TextStyle(color: Colors.white60, fontSize: 14)),
                   const SizedBox(height: 32),
+                  SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        icon: const Icon(Icons.call, color: Colors.white),
+                        label: const Text("Call Staff",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16)),
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          if (workerPhone != null && workerPhone.isNotEmpty) {
+                            final Uri launchUri = Uri(
+                              scheme: 'tel',
+                              path: workerPhone,
+                            );
+                            if (await canLaunchUrl(launchUri)) {
+                              await launchUrl(launchUri);
+                            } else {
+                              if (mounted) ToastService.error(context, "Could not launch dialer");
+                            }
+                          } else {
+                            if (mounted) ToastService.error(context, "Phone number not found");
+                          }
+                        },
+                      )),
+                  const SizedBox(height: 16),
                   SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -563,15 +737,104 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                                 borderRadius: BorderRadius.circular(16)),
                           ),
                           icon: const Icon(Icons.chat, color: Colors.white),
-                          label: const Text("Message Worker",
+                          label: const Text("Message Staff",
                               style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16)),
                           onPressed: () {
                             Navigator.pop(ctx);
-                            Navigator.pop(context);
-                            _startDirectChatFromMap(workerId, workerName);
+                            if (popOuter) {
+                              try { Navigator.pop(context); } catch(e) {}
+                            }
+                            Future.microtask(() => _startDirectChatFromMap(workerId, workerName));
+                          }))
+                ]))));
+  }
+
+  void _showAssignedCustomerOptions(String customerId, String customerName, [String? customerPhone, bool popOuter = false]) {
+    showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+            backgroundColor: const Color(0xFF1E293B),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: const Color(0xFF9C27B0).withOpacity(0.2),
+                    child: Text(customerName[0].toUpperCase(),
+                        style: const TextStyle(
+                            color: Color(0xFF9C27B0),
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(customerName,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  const Text("Customer",
+                      style: TextStyle(color: Colors.white60, fontSize: 14)),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        icon: const Icon(Icons.call, color: Colors.white),
+                        label: const Text("Call Customer",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16)),
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          if (customerPhone != null && customerPhone.isNotEmpty) {
+                            final Uri launchUri = Uri(
+                              scheme: 'tel',
+                              path: customerPhone,
+                            );
+                            if (await canLaunchUrl(launchUri)) {
+                              await launchUrl(launchUri);
+                            } else {
+                              if (mounted) ToastService.error(context, "Could not launch dialer");
+                            }
+                          } else {
+                            if (mounted) ToastService.error(context, "Phone number not found");
+                          }
+                        },
+                      )),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF9C27B0),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
+                          ),
+                          icon: const Icon(Icons.chat, color: Colors.white),
+                          label: const Text("Message Customer",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            if (popOuter) {
+                              try { Navigator.pop(context); } catch(e) {}
+                            }
+                            Future.microtask(() => _startDirectChatFromMap(customerId, customerName));
                           }))
                 ]))));
   }
@@ -682,18 +945,15 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                         for (var u in data['assigned_users']) {
                           workerList.add({
                             'id': u['id'].toString(),
-                            'name': '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'
-                                    .trim()
-                                    .isEmpty
-                                ? 'Worker'
-                                : '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'
-                                    .trim()
+                            'first_name': u['first_name']?.toString() ?? '',
+                            'last_name': u['last_name']?.toString() ?? '',
+                            'phone': u['phone']?.toString() ?? '',
                           });
                         }
                       }
                       return workerList;
                     } catch (e) {
-                      print("Error fetching workers for job list: $e");
+                      print("Error fetching staff for job list: $e");
                       return <Map<String, String>>[];
                     }
                   }(),
@@ -714,7 +974,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                       return const ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(Icons.person_off, color: Colors.white60),
-                        title: Text("No workers assigned yet",
+                        title: Text("No staff assigned yet",
                             style:
                                 TextStyle(color: Colors.white60, fontSize: 14)),
                       );
@@ -724,7 +984,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 8),
-                        const Text("ASSIGNED WORKERS",
+                        const Text("ASSIGNED STAFF",
                             style: TextStyle(
                                 color: Colors.white38,
                                 fontSize: 12,
@@ -733,10 +993,13 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                         ...workerDataList.map((worker) {
                           return GestureDetector(
                             onTap: () {
-                              _showAssignedWorkerOptions(
+                              final workerName = '${worker['first_name'] ?? ''} ${worker['last_name'] ?? ''}'.trim();
+                              final workerPhone = worker['phone']?.toString();
+                              Future.microtask(() => _showAssignedStaffOptions(
                                   worker['id']!,
-                                  '${worker['first_name'] ?? ''} ${worker['last_name'] ?? ''}'
-                                      .trim());
+                                  workerName.isEmpty ? 'Staff' : workerName,
+                                  workerPhone,
+                                  true));
                             },
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -753,7 +1016,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                                     backgroundColor: const Color(0xFF3B82F6)
                                         .withOpacity(0.2),
                                     child: Text(
-                                      (worker['first_name'] ?? 'W')[0]
+                                      (worker['first_name'] ?? 'S')[0]
                                           .toUpperCase(),
                                       style: const TextStyle(
                                           color: Color(0xFF3B82F6),
@@ -791,7 +1054,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
     );
   }
 
-  void _showWorkerDetailsOnMap(Map<String, dynamic> data) {
+  void _showStaffDetailsOnMap(Map<String, dynamic> data) {
     DateTime? clockInTime;
     if (data['clock_in'] is String) {
       clockInTime = DateTime.parse(data['clock_in']);
@@ -839,7 +1102,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Active Worker",
+                            "Active Staff",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -870,8 +1133,8 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                 ),
                 Builder(
                   builder: (context) {
-                    // Temporarily using placeholder for worker name since we disabled Firebase query
-                    String workerName = 'Worker';
+                    // Temporarily using placeholder for staff name since we disabled Firebase query
+                    String workerName = 'Staff';
 
                     return GestureDetector(
                       onTap: () {
@@ -1201,6 +1464,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                       _buildFilterButton("All", 0),
                       _buildFilterButton("Jobs", 1),
                       _buildFilterButton("Team", 2),
+                      _buildFilterButton("Customers", 3),
                     ],
                   ),
                 ),
@@ -1254,35 +1518,93 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                           }
                         }
 
-                        // 2. PINTAR TRABAJADORES ACTIVOS (PERSONAS)
+                        // 2. PINTAR CLIENTES (PERSONAS CON OTRO COLOR)
+                        if (_selectedFilter == 0 || _selectedFilter == 3) {
+                          for (var customer in _customerLocations) {
+                            if (customer is! Map<String, dynamic>) continue;
+                            final customerId = customer['id'].toString();
+                            final customerName = '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'.trim();
+                            final customerPhone = customer['phone']?.toString();
+
+                            List<Map<String, dynamic>> locationsToPlot = [];
+                            
+                            if (customer['addresses'] != null && customer['addresses'] is List && (customer['addresses'] as List).isNotEmpty) {
+                              for (var addr in customer['addresses']) {
+                                if (addr is Map<String, dynamic>) {
+                                  double? cLat = addr['latitude'] != null ? double.tryParse(addr['latitude'].toString()) : (addr['lat'] != null ? double.tryParse(addr['lat'].toString()) : null);
+                                  double? cLng = addr['longitude'] != null ? double.tryParse(addr['longitude'].toString()) : (addr['lng'] != null ? double.tryParse(addr['lng'].toString()) : null);
+                                  if (cLat != null && cLng != null && cLat != 0.0 && cLng != 0.0) {
+                                    locationsToPlot.add({'id': addr['id'].toString(), 'lat': cLat, 'lng': cLng});
+                                  }
+                                }
+                              }
+                            }
+                            
+                            if (locationsToPlot.isEmpty) {
+                              double? lat = customer['latitude'] != null ? double.tryParse(customer['latitude'].toString()) : (customer['lat'] != null ? double.tryParse(customer['lat'].toString()) : null);
+                              double? lng = customer['longitude'] != null ? double.tryParse(customer['longitude'].toString()) : (customer['lng'] != null ? double.tryParse(customer['lng'].toString()) : null);
+                              if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+                                locationsToPlot.add({'id': 'main', 'lat': lat, 'lng': lng});
+                              }
+                            }
+
+                            for (var loc in locationsToPlot) {
+                                mapMarkers.add(
+                                  maps.Marker(
+                                    markerId: maps.MarkerId('customer_${customerId}_${loc['id']}'),
+                                    position: maps.LatLng(loc['lat'], loc['lng']),
+                                    icon: _customerIconsCache[customerId] ?? _customerIcon ?? maps.BitmapDescriptor.defaultMarkerWithHue(maps.BitmapDescriptor.hueViolet),
+                                    consumeTapEvents: true,
+                                    onTap: () {
+                                      Future.microtask(() => _showAssignedCustomerOptions(customerId, customerName.isEmpty ? 'Customer' : customerName, customerPhone, false));
+                                    },
+                                  ),
+                                );
+                            }
+                          }
+                        }
+                        // 3. PINTAR TRABAJADORES ACTIVOS (PERSONAS)
                         if (_selectedFilter == 0 || _selectedFilter == 2) {
                           for (var worker in _staffLocations) {
                             if (worker is! Map<String, dynamic>) continue;
+                            final workerId = worker['id'].toString();
+                            final workerName = '${worker['first_name'] ?? ''} ${worker['last_name'] ?? ''}'.trim();
+                            final workerPhone = worker['phone']?.toString();
+
+                            List<Map<String, dynamic>> locationsToPlot = [];
                             
-                            double? lat;
-                            double? lng;
-
-                            if (worker['latitude'] != null) {
-                              lat = double.tryParse(worker['latitude'].toString());
+                            if (worker['addresses'] != null && worker['addresses'] is List && (worker['addresses'] as List).isNotEmpty) {
+                              for (var addr in worker['addresses']) {
+                                if (addr is Map<String, dynamic>) {
+                                  double? cLat = addr['latitude'] != null ? double.tryParse(addr['latitude'].toString()) : (addr['lat'] != null ? double.tryParse(addr['lat'].toString()) : null);
+                                  double? cLng = addr['longitude'] != null ? double.tryParse(addr['longitude'].toString()) : (addr['lng'] != null ? double.tryParse(addr['lng'].toString()) : null);
+                                  if (cLat != null && cLng != null && cLat != 0.0 && cLng != 0.0) {
+                                    locationsToPlot.add({'id': addr['id'].toString(), 'lat': cLat, 'lng': cLng});
+                                  }
+                                }
+                              }
                             }
-                            if (worker['longitude'] != null) {
-                              lng = double.tryParse(worker['longitude'].toString());
+                            
+                            if (locationsToPlot.isEmpty) {
+                              double? lat = worker['latitude'] != null ? double.tryParse(worker['latitude'].toString()) : (worker['lat'] != null ? double.tryParse(worker['lat'].toString()) : null);
+                              double? lng = worker['longitude'] != null ? double.tryParse(worker['longitude'].toString()) : (worker['lng'] != null ? double.tryParse(worker['lng'].toString()) : null);
+                              if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+                                locationsToPlot.add({'id': 'main', 'lat': lat, 'lng': lng});
+                              }
                             }
 
-                            if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
-                              mapMarkers.add(
-                                maps.Marker(
-                                  markerId: maps.MarkerId('worker_${worker['id']}'),
-                                  position: maps.LatLng(lat, lng),
-                                  icon: _workerIcon ?? maps.BitmapDescriptor.defaultMarkerWithHue(maps.BitmapDescriptor.hueAzure),
-                                  consumeTapEvents: true,
-                                  onTap: () {
-                                    final workerId = worker['id'].toString();
-                                    final workerName = '${worker['first_name'] ?? ''} ${worker['last_name'] ?? ''}'.trim();
-                                    _showAssignedWorkerOptions(workerId, workerName.isEmpty ? 'Worker' : workerName);
-                                  },
-                                ),
-                              );
+                            for (var loc in locationsToPlot) {
+                                mapMarkers.add(
+                                  maps.Marker(
+                                    markerId: maps.MarkerId('worker_${workerId}_${loc['id']}'),
+                                    position: maps.LatLng(loc['lat'], loc['lng']),
+                                    icon: _workerIconsCache[workerId] ?? _workerIcon ?? maps.BitmapDescriptor.defaultMarkerWithHue(maps.BitmapDescriptor.hueAzure),
+                                    consumeTapEvents: true,
+                                    onTap: () {
+                                      Future.microtask(() => _showAssignedStaffOptions(workerId, workerName.isEmpty ? 'Staff' : workerName, workerPhone, false));
+                                    },
+                                  ),
+                                );
                             }
                           }
                         }
@@ -1365,7 +1687,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
               _isLoading = true;
             });
             if (index == 0) {
-              Future.wait([_fetchJobs(), _fetchStaffLocations()]).then((_) async {
+              Future.wait([_fetchJobs(), _fetchStaffLocations(), _fetchCustomerLocations()]).then((_) async {
                 await _fitBounds();
                 if (mounted && _isLoading) setState(() => _isLoading = false);
               });
@@ -1376,6 +1698,11 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
               });
             } else if (index == 2) {
               _fetchStaffLocations().then((_) async {
+                await _fitBounds();
+                if (mounted && _isLoading) setState(() => _isLoading = false);
+              });
+            } else if (index == 3) {
+              _fetchCustomerLocations().then((_) async {
                 await _fitBounds();
                 if (mounted && _isLoading) setState(() => _isLoading = false);
               });

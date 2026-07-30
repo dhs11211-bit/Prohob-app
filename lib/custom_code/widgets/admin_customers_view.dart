@@ -12,6 +12,7 @@ import 'dart:ui';
 import '../../backend/api_service.dart';
 import '/app_constants.dart';
 import 'dart:async';
+import '../../shared/job_parser.dart';
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -1439,9 +1440,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                           itemCount: jobsList.length,
                           itemBuilder: (context, index) {
                             var job = jobsList[index] as Map<String, dynamic>;
-                            DateTime date = job['scheduled_time'] != null
-                                ? DateTime.parse(job['scheduled_time'])
-                                : DateTime.now();
+                            DateTime date = JobParser.getStartDate(job) ?? DateTime.now();
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(16),
