@@ -17,6 +17,7 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'app_state.dart';
 import '/backend/api_service.dart';
 import '/shared/toast_service.dart';
+import '/components/create_invoice_modal.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global role helper — checks the authenticated user's role slug
@@ -223,14 +224,18 @@ class _NavBarPageState extends State<NavBarPage> {
           foregroundColor: Colors.white,
           label: 'Create Invoice',
           onTap: () {
-            setState(() {
-              _currentIndex = 3;
-              _currentPage = custom_widgets.AdminFinancesWidge(
-                key: UniqueKey(),
-                width: double.infinity,
-                height: double.infinity,
-                onLogout: () async {},
-              );
+            showCreateInvoiceModal(context, onInvoiceCreated: () {
+              // Optionally trigger a refresh if we are on the finance page
+              if (_currentIndex == 3) {
+                setState(() {
+                  _currentPage = custom_widgets.AdminFinancesWidge(
+                    key: UniqueKey(),
+                    width: double.infinity,
+                    height: double.infinity,
+                    onLogout: () async {},
+                  );
+                });
+              }
             });
           },
         ),

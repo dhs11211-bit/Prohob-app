@@ -12,6 +12,8 @@ import 'dart:ui';
 import '../../auth/laravel_auth_manager.dart';
 import 'package:intl/intl.dart';
 import '/backend/api_service.dart';
+import '/components/create_invoice_modal.dart';
+import '/components/invoice_detail_modal.dart';
 
 class AdminFinancesWidge extends StatefulWidget {
   const AdminFinancesWidge({
@@ -611,139 +613,159 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
 
   Widget _buildInvoiceCard(Map<String, dynamic> data) {
     bool isPaid = data['invoice_status'] == 'paid';
+    
+    final customerName = data['customer'] != null 
+        ? ('${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim().isEmpty ? 'Client' : '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim()) 
+        : 'Client';
+        
+    final dateStr = data['issue_date'] != null 
+        ? DateFormat('MMM d, yyyy').format(DateTime.tryParse(data['issue_date'].toString()) ?? DateTime.now())
+        : 'N/A';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10)),
-      child: Row(
+    final invoiceNum = data['invoice_number'] ?? 'N/A';
+    final amount = currencyFormat.format(double.tryParse(data['total']?.toString() ?? '0') ?? 0.0);
+
+    return GestureDetector(
+      onTap: () {
+        showInvoiceDetailModal(context, data);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white10)),
+        child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                  color: isPaid
-                      ? const Color(0xFF10B981).withOpacity(0.2)
-                      : const Color(0xFFF59E0B).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12)),
-              child: Icon(isPaid ? Icons.check_circle : Icons.schedule,
-                  color: isPaid
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFF59E0B))),
-          const SizedBox(width: 16),
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data['customer'] != null ? ('${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim().isEmpty ? 'Client' : '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim()) : 'Client',
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  data['issue_date'] != null 
-                      ? DateFormat('MMM d, yyyy').format(DateTime.tryParse(data['issue_date'].toString()) ?? DateTime.now())
-                      : 'N/A',
-                  style: const TextStyle(color: Colors.white60, fontSize: 13)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: isPaid
+                          ? const Color(0xFF10B981).withOpacity(0.15)
+                          : const Color(0xFFF59E0B).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Icon(isPaid ? Icons.check_circle : Icons.schedule,
+                      size: 20,
+                      color: isPaid
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFF59E0B))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      customerName,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Invoice $invoiceNum',
+                      style: const TextStyle(color: Colors.white60, fontSize: 13)
+                    )
+                  ]
                 )
-              ]
-            )
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text("Total", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                  const SizedBox(height: 2),
+                  Text(amount,
+                      style: TextStyle(
+                          color: isPaid ? Colors.white : const Color(0xFFF59E0B),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(width: 8),
+              const Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+              ),
+            ],
           ),
-          
-          // Middle-Left Column: Invoice Number
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Invoice", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                Text("${data['invoice_number'] ?? 'N/A'}", style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-          
-          // Middle-Right Column: Total Amount
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Total", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                Text(currencyFormat.format(double.tryParse(data['total']?.toString() ?? '0') ?? 0.0),
-                    style: TextStyle(
-                        color: isPaid ? Colors.white : const Color(0xFFF59E0B),
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          
-          // Far Right Column: Mark Paid Button
-          if (!isPaid)
-            GestureDetector(
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      backgroundColor: const Color(0xFF1E293B),
-                      title: const Text("Confirm Payment", style: TextStyle(color: Colors.white)),
-                      content: const Text("Are you sure you want to mark this invoice as paid?", style: TextStyle(color: Colors.white70)),
-                      actions: [
-                        TextButton(
-                          child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
-                          child: const Text("Confirm", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            _markAsPaid(data['id'].toString());
-                          },
-                        ),
-                      ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  dateStr,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500)
+                ),
+              ),
+              if (!isPaid)
+                GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          backgroundColor: const Color(0xFF1E293B),
+                          title: const Text("Confirm Payment", style: TextStyle(color: Colors.white)),
+                          content: const Text("Are you sure you want to mark this invoice as paid?", style: TextStyle(color: Colors.white70)),
+                          actions: [
+                            TextButton(
+                              child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+                              onPressed: () => Navigator.of(context).pop(),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+                              child: const Text("Confirm", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _markAsPaid(data['id'].toString());
+                              },
+                            ),
+                          ],
+                        );
+                      },
                     );
                   },
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5))
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5))
+                    ),
+                    child: const Text("Mark as Paid",
+                        style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text("PAID",
+                      style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1)),
                 ),
-                child: const Text("Mark Paid",
-                    style: TextStyle(
-                        color: Color(0xFF10B981),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
-              ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text("PAID",
-                  style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1)),
-            ),
+            ],
+          )
         ],
       ),
-    );
+    ));
   }
 
   @override
@@ -1231,6 +1253,8 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 16),
+
                         const SizedBox(height: 16),
 
                         // CONDITIONAL LISTS

@@ -10,6 +10,8 @@ import 'auth_helpers.dart';
 import 'job_parser.dart';
 import '/shared/toast_service.dart';
 import '/workers_pag/custom_evidence_modal.dart';
+import '../components/create_invoice_modal.dart';
+import '../components/invoice_detail_modal.dart';
 
 class SharedJobDetailScreen extends StatefulWidget {
   const SharedJobDetailScreen({
@@ -102,6 +104,232 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     } else {
       ToastService.info(context, 'Calling $phone');
     }
+  }
+
+  void _showAssignWorkerModal() async {
+    final res = await ApiService.instance.get('/admin/workers');
+    List<dynamic> workers = [];
+    if (res is Map && res.containsKey('data')) {
+      workers = res['data'] is List ? res['data'] : [];
+    } else if (res is List) {
+      workers = res;
+    }
+
+    if (workers.isEmpty) {
+      if (mounted) ToastService.info(context, "No staff available to assign.");
+      return;
+    }
+
+    final assignedStaff = _jobData!['assigned_users'] is List ? _jobData!['assigned_users'] as List : [];
+    final assignedStaffIds = assignedStaff.map((w) => w['id'].toString()).toSet();
+    List<dynamic> availableWorkers = workers.where((w) => !assignedStaffIds.contains(w['id'].toString())).toList();
+
+    Set<String> selectedIds = {};
+    Map<String, String> workerRoles = { for (var w in availableWorkers) w['id'].toString() : (w['role_id']?.toString() ?? '3') };
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Assign Staff", style: TextStyle(color: textWhite, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  if (availableWorkers.isEmpty)
+                    Text("All staff members are already assigned.", style: TextStyle(color: muted)),
+                  if (availableWorkers.isNotEmpty)
+                    SizedBox(
+                      height: 300,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: availableWorkers.length,
+                        itemBuilder: (ctx, i) {
+                          final w = availableWorkers[i];
+                          final wId = w['id'].toString();
+                          return CheckboxListTile(
+                            title: Text("${w['first_name'] ?? ''} ${w['last_name'] ?? ''}".trim(), style: TextStyle(color: textWhite)),
+                            value: selectedIds.contains(wId),
+                            onChanged: (val) {
+                              setModalState(() {
+                                if (val == true) {
+                                  selectedIds.add(wId);
+                                } else {
+                                  selectedIds.remove(wId);
+                                }
+                              });
+                            },
+                            activeColor: accentBlue,
+                            checkColor: textWhite,
+                            side: const BorderSide(color: Colors.white60),
+                          );
+                        }
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: accentBlue),
+                        onPressed: selectedIds.isEmpty ? null : () async {
+                          Navigator.pop(ctx);
+                          try {
+                            for (String id in selectedIds) {
+                              await ApiService.instance.post('/job-assignments', {
+                                'job_id': widget.jobId.toString(),
+                                'user_id': id,
+                                'role_id': workerRoles[id],
+                              });
+                            }
+                            if (mounted) {
+                              ToastService.success(context, 'Staff member(s) assigned successfully!');
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ToastService.error(context, 'Failed to assign staff: $e');
+                            }
+                          }
+                          _loadJobDetail();
+                        },
+                        child: Text("Save", style: TextStyle(color: textWhite, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
+  void _showAssignTeamModal() async {
+    final res = await ApiService.instance.get('/admin/teams');
+    List<dynamic> teams = [];
+    if (res is Map && res.containsKey('data')) {
+      teams = res['data'] is List ? res['data'] : [];
+    } else if (res is List) {
+      teams = res;
+    }
+
+    if (teams.isEmpty) {
+      if (mounted) ToastService.info(context, "No teams available to assign.");
+      return;
+    }
+
+    final assignedTeams = _jobData!['assigned_teams'] is List ? _jobData!['assigned_teams'] as List : [];
+    final assignedTeamIds = assignedTeams.map((t) => t['id'].toString()).toSet();
+    List<dynamic> availableTeams = teams.where((t) => !assignedTeamIds.contains(t['id'].toString())).toList();
+
+    Set<String> selectedIds = {};
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Assign Team", style: TextStyle(color: textWhite, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  if (availableTeams.isEmpty)
+                    Text("All teams are already assigned.", style: TextStyle(color: muted)),
+                  if (availableTeams.isNotEmpty)
+                    SizedBox(
+                      height: 300,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: availableTeams.length,
+                        itemBuilder: (ctx, i) {
+                          final t = availableTeams[i];
+                          final tId = t['id'].toString();
+                          return CheckboxListTile(
+                            title: Text(t['name'] ?? 'Team', style: TextStyle(color: textWhite)),
+                            value: selectedIds.contains(tId),
+                            onChanged: (val) {
+                              setModalState(() {
+                                if (val == true) {
+                                  selectedIds.add(tId);
+                                } else {
+                                  selectedIds.remove(tId);
+                                }
+                              });
+                            },
+                            activeColor: accentBlue,
+                            checkColor: textWhite,
+                            side: const BorderSide(color: Colors.white60),
+                          );
+                        }
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: accentBlue),
+                        onPressed: selectedIds.isEmpty ? null : () async {
+                          Navigator.pop(ctx);
+                          try {
+                            for (String id in selectedIds) {
+                              await ApiService.instance.post('/job-assignments/assign-team', {
+                                'job_id': widget.jobId.toString(),
+                                'team_id': id,
+                              });
+                            }
+                            if (mounted) {
+                              ToastService.success(context, 'Team assigned successfully!');
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ToastService.error(context, 'Failed to assign team: $e');
+                            }
+                          }
+                          _loadJobDetail();
+                        },
+                        child: Text("Save", style: TextStyle(color: textWhite, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }
+        );
+      }
+    );
   }
 
   void _openCallModal() {
@@ -373,6 +601,30 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       return int.tryParse(_jobData!['id'].toString());
     }
     return null;
+  }
+
+  Future<bool> _confirmDelete(String title, String content) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(title, style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Text(content, style: TextStyle(color: muted, fontSize: 13)),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            onPressed: () => Navigator.pop(ctx, false),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Remove', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   void _confirmCancelJob(bool isRecurringJob) {
@@ -1399,7 +1651,16 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                               ),
 
                               // ASSIGNED TEAMS Section
-                              _buildSectionHeader('ASSIGNED TEAMS'),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildSectionHeader('ASSIGNED TEAMS'),
+                                  IconButton(
+                                    icon: Icon(Icons.add_circle_outline, color: accentBlue, size: 22),
+                                    onPressed: _showAssignTeamModal,
+                                  ),
+                                ],
+                              ),
                               Builder(
                                 builder: (context) {
                                   final teams = _jobData!['assigned_teams'];
@@ -1407,6 +1668,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                     return Column(
                                       children: teams.map<Widget>((t) {
                                         final teamName = t['name'] ?? 'Team';
+                                        final teamId = t['id'];
                                         final members = (t['members'] is List) ? (t['members'] as List) : [];
                                         return Container(
                                           width: double.infinity,
@@ -1439,6 +1701,26 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                                   Text(
                                                     '• ${members.length} MEMBERS',
                                                     style: TextStyle(color: muted, fontSize: 11, fontWeight: FontWeight.w600),
+                                                  ),
+                                                  const Spacer(),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                                    onPressed: () async {
+                                                      final confirm = await _confirmDelete('Remove Team?', 'Are you sure you want to remove "$teamName"?');
+                                                      if (!confirm) return;
+                                                      if (teamId == null) return;
+                                                      try {
+                                                        await ApiService.instance.delete('/job-assignments/team/${widget.jobId}/$teamId');
+                                                        if (mounted) {
+                                                          ToastService.success(context, 'Team removed successfully!');
+                                                        }
+                                                      } catch (e) {
+                                                        if (mounted) {
+                                                          ToastService.error(context, 'Failed to remove team: $e');
+                                                        }
+                                                      }
+                                                      _loadJobDetail();
+                                                    },
                                                   ),
                                                 ],
                                               ),
@@ -1503,7 +1785,16 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                               ),
 
                               // INDIVIDUAL STAFF Section
-                              _buildSectionHeader('INDIVIDUAL STAFF'),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildSectionHeader('INDIVIDUAL STAFF'),
+                                  IconButton(
+                                    icon: Icon(Icons.add_circle_outline, color: accentBlue, size: 22),
+                                    onPressed: _showAssignWorkerModal,
+                                  ),
+                                ],
+                              ),
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(16),
@@ -1541,6 +1832,30 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                                     Text(name, style: TextStyle(color: textWhite, fontSize: 15, fontWeight: FontWeight.bold)),
                                                     Text(role, style: TextStyle(color: muted, fontSize: 12)),
                                                   ],
+                                                ),
+                                                const Spacer(),
+                                                IconButton(
+                                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                                  onPressed: () async {
+                                                    final confirm = await _confirmDelete('Remove Staff Member?', 'Are you sure you want to remove "$name"?');
+                                                    if (!confirm) return;
+                                                    if (u['id'] == null) return;
+                                                    try {
+                                                      try {
+                                                        await ApiService.instance.delete('/job-assignments/${u['assignment_id'] ?? u['id']}');
+                                                      } catch (e) {
+                                                        await ApiService.instance.post('/admin/jobs/${widget.jobId}/unassign-user', {'user_id': u['id']});
+                                                      }
+                                                      if (mounted) {
+                                                        ToastService.success(context, 'Staff member removed successfully!');
+                                                      }
+                                                    } catch (e) {
+                                                      if (mounted) {
+                                                        ToastService.error(context, 'Failed to remove staff member: $e');
+                                                      }
+                                                    }
+                                                    _loadJobDetail();
+                                                  },
                                                 ),
                                               ],
                                             ),
@@ -1705,7 +2020,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                       (_jobData!['estimated_value'] ?? _jobData!['total_amount'] ?? '0').toString()
                                     ) ?? 0.0;
                                   }
-                                  return Container(
+                                  final totalsContainer = Container(
                                     width: double.infinity,
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
@@ -1732,6 +2047,79 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                         ),
                                       ],
                                     ),
+                                  );
+                                  
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      totalsContainer,
+                                      const SizedBox(height: 16),
+                                      if (_jobData!['invoices'] != null && (_jobData!['invoices'] as List).isNotEmpty) ...[
+                                        const Text('INVOICES', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                                        const SizedBox(height: 8),
+                                        ...(_jobData!['invoices'] as List).map((inv) {
+                                          String formattedDate = inv['issue_date'] ?? '';
+                                          if (formattedDate.isNotEmpty) {
+                                            try {
+                                              final parsed = DateTime.parse(formattedDate).toLocal();
+                                              formattedDate = DateFormat('MMM dd, yyyy').format(parsed);
+                                            } catch (e) {
+                                              // keep raw string on parse error
+                                            }
+                                          }
+                                          
+                                          return Container(
+                                            margin: const EdgeInsets.only(bottom: 8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF0F172A),
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: Colors.white10),
+                                            ),
+                                            child: ListTile(
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                              title: Text(inv['invoice_number'] ?? 'Invoice', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                              subtitle: Text('$formattedDate\n\$${inv['total'] ?? '0.00'}', style: TextStyle(color: muted, fontSize: 13)),
+                                              trailing: ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.white10,
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                ),
+                                                onPressed: () {
+                                                  showInvoiceDetailModal(context, inv);
+                                                },
+                                                child: const Text('View'),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        const SizedBox(height: 16),
+                                      ],
+                                      if (AuthHelpers.hasPermission('CREATE INVOICES') || AuthHelpers.isAdmin)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 20),
+                                          child: ElevatedButton.icon(
+                                            icon: const Icon(Icons.receipt, color: Colors.white),
+                                            label: const Text("Create Invoice", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFF3B82F6),
+                                              minimumSize: const Size(double.infinity, 48),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                            onPressed: () {
+                                              showCreateInvoiceModal(
+                                                context, 
+                                                initialJobId: widget.jobId.toString(),
+                                                initialCustomerId: _jobData!['customer_id']?.toString() ?? (_jobData!['customer'] is Map ? _jobData!['customer']['id']?.toString() : null),
+                                                initialAmount: computedTotal,
+                                                onInvoiceCreated: _loadJobDetail,
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                    ],
                                   );
                                 }),
                               ],
