@@ -68,11 +68,27 @@ class LaravelAuthManager {
     _updateUser(user);
   }
 
-  static Future<void> login(String email, String password) async {
-    final response = await ApiService.instance.login(email, password);
+  static Future<dynamic> login(String email, String password, {int? clId}) async {
+    final response = await ApiService.instance.login(email, password, clId: clId);
+    
+    if (response['requires_selection'] == true) {
+      return response;
+    }
+
     final token = response['data']['access_token'];
     await _storage.write(key: 'auth_token', value: token);
+    
+    if (clId != null) {
+      await _storage.write(key: 'active_cl_id', value: clId.toString());
+    } else {
+      final userClId = response['data']['user']['cl_id'];
+      if (userClId != null) {
+        await _storage.write(key: 'active_cl_id', value: userClId.toString());
+      }
+    }
+    
     _updateUser(response['data']['user']);
+    return response;
   }
 
   static Future<void> signOut() async {
@@ -82,6 +98,7 @@ class LaravelAuthManager {
       // Ignore network errors on logout
     }
     await _storage.delete(key: 'auth_token');
+    await _storage.delete(key: 'active_cl_id');
     _updateUser(null);
   }
 

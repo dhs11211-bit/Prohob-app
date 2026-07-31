@@ -24,6 +24,7 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
   String _userName = 'User';
   String _initials = 'U';
   String? _userRole;
+  String _companyName = '';
 
   final List<String> _hiddenNotifs = [];
 
@@ -51,7 +52,9 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
     setState(() {
       String fName = user['first_name'] ?? user['name'] ?? '';
       String lName = user['last_name'] ?? '';
-      _userName = '$fName $lName'.trim();
+      
+      // Use only last name if available, otherwise fallback to first name
+      _userName = lName.isNotEmpty ? lName : fName;
       if (_userName.isEmpty) _userName = 'User';
 
       _initials = fName.isNotEmpty
@@ -59,6 +62,9 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
           : (_userName.isNotEmpty ? _userName[0].toUpperCase() : 'U');
 
       _userRole = user['role']?['name'] ?? user['role']?['slug'];
+      
+      // Extract company name if available
+      _companyName = user['company']?['name'] ?? 'Unknown Company';
     });
   }
 
@@ -326,61 +332,91 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
           Padding(
             padding: EdgeInsets.only(top: topPadding, left: 20, right: 20, bottom: 12),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // LEFT (Name and Greeting)
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_getGreeting(), style: TextStyle(color: muted, fontSize: 12, fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 2),
-                      Text(
-                        _userName,
-                        style: TextStyle(color: text, fontSize: 22, fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _userName,
+                          style: TextStyle(color: text, fontSize: 22, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(_getGreeting(), style: TextStyle(color: muted, fontSize: 12, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: _openNotificationsModal,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: card,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: Icon(Icons.notifications_none_rounded, color: text, size: 22),
-                      ),
+                
+                // MIDDLE (Company Name Chip)
+                if (_companyName.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: card,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white10),
                     ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: _openProfileModal,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: accentBlue.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: accentBlue, width: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.business_rounded, size: 14, color: muted),
+                        const SizedBox(width: 6),
+                        Text(
+                          _companyName.length > 10 ? '${_companyName.substring(0, 10)}...' : _companyName,
+                          style: TextStyle(color: text, fontSize: 13, fontWeight: FontWeight.w600),
                         ),
-                        child: Center(
-                          child: Text(
-                            _initials,
-                            style: TextStyle(color: accentBlue, fontWeight: FontWeight.bold, fontSize: 16),
+                      ],
+                    ),
+                  ),
+
+                // RIGHT (Icons)
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: _openNotificationsModal,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: card,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Icon(Icons.notifications_none_rounded, color: text, size: 22),
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        GestureDetector(
+                          onTap: _openProfileModal,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: accentBlue.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: accentBlue, width: 2),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _initials,
+                                style: TextStyle(color: accentBlue, fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
