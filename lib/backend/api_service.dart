@@ -34,21 +34,27 @@ class ApiService {
 
   Future<Map<String, String>> _getHeaders() async {
     final token = await _getToken();
+    final clId = await _storage.read(key: 'active_cl_id');
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
+      if (clId != null) 'X-CL-ID': clId,
     };
   }
 
   // --- Auth Endpoints ---
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password, {int? clId}) async {
     final url = Uri.parse('$baseUrl/auth/login');
+    
+    final body = <String, dynamic>{'email': email, 'password': password};
+    if (clId != null) body['cl_id'] = clId;
+
     final response = await http.post(
       url,
       headers: await _getHeaders(),
-      body: jsonEncode({'email': email, 'password': password}),
+      body: jsonEncode(body),
     );
 
     final data = jsonDecode(response.body);

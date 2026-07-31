@@ -50,11 +50,32 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
     });
 
     try {
-      await LaravelAuthManager.login(
+      final result = await LaravelAuthManager.login(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-      await widget.onLoginSuccess();
+      
+      if (result != null && result['requires_selection'] == true) {
+        final List<dynamic> companies = result['companies'];
+        if (mounted) setState(() => _isLoading = false);
+        final selectedClId = await _showCompanySelectionDialog(companies);
+        
+        if (selectedClId != null) {
+          setState(() {
+            _isLoading = true;
+          });
+          await LaravelAuthManager.login(
+            _emailController.text.trim(),
+            _passwordController.text.trim(),
+            clId: selectedClId,
+          );
+          await widget.onLoginSuccess();
+        } else {
+          return;
+        }
+      } else {
+        await widget.onLoginSuccess();
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -62,6 +83,137 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<int?> _showCompanySelectionDialog(List<dynamic> companies) {
+    return showDialog<int>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A), // Slate 900
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.business_rounded, color: Color(0xFF3B82F6), size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Select Company", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text("Choose a workspace to continue", style: TextStyle(color: Colors.white54, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                
+                // List of Companies
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 350),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: companies.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (BuildContext context, int index) {
+                      final company = companies[index];
+                      final String companyName = company['company_name'] ?? 'Unknown Company';
+                      final String initial = companyName.isNotEmpty ? companyName.substring(0, 1).toUpperCase() : 'U';
+                      
+                      return InkWell(
+                        onTap: () {
+                          Navigator.of(context).pop(company['cl_id'] as int);
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.05),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    initial,
+                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  companyName,
+                                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 24),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Cancel Button
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text("Cancel", style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
