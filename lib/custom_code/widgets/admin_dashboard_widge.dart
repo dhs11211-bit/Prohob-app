@@ -30,6 +30,8 @@ import '/shared/toast_service.dart';
 import '../../shared/job_parser.dart';
 
 import '../../shared/image_editor_helper.dart';
+import '../../custom_code/widgets/admin_team_widge.dart';
+import '../../custom_code/widgets/admin_finances_widge.dart';
 
 // =====================================================================
 // 🚀 WIDGET PRINCIPAL: DASHBOARD CON MULTI-FILTROS
@@ -40,11 +42,17 @@ class AdminDashboardWidge extends StatefulWidget {
     this.width,
     this.height,
     required this.onLogout,
+    this.onNavigateToFinances,
+    this.onNavigateToTeam,
+    this.onNavigateToJobs,
   });
 
   final double? width;
   final double? height;
   final Future Function() onLogout;
+  final VoidCallback? onNavigateToFinances;
+  final VoidCallback? onNavigateToTeam;
+  final VoidCallback? onNavigateToJobs;
 
   @override
   State<AdminDashboardWidge> createState() => _AdminDashboardWidgeState();
@@ -64,14 +72,29 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   String? _filterWorkerId;
   String? _filterWorkerName;
   String? _filterCustomerName;
+  String? _filterCustomerId;
   String? _filterStatus;
   bool _showOnlyToday = true; // Por defecto mostramos solo lo de hoy
+  
+  ScrollController _scrollController = ScrollController();
+  DateTime _currentStartDate = DateTime.now();
+  DateTime _currentEndDate = DateTime.now();
+  bool _isFetchingMore = false;
+  bool _hasMoreData = true;
 
   @override
   void initState() {
     super.initState();
     _loadAdminProfile();
-    // _refreshTimer = Timer.periodic(const Duration(seconds: 20), (_) => _refreshData());
+    _fetchJobs();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+        !_isFetchingMore && _hasMoreData && !_showOnlyToday) {
+      _fetchJobs(isLoadMore: true);
+    }
   }
 
   Future<void> _refreshData() async {
@@ -81,6 +104,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -97,21 +121,85 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
     }
 
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final metrics = await ApiService.instance.get('/admin/dashboard');
-      final jobs = await ApiService.instance
-          .get('/admin/jobs?start_date=$dateStr&end_date=$dateStr');
       if (mounted) {
         setState(() {
           _dashboardMetrics = metrics;
-          _allJobs = jobs is List ? jobs : [];
-          _isLoading = false;
         });
       }
     } catch (e) {
       debugPrint("Error fetching metrics/jobs: $e");
+    }
+  }
+
+  Future<void> _fetchJobs({bool isLoadMore = false}) async {
+    if (_isFetchingMore || (!isLoadMore && _isLoading && _allJobs.isNotEmpty)) return;
+    if (!mounted) return;
+
+    setState(() {
+      if (isLoadMore) {
+        _isFetchingMore = true;
+        _currentStartDate = _currentEndDate.add(const Duration(days: 1));
+        _currentEndDate = _currentStartDate.add(const Duration(days: 6));
+      } else {
+        _isLoading = true;
+        _hasMoreData = true;
+        _currentStartDate = DateTime.now();
+        if (_showOnlyToday) {
+          _currentEndDate = DateTime.now();
+        } else {
+          _currentEndDate = DateTime.now().add(const Duration(days: 6));
+        }
+      }
+    });
+
+    try {
+      final startStr = DateFormat('yyyy-MM-dd').format(_currentStartDate);
+      final endStr = DateFormat('yyyy-MM-dd').format(_currentEndDate);
+      String url = '/admin/jobs?start_date=$startStr&end_date=$endStr';
+
+      if (_filterWorkerId != null) url += '&worker_id=$_filterWorkerId';
+      if (_filterCustomerId != null) url += '&customer_id=$_filterCustomerId';
+      if (_filterStatus == 'cancelled') {
+        url += '&record_status=5';
+      } else {
+        url += '&record_status=1';
+        if (_filterStatus != null && _filterStatus != 'all' && _filterStatus != 'active') {
+          String backendJobStatus = _filterStatus!.replaceAll(' ', '_');
+          if (backendJobStatus == 'in_route') backendJobStatus = 'en_route';
+          url += '&job_status=$backendJobStatus';
+        }
+      }
+
+      final jobsResponse = await ApiService.instance.get(url);
+      
+      List fetchedJobs = [];
+      if (jobsResponse is Map && jobsResponse.containsKey('data')) {
+        fetchedJobs = jobsResponse['data'] as List;
+      } else if (jobsResponse is List) {
+        fetchedJobs = jobsResponse;
+      }
+
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          if (isLoadMore) {
+            _allJobs.addAll(fetchedJobs);
+            if (fetchedJobs.isEmpty) _hasMoreData = false;
+            _isFetchingMore = false;
+          } else {
+            _allJobs = fetchedJobs;
+            if (fetchedJobs.isEmpty) _hasMoreData = false;
+            _isLoading = false;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching jobs: $e");
+      if (mounted) {
+        setState(() {
+          if (isLoadMore) _isFetchingMore = false;
+          else _isLoading = false;
+        });
       }
     }
   }
@@ -226,6 +314,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
+        useSafeArea: true,
         builder: (ctx) => StatefulBuilder(
             builder: (context, setModalState) => Padding(
                 padding: EdgeInsets.only(
@@ -347,6 +436,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
       backgroundColor: const Color(0xFF0D1B2A),
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      useSafeArea: true,
       builder: (context) => SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -530,6 +620,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
+        useSafeArea: true,
         builder: (ctx) => StatefulBuilder(
             builder: (context, setModalState) => Padding(
                 padding: EdgeInsets.only(
@@ -717,6 +808,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      useSafeArea: true,
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -967,19 +1059,27 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   // 🚀 MENÚS DE LOS MULTI-FILTROS
   // =====================================================================
   void _showWorkerFilterModal() async {
-    var workers = await ApiService.instance.get('/admin/workers');
+    var apiResponse = await ApiService.instance.get('/admin/workers');
     if (!mounted) return;
+    
+    var workers = (apiResponse is Map && apiResponse.containsKey('data')) 
+        ? apiResponse['data'] 
+        : apiResponse;
+        
     showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         backgroundColor: const Color(0xFF1E293B),
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (context) => SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+        useSafeArea: true,
+        builder: (context) => Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
                     Container(
                         width: 40,
                         height: 4,
@@ -998,48 +1098,81 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                           style: TextStyle(color: Colors.white38))
                     else
                       Expanded(
-                          child: ListView.builder(
-                              itemCount: (workers as List).length,
-                              itemBuilder: (ctx, i) {
+                        child: ListView.builder(
+                          itemCount: (workers as List).length,
+                          itemBuilder: (ctx, i) {
                                 var wData = workers[i];
-                                return Material(
-                                  color: Colors.transparent,
-                                  child: ListTile(
-                                      title: Text(
-                                          wData['display_name'] ?? 'Worker',
-                                          style: const TextStyle(
-                                              color: Colors.white)),
-                                      onTap: () {
-                                        setState(() {
-                                          _filterWorkerId =
-                                              workers[i]['id'].toString();
-                                          _filterWorkerName =
-                                              wData['display_name'] ?? 'Worker';
-                                        });
-                                        Navigator.pop(context);
-                                      }),
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _filterWorkerId = workers[i]['id'].toString();
+                                      _filterWorkerName = wData['display_name'] ?? 'Worker';
+                                    });
+                                    _fetchJobs();
+                                    Navigator.pop(context);
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF334155).withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.white12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF3B82F6).withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Icon(Icons.person, color: Color(0xFF3B82F6), size: 20),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Text(
+                                            wData['display_name'] ?? 'Worker',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500),
+                                          ),
+                                        ),
+                                        const Icon(Icons.chevron_right, color: Colors.white38),
+                                      ],
+                                    ),
+                                  ),
                                 );
-                              }))
+                              }),
+                      )
                   ],
                 ),
               ),
-            ));
+            )));
   }
 
   void _showCustomerFilterModal() async {
-    var clients = await ApiService.instance.get('/admin/customers');
+    var apiResponse = await ApiService.instance.get('/admin/customers');
     if (!mounted) return;
+    
+    var clients = (apiResponse is Map && apiResponse.containsKey('data')) 
+        ? apiResponse['data'] 
+        : apiResponse;
     showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         backgroundColor: const Color(0xFF1E293B),
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (context) => SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+        useSafeArea: true,
+        builder: (context) => Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
                     Container(
                         width: 40,
                         height: 4,
@@ -1058,88 +1191,150 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                           style: TextStyle(color: Colors.white38))
                     else
                       Expanded(
-                          child: ListView.builder(
-                              itemCount: (clients as List).length,
-                              itemBuilder: (ctx, i) {
+                        child: ListView.builder(
+                          itemCount: (clients as List).length,
+                          itemBuilder: (ctx, i) {
                                 var cData = clients[i];
-                                return Material(
-                                  color: Colors.transparent,
-                                  child: ListTile(
-                                      title: Text(() {
-                                        final n =
-                                            '${cData['first_name'] ?? ''} ${cData['last_name'] ?? ''}'
-                                                .trim();
-                                        return n.isEmpty ? 'Customer' : n;
-                                      }(),
-                                          style: const TextStyle(
-                                              color: Colors.white)),
-                                      onTap: () {
-                                        setState(() {
-                                          _filterCustomerName =
-                                              '${cData['first_name'] ?? ''} ${cData['last_name'] ?? ''}'
-                                                  .trim();
-                                        });
-                                        Navigator.pop(context);
-                                      }),
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _filterCustomerId = cData['id'].toString();
+                                      _filterCustomerName =
+                                          '${cData['first_name'] ?? ''} ${cData['last_name'] ?? ''}'
+                                              .trim();
+                                    });
+                                    _fetchJobs();
+                                    Navigator.pop(context);
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF334155).withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.white12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF10B981).withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Icon(Icons.business, color: Color(0xFF10B981), size: 20),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Text(
+                                            () {
+                                              final n = '${cData['first_name'] ?? ''} ${cData['last_name'] ?? ''}'.trim();
+                                              return n.isEmpty ? 'Customer' : n;
+                                            }(),
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500),
+                                          ),
+                                        ),
+                                        const Icon(Icons.chevron_right, color: Colors.white38),
+                                      ],
+                                    ),
+                                  ),
                                 );
-                              }))
+                              }),
+                      )
                   ],
                 ),
               ),
-            ));
+            )));
   }
 
   void _showStatusFilterModal() {
     List<String> statuses = [
-      'Assigned',
-      'Active',
-      'Pending',
+      'Draft',
+      'Scheduled',
+      'In Route',
+      'In Progress',
       'Completed',
       'Cancelled'
     ];
     showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         backgroundColor: const Color(0xFF1E293B),
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (context) => SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(2))),
-                    const SizedBox(height: 24),
-                    const Text("Select Status",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: statuses.length,
-                        itemBuilder: (ctx, i) {
-                          return Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                                title: Text(statuses[i],
-                                    style:
-                                        const TextStyle(color: Colors.white)),
+        useSafeArea: true,
+        builder: (context) => Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(height: 24),
+                      const Text("Select Status",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: ListView.builder(
+                            itemCount: statuses.length,
+                            itemBuilder: (ctx, i) {
+                              return GestureDetector(
                                 onTap: () {
                                   setState(() {
                                     _filterStatus = statuses[i].toLowerCase();
                                   });
+                                  _fetchJobs();
                                   Navigator.pop(context);
-                                }),
-                          );
-                        })
-                  ],
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF334155).withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.analytics_outlined, color: Color(0xFF8B5CF6), size: 20),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Text(
+                                          statuses[i],
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                      const Icon(Icons.chevron_right, color: Colors.white38),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                      )
+                    ],
+                  ),
                 ),
               ),
             ));
@@ -1183,48 +1378,54 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
       required String value,
       required IconData icon,
       required Color accentColor,
-      required String subtitle}) {
-    return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8)),
-                    child: Icon(icon, color: accentColor, size: 20)),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(subtitle,
-                      style: TextStyle(
-                          color: accentColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                )
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(value,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(title,
-                style: const TextStyle(color: Colors.white60, fontSize: 13))
-          ],
-        ));
+      required String subtitle,
+      VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: onTap != null ? accentColor.withOpacity(0.3) : Colors.white10)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                          color: accentColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Icon(icon, color: accentColor, size: 20)),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(subtitle,
+                        style: TextStyle(
+                            color: accentColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  if (onTap != null)
+                    Icon(Icons.chevron_right, color: accentColor.withOpacity(0.6), size: 16),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(value,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(title,
+                  style: const TextStyle(color: Colors.white60, fontSize: 13))
+            ],
+          )),
+    );
   }
 
   Widget _buildSplitKPICard({
@@ -1234,13 +1435,15 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
     required String value2,
     required IconData icon,
     required Color accentColor,
+    VoidCallback? onTap1,
+    VoidCallback? onTap2,
   }) {
     return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
             color: const Color(0xFF1E293B),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10)),
+            border: Border.all(color: accentColor.withOpacity(0.3))),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1254,18 +1457,30 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
             Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(value1,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 2),
-                      Text(title1,
-                          style: const TextStyle(color: Colors.white60, fontSize: 11)),
-                    ],
+                  child: GestureDetector(
+                    onTap: onTap1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(value1,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(title1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                            ),
+                            if (onTap1 != null) ...
+                              [const SizedBox(width: 2), const Icon(Icons.chevron_right, color: Colors.white30, size: 12)],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Container(
@@ -1275,18 +1490,30 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                 ),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(value2,
-                          style: TextStyle(
-                              color: accentColor,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 2),
-                      Text(title2,
-                          style: const TextStyle(color: Colors.white60, fontSize: 11)),
-                    ],
+                  child: GestureDetector(
+                    onTap: onTap2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(value2,
+                            style: TextStyle(
+                                color: accentColor,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(title2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                            ),
+                            if (onTap2 != null) ...
+                              [const SizedBox(width: 2), Icon(Icons.chevron_right, color: accentColor.withOpacity(0.5), size: 12)],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1322,7 +1549,12 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                 "\$${(_dashboardMetrics?['monthly_revenue'] ?? 0).toStringAsFixed(2)}",
                             icon: Icons.attach_money,
                             accentColor: const Color(0xFF10B981),
-                            subtitle: "This Month")),
+                            subtitle: "This Month",
+                            onTap: () {
+                              if (widget.onNavigateToFinances != null) {
+                                widget.onNavigateToFinances!();
+                              }
+                            })),
                     const SizedBox(width: 16),
                     Expanded(
                         child: _buildSplitKPICard(
@@ -1331,7 +1563,17 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                             title2: "Live",
                             value2: "${_dashboardMetrics?['live_jobs'] ?? 0}",
                             icon: Icons.work_outline,
-                            accentColor: const Color(0xFF3B82F6))),
+                            accentColor: const Color(0xFF3B82F6),
+                            onTap1: () {
+                              if (widget.onNavigateToJobs != null) {
+                                widget.onNavigateToJobs!();
+                              }
+                            },
+                            onTap2: () {
+                              if (widget.onNavigateToJobs != null) {
+                                widget.onNavigateToJobs!();
+                              }
+                            })),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -1344,7 +1586,12 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                 "${_dashboardMetrics?['total_workers'] ?? 0}",
                             icon: Icons.people_outline,
                             accentColor: const Color(0xFFF59E0B),
-                            subtitle: "Registered")),
+                            subtitle: "Registered",
+                            onTap: () {
+                              if (widget.onNavigateToTeam != null) {
+                                widget.onNavigateToTeam!();
+                              }
+                            })),
                     const SizedBox(width: 16),
                     Expanded(
                         child: _buildClickableKPICard(
@@ -1353,7 +1600,12 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                 "${_dashboardMetrics?['pending_estimates'] ?? 0}",
                             icon: Icons.description_outlined,
                             accentColor: const Color(0xFF8B5CF6),
-                            subtitle: "Action req.")),
+                            subtitle: "Action req.",
+                            onTap: () {
+                              if (widget.onNavigateToFinances != null) {
+                                widget.onNavigateToFinances!();
+                              }
+                            })),
                   ],
                 ),
                 const SizedBox(height: 40),
@@ -1373,32 +1625,39 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                       _buildFilterPill(
                           _showOnlyToday ? "📅 Today" : "📅 All Dates",
                           _showOnlyToday,
-                          () => setState(() => _showOnlyToday = true),
-                          () => setState(() => _showOnlyToday = false)),
+                          () { setState(() => _showOnlyToday = true); _fetchJobs(); },
+                          () { setState(() => _showOnlyToday = false); _fetchJobs(); }),
                       _buildFilterPill(
                           _filterWorkerId != null
                               ? "👷 ${_filterWorkerName!}"
                               : "👷 By Worker",
                           _filterWorkerId != null,
                           _showWorkerFilterModal,
-                          () => setState(() {
+                          () { setState(() {
                                 _filterWorkerId = null;
                                 _filterWorkerName = null;
-                              })),
+                              }); 
+                              _fetchJobs();
+                          }),
                       _buildFilterPill(
                           _filterCustomerName != null
                               ? "🏢 $_filterCustomerName"
                               : "🏢 By Customer",
                           _filterCustomerName != null,
                           _showCustomerFilterModal,
-                          () => setState(() => _filterCustomerName = null)),
+                          () { setState(() {
+                                _filterCustomerName = null;
+                                _filterCustomerId = null;
+                               });
+                               _fetchJobs();
+                          }),
                       _buildFilterPill(
                           _filterStatus != null
                               ? "📊 ${_filterStatus![0].toUpperCase()}${_filterStatus!.substring(1)}"
                               : "📊 By Status",
                           _filterStatus != null,
                           _showStatusFilterModal,
-                          () => setState(() => _filterStatus = null)),
+                          () { setState(() => _filterStatus = null); _fetchJobs(); }),
                     ],
                   ),
                 ),
@@ -1421,35 +1680,8 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                       'pending')
                                   .length;
 
-                              // 🚀 MOTOR DE FILTRADO EXACTO
-                              List<dynamic> filteredDocs = docs.where((doc) {
-                                var data = doc as Map<String, dynamic>;
-                                String status = (data['status'] ?? 'assigned')
-                                    .toString()
-                                    .toLowerCase();
-
-                                if (_filterStatus != null &&
-                                    status != _filterStatus) return false;
-                                if (_filterCustomerName != null &&
-                                    data['customer_name'] !=
-                                        _filterCustomerName) return false;
-                                if (_filterWorkerId != null) {
-                                  List users = data['assigned_users'] ?? [];
-                                  bool hasWorker = users.any((u) =>
-                                      u['id'].toString() == _filterWorkerId);
-                                  if (!hasWorker) return false;
-                                }
-                                if (_showOnlyToday) {
-                                  List<DateTime> dates =
-                                      _generateOccurrences(data);
-                                  bool happensToday = dates.any(
-                                      (d) => isSameDayValid(d, DateTime.now()));
-                                  // Si está PENDING, SIEMPRE lo mostramos porque urge aprobarlo, aunque sea de ayer
-                                  if (status != 'pending' && !happensToday)
-                                    return false;
-                                }
-                                return true;
-                              }).toList();
+                              // 🚀 MOTOR DE FILTRADO EXACTO (AHORA EN EL BACKEND)
+                              List<dynamic> filteredDocs = List.from(docs);
 
                               // 🚀 ORDENAMIENTO (PENDING HASTA ARRIBA SIEMPRE)
                               filteredDocs.sort((a, b) {
@@ -1473,10 +1705,13 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                   if (pendingCount > 0 &&
                                       _filterStatus != 'pending') ...[
                                     GestureDetector(
-                                        onTap: () => setState(() {
+                                        onTap: () {
+                                          setState(() {
                                               _filterStatus = 'pending';
                                               _showOnlyToday = false;
-                                            }),
+                                          });
+                                          _fetchJobs();
+                                        },
                                         child: Container(
                                             width: double.infinity,
                                             margin: const EdgeInsets.only(
@@ -1610,7 +1845,12 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                               ],
                                             )),
                                       );
-                                    }).toList()
+                                    }).toList(),
+                                  if (_isFetchingMore)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 20),
+                                      child: Center(child: CircularProgressIndicator()),
+                                    )
                                 ],
                               );
                             },

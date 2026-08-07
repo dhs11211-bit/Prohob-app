@@ -6,6 +6,13 @@ import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import 'package:http_parser/http_parser.dart';
 
+class ValidationException implements Exception {
+  final Map<String, dynamic> errors;
+  ValidationException(this.errors);
+  @override
+  String toString() => 'Validation Failed';
+}
+
 class ApiService {
   static String get baseUrl {
     if (!kReleaseMode) {
@@ -477,6 +484,9 @@ class ApiService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 422 && data['errors'] != null) {
+      throw ValidationException(data['errors']);
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -494,6 +504,9 @@ class ApiService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 422 && data['errors'] != null) {
+      throw ValidationException(data['errors']);
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
@@ -566,16 +579,22 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> sendMessage(int conversationId, String content,
-      {String channel = 'in_app'}) async {
+      {String channel = 'in_app', List<Map<String, dynamic>>? attachments}) async {
     String url = baseUrl.replaceAll('/mob', '') +
         '/conversations/$conversationId/messages';
+    
+    Map<String, dynamic> payload = {
+      'content': content,
+      'channel': channel,
+    };
+    if (attachments != null) {
+      payload['attachments'] = attachments;
+    }
+
     final response = await http.post(
       Uri.parse(url),
       headers: await _getHeaders(),
-      body: jsonEncode({
-        'content': content,
-        'channel': channel,
-      }),
+      body: jsonEncode(payload),
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
@@ -617,13 +636,16 @@ class ApiService {
       headers: await _getHeaders(),
       body: jsonEncode(profileData),
     );
-    final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
-    } else {
-      throw Exception(data['message'] ?? 'Failed to update profile');
-    }
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+      if (response.statusCode == 422 && data['errors'] != null) {
+        throw ValidationException(data['errors']);
+      }
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return data;
+      } else {
+        throw Exception(data['message'] ?? 'Failed to update profile');
+      }
   }
 
   Future<Map<String, dynamic>> uploadDocument(
@@ -723,7 +745,16 @@ class ApiService {
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
-    final data = jsonDecode(response.body);
+    
+    dynamic data;
+    try {
+      data = jsonDecode(response.body);
+    } catch (e) {
+      if (response.body.trim().startsWith('<')) {
+        throw Exception("Server Error (${response.statusCode}): The uploaded files may exceed the server's maximum allowed size limit.");
+      }
+      throw Exception("Invalid response from server: ${response.body}");
+    }
 
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {

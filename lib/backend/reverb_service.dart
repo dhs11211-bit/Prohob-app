@@ -9,6 +9,8 @@ import '../app_state.dart';
 import 'package:flutter/material.dart';
 import '../auth/base_auth_user_provider.dart';
 import '../shared/toast_service.dart';
+import '../components/global_chat_modal.dart';
+import '../flutter_flow/nav/nav.dart';
 
 class ReverbService {
   static final ReverbService instance = ReverbService._internal();
@@ -113,6 +115,28 @@ class ReverbService {
                 messenger,
                 "New Message: ${data['last_message']}",
                 type: ToastType.info,
+                onTap: () {
+                  try {
+                    final validContext = appNavigatorKey.currentContext ?? messenger.context;
+                    
+                    final cId = data['id']?.toString() ?? data['conversation_id']?.toString() ?? '';
+                    if (cId.isEmpty || cId == 'null') {
+                      debugPrint('Error: Invalid chat ID in payload: $data');
+                      return;
+                    }
+                    
+                    GlobalChatModal.show(
+                      validContext,
+                      chatId: cId,
+                      title: data['name'] ?? 'Chat',
+                      subtitle: data['type'] == 'customer' ? 'Customer' : (data['type'] == 'group' ? 'Group Chat' : 'Staff Chat'),
+                      isGroup: data['type'] == 'group',
+                      currentUserId: int.tryParse(currentUserId ?? '') ?? 0,
+                    );
+                  } catch (e) {
+                    debugPrint('Error opening chat modal from toaster: $e');
+                  }
+                },
               );
             }
           }

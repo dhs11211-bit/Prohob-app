@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../custom_code/widgets/index.dart' as custom_widgets;
 
 class AdminMoreTab extends StatefulWidget {
-  const AdminMoreTab({Key? key}) : super(key: key);
+  final String? initialSection;
+  const AdminMoreTab({Key? key, this.initialSection}) : super(key: key);
 
   @override
   State<AdminMoreTab> createState() => _AdminMoreTabState();
@@ -10,6 +11,22 @@ class AdminMoreTab extends StatefulWidget {
 
 class _AdminMoreTabState extends State<AdminMoreTab> {
   String? _activeSection; // null = grid menu, 'team', 'customers', 'map'
+
+  @override
+  void initState() {
+    super.initState();
+    _activeSection = widget.initialSection;
+  }
+
+  @override
+  void didUpdateWidget(AdminMoreTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSection != oldWidget.initialSection) {
+      setState(() {
+        _activeSection = widget.initialSection;
+      });
+    }
+  }
 
   final Color bg = const Color(0xFF0F172A);
   final Color card = const Color(0xFF1E293B);
@@ -175,14 +192,14 @@ class _AdminMoreTabState extends State<AdminMoreTab> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 28),
+              child: Icon(icon, color: color, size: 24),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

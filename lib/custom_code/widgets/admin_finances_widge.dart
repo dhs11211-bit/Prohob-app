@@ -69,10 +69,34 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      String url = 'admin/finance/dashboard?period=$_timeFilter';
-      if (_timeFilter == 'Custom Date Range' && _customDateRange != null) {
-        url += '&start_date=${_customDateRange!.start.toIso8601String()}&end_date=${_customDateRange!.end.toIso8601String()}';
+      DateTime now = DateTime.now();
+      DateTime startDate;
+      DateTime endDate;
+
+      if (_timeFilter == 'Today') {
+        startDate = DateTime(now.year, now.month, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      } else if (_timeFilter == 'This Week') {
+        int daysToSubtract = now.weekday - DateTime.monday;
+        startDate = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysToSubtract));
+        endDate = startDate.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+      } else if (_timeFilter == 'This Month') {
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      } else if (_timeFilter == 'This Year') {
+        startDate = DateTime(now.year, 1, 1);
+        endDate = DateTime(now.year, 12, 31, 23, 59, 59);
+      } else if (_timeFilter == 'Custom Date Range' && _customDateRange != null) {
+        startDate = _customDateRange!.start;
+        endDate = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
+      } else {
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
       }
+
+      final df = DateFormat('yyyy-MM-dd');
+      String url = 'admin/finance/dashboard?start_date=${df.format(startDate)}&end_date=${df.format(endDate)}';
+
       final summary = await _api.get(url);
       final data = summary['data'] ?? summary;
 
@@ -130,6 +154,7 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -212,13 +237,14 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Container(
           decoration: const BoxDecoration(
             color: Color(0xFF0D1B2A),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          height: MediaQuery.of(context).size.height * 0.7,
+          height: MediaQuery.of(context).size.height * 0.85,
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -262,33 +288,9 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                             itemCount: docs.length,
                             itemBuilder: (context, index) {
                               var data = docs[index];
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(
-                                    isPaid
-                                        ? Icons.check_circle
-                                        : Icons.schedule,
-                                    color: isPaid
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFFF59E0B)),
-                                title: Text(
-                                    data['customer'] != null
-                                        ? '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim().isEmpty ? 'Unknown' : '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim()
-                                        : 'Unknown',
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold)),
-                                subtitle: Text(data['notes'] ?? '',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        color: Colors.white60, fontSize: 12)),
-                                trailing: Text(
-                                    currencyFormat.format(
-                                        (data['amount'] ?? 0).toDouble()),
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold)),
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: _buildInvoiceCard(data),
                               );
                             }),
                   ),
@@ -307,13 +309,14 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Container(
           decoration: const BoxDecoration(
             color: Color(0xFF0D1B2A),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          height: MediaQuery.of(context).size.height * 0.7,
+          height: MediaQuery.of(context).size.height * 0.85,
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -364,25 +367,9 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                               } else if (data['processor'] != null) {
                                 workerName = '${data['processor']['first_name'] ?? ''} ${data['processor']['last_name'] ?? ''}'.trim().isEmpty ? 'Payroll Run' : '${data['processor']['first_name'] ?? ''} ${data['processor']['last_name'] ?? ''}'.trim();
                               }
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.outbound,
-                                    color: Color(0xFF8B5CF6)),
-                                title: Text(workerName,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold)),
-                                subtitle: Text(data['notes'] ?? 'Payroll run',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        color: Colors.white60, fontSize: 12)),
-                                trailing: Text(
-                                    currencyFormat.format(
-                                        (data['total_amount'] ?? 0).toDouble()),
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold)),
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: _buildPayoutCard(data, workerName),
                               );
                             }),
                   ),
@@ -410,6 +397,7 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return StatefulBuilder(builder: (context, setModalState) {
           return Container(
@@ -768,6 +756,100 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
     ));
   }
 
+  Widget _buildPayoutCard(Map<String, dynamic> data, String workerName) {
+    final dateStr = data['created_at'] != null 
+        ? DateFormat('MMM d, yyyy').format(DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now())
+        : 'N/A';
+    final amount = currencyFormat.format(double.tryParse(data['total_amount']?.toString() ?? '0') ?? 0.0);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.outbound, size: 20, color: Color(0xFF8B5CF6))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      workerName,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      data['notes'] ?? 'Payroll run',
+                      style: const TextStyle(color: Colors.white60, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  ]
+                )
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text("Total", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                  const SizedBox(height: 2),
+                  Text(amount,
+                      style: const TextStyle(
+                          color: Color(0xFF8B5CF6),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  dateStr,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500)
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text("SENT",
+                    style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1)),
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     double netProfit = _totalRevenue - _totalPayouts;
@@ -1021,8 +1103,14 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                           child: Row(
                             children: [
                               Expanded(
-                                  child: Container(
-                                      padding: const EdgeInsets.all(20),
+                                  child: GestureDetector(
+                                onTap: () => _showMetricDetailsModal(
+                                    "Net Profit",
+                                    netProfit,
+                                    _paidInvoices,
+                                    true),
+                                child: Container(
+                                    padding: const EdgeInsets.all(20),
                                       decoration: BoxDecoration(
                                           color:
                                               netProfitColor.withOpacity(0.1),
@@ -1071,11 +1159,11 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                                     fontWeight:
                                                         FontWeight.bold)),
                                             const SizedBox(height: 4),
-                                            const Text("Net Profit",
-                                                style: TextStyle(
-                                                    color: Colors.white60,
-                                                    fontSize: 13))
-                                          ]))),
+                                              const Text("Net Profit",
+                                                  style: TextStyle(
+                                                      color: Colors.white60,
+                                                      fontSize: 13))
+                                            ])))),
                               const SizedBox(width: 16),
                               Expanded(
                                   child: GestureDetector(

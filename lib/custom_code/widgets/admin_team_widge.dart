@@ -8,6 +8,7 @@ import '/backend/api_service.dart';
 import '/backend/reverb_service.dart';
 import '/components/global_chat_modal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // Begin custom widget code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
@@ -344,6 +345,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
+        useSafeArea: true,
         builder: (context) =>
             StatefulBuilder(builder: (context, setModalState) {
 
@@ -352,9 +354,9 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                   var res = await ApiService.instance.get('/chat/$chatId/messages');
                   if (res != null && res['data'] != null) {
                     if (res['data'] is Map && res['data']['data'] != null) {
-                      _messages = res['data']['data'];
+                      _messages = List<dynamic>.from(res['data']['data']);
                     } else {
-                      _messages = res['data'];
+                      _messages = List<dynamic>.from(res['data'] ?? []);
                     }
                     _messages.sort((a, b) {
                       DateTime timeA = DateTime.parse(a['created_at']).toLocal();
@@ -378,14 +380,14 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                 _fetchMessages();
                 ReverbService.instance.subscribeToChat(chatId);
                 ReverbService.instance.onMessageReceived = (data) {
-                  if (data != null && data['message'] != null) {
-                    var msg = data['message'];
-                    if (msg['conversation_id'] == chatId) {
+                  if (data != null) {
+                    // Message payload is passed directly now because backend uses broadcastWith
+                    if (data['conversation_id']?.toString() == chatId.toString()) {
                       setModalState(() {
                         // Avoid duplicates if we sent it
-                        bool exists = _messages.any((m) => m['id'] == msg['id']);
+                        bool exists = _messages.any((m) => m['id'] == data['id']);
                         if (!exists) {
-                          _messages.insert(0, msg);
+                          _messages.insert(0, data);
                         }
                       });
                     }
@@ -510,6 +512,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                 showModalBottomSheet(
                   context: context,
                   backgroundColor: Colors.transparent,
+                  useSafeArea: true,
                   builder: (ctx) => Container(
                     padding: const EdgeInsets.only(top: 30, bottom: 50),
                     decoration: const BoxDecoration(
@@ -1071,6 +1074,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
+        useSafeArea: true,
         builder: (context) => Container(
             height: MediaQuery.of(context).size.height * 0.75,
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -1291,6 +1295,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
+        useSafeArea: true,
         builder: (context) => Container(
             padding: const EdgeInsets.all(24),
             decoration: const BoxDecoration(
@@ -1376,6 +1381,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
+        useSafeArea: true,
         builder: (context) => Container(
             height: MediaQuery.of(context).size.height * 0.65,
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -1506,6 +1512,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
+        useSafeArea: true,
         builder: (ctx) => StatefulBuilder(builder: (context, setModalState) {
               return Padding(
                   padding: EdgeInsets.only(
@@ -1558,7 +1565,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                             _buildTextField(
                                 controller: firstNameCtrl,
                                 label: "First Name",
-                                icon: Icons.person),
+                                icon: Icons.person,
+                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
                             const SizedBox(height: 20),
                             const Text("Last Name",
                                 style: TextStyle(
@@ -1567,7 +1575,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                             _buildTextField(
                                 controller: lastNameCtrl,
                                 label: "Last Name",
-                                icon: Icons.person_outline),
+                                icon: Icons.person_outline,
+                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
                             const SizedBox(height: 32),
                             SizedBox(
                                 width: double.infinity,
@@ -1618,6 +1627,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -1828,6 +1838,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -2017,12 +2028,14 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                           controller: _firstNameController,
                                           label: "First Name",
                                           icon: Icons.person_outline,
+                                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                                         ),
                                         const SizedBox(height: 16),
                                         _buildTextField(
                                           controller: _lastNameController,
                                           label: "Last Name",
                                           icon: Icons.person_outline,
+                                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                                         ),
                                         const SizedBox(height: 16),
                                         _buildTextField(
@@ -2442,6 +2455,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (BuildContext context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -2580,6 +2594,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 controller: firstNameCtrl,
                                 label: "First Name",
                                 icon: Icons.person_outline,
+                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                               ),
                               const SizedBox(height: 16),
                               const Text("Last Name",
@@ -2592,6 +2607,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 controller: lastNameCtrl,
                                 label: "Last Name",
                                 icon: Icons.person_outline,
+                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                               ),
                               const SizedBox(height: 16),
                               const Text("Role",
@@ -2665,6 +2681,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 controller: phoneCtrl,
                                 label: "Phone Number",
                                 icon: Icons.phone_outlined,
+                                keyboardType: TextInputType.phone,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                               ),
                               const SizedBox(height: 16),
                               const Text("Street Address",
@@ -2913,6 +2931,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Container(
           decoration: const BoxDecoration(
@@ -3319,20 +3338,25 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       required IconData icon,
       TextInputType? keyboardType,
       bool obscure = false,
-      Widget? suffixIcon}) {
+      Widget? suffixIcon,
+      String? errorText,
+      List<TextInputFormatter>? inputFormatters}) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: errorText != null ? Colors.red : Colors.transparent),
       ),
       child: TextField(
         controller: controller,
         obscureText: obscure,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: label,
           hintStyle: const TextStyle(color: Colors.white38),
+          errorText: errorText,
           prefixIcon: Icon(icon, color: const Color(0xFF3B82F6)),
           suffixIcon: suffixIcon,
           border: InputBorder.none,

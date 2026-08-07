@@ -140,14 +140,21 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
         _isLoadingCatalog ? "Loading items..." : "Select item...",
         style: const TextStyle(color: Colors.white54, fontSize: 13)
       ),
-      items: _catalogItems.map((item) {
-        return DropdownMenuItem<String>(
-          value: item['id'].toString(),
-          child: Text("${item['name']} - \$${item['price']}", style: const TextStyle(color: Colors.white, fontSize: 13)),
-        );
-      }).toList(),
+      items: _catalogItems.isEmpty
+          ? [
+              const DropdownMenuItem<String>(
+                value: 'no_items',
+                child: Text("No items available", style: TextStyle(color: Colors.white54, fontSize: 13)),
+              )
+            ]
+          : _catalogItems.map((item) {
+              return DropdownMenuItem<String>(
+                value: item['id'].toString(),
+                child: Text("${item['name']} - \$${item['price']}", style: const TextStyle(color: Colors.white, fontSize: 13)),
+              );
+            }).toList(),
       onChanged: (val) {
-        if (val == null) return;
+        if (val == null || val == 'no_items') return;
         final selected = _catalogItems.firstWhere((i) => i['id'].toString() == val);
         _addCatalogItem(selected);
       },
@@ -253,11 +260,33 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
                       children: [
                         Text(desc, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13)),
                         const SizedBox(height: 2),
-                        Text('$qty x \$${price.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                        Text('Qty: $qty', style: const TextStyle(color: Colors.white54, fontSize: 11)),
                       ],
                     ),
                   ),
-                  Text('\$${(price * qty).toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  SizedBox(
+                    width: 80,
+                    child: TextFormField(
+                      initialValue: price.toStringAsFixed(2),
+                      readOnly: widget.isReadOnly,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      textAlign: TextAlign.right,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        filled: true,
+                        fillColor: const Color(0xFF0F172A), // Darker background to look like an input
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none),
+                        prefixText: '\$',
+                        prefixStyle: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      onChanged: (val) {
+                        item['unit_price'] = double.tryParse(val) ?? 0.0;
+                        _notifyParent();
+                      },
+                    ),
+                  ),
                   if (!widget.isReadOnly) ...[
                     const SizedBox(width: 12),
                     GestureDetector(

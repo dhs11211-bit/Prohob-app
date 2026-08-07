@@ -121,14 +121,29 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         brightness: Brightness.light,
         useMaterial3: false,
+        bottomSheetTheme: const BottomSheetThemeData(
+          // Globally enforce that ALL bottom sheet modals respect
+          // the system bottom safe area (gesture bar / nav bar).
+          showDragHandle: false,
+          clipBehavior: Clip.none,
+        ),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         useMaterial3: false,
+        bottomSheetTheme: const BottomSheetThemeData(
+          showDragHandle: false,
+          clipBehavior: Clip.none,
+        ),
       ),
       themeMode: _themeMode,
       routerConfig: _router,
       builder: (context, child) {
+        // Ensure the entire app respects the system UI safe areas
+        // (status bar, notch, bottom navigation / gesture bar).
+        // This is the global configuration-level fix — no screen should
+        // ever be hidden under the top/bottom system navigation.
+        final mediaQuery = MediaQuery.of(context);
         return Theme(
           data: Theme.of(context).copyWith(
             snackBarTheme: SnackBarThemeData(
@@ -139,17 +154,21 @@ class _MyAppState extends State<MyApp> {
               ),
             ),
           ),
-          child: Overlay(
-            initialEntries: [
-              OverlayEntry(
-                builder: (context) {
-                  return ScaffoldMessenger(
-                    key: globalMessengerKey,
-                    child: child!,
-                  );
-                },
-              ),
-            ],
+          child: MediaQuery(
+            data: mediaQuery,
+            child: Overlay(
+              key: globalOverlayKey,
+              initialEntries: [
+                OverlayEntry(
+                  builder: (context) {
+                    return ScaffoldMessenger(
+                      key: globalMessengerKey,
+                      child: child!,
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -178,6 +197,7 @@ class NavBarPage extends StatefulWidget {
 
 class _NavBarPageState extends State<NavBarPage> {
   int _currentIndex = 0;
+  String? _adminMoreTabInitialSection;
   Widget? _currentPage;
 
   @override
@@ -319,6 +339,7 @@ class _NavBarPageState extends State<NavBarPage> {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
+          useSafeArea: true,
           builder: (context) => const custom_widgets.CustomEvidenceModal(),
         );
       }
@@ -331,7 +352,21 @@ class _NavBarPageState extends State<NavBarPage> {
     final bool isAdmin = shared.AuthHelpers.isAdmin;
     switch (_currentIndex) {
       case 0:
-        return const shared.SharedHomeTab();
+        return shared.SharedHomeTab(
+          onNavigateToFinances: () => safeSetState(() {
+            _currentPage = null;
+            _currentIndex = 3;
+          }),
+          onNavigateToTeam: () => safeSetState(() {
+            _currentPage = null;
+            _adminMoreTabInitialSection = 'team';
+            _currentIndex = 4;
+          }),
+          onNavigateToJobs: () => safeSetState(() {
+            _currentPage = null;
+            _currentIndex = 1;
+          }),
+        );
       case 1:
         return shared.SharedJobListPage(showWorkerFilter: isAdmin);
       case 2:
@@ -339,7 +374,7 @@ class _NavBarPageState extends State<NavBarPage> {
       case 3:
         return const shared.SharedWalletTab();
       case 4:
-        return isAdmin ? const shared.AdminMoreTab() : const shared.SharedHomeTab();
+        return isAdmin ? shared.AdminMoreTab(initialSection: _adminMoreTabInitialSection) : const shared.SharedHomeTab();
       default:
         return const shared.SharedHomeTab();
     }
@@ -361,6 +396,8 @@ class _NavBarPageState extends State<NavBarPage> {
       },
       child: Scaffold(
         resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
+        extendBody: false,
+        extendBodyBehindAppBar: false,
         backgroundColor: const Color(0xFF0F172A),
         body: Column(
           children: [
@@ -377,6 +414,9 @@ class _NavBarPageState extends State<NavBarPage> {
           isAdmin: isAdmin,
           onTabSelected: (i) => safeSetState(() {
             _currentPage = null;
+            if (i == 4) {
+              _adminMoreTabInitialSection = null;
+            }
             _currentIndex = i;
           }),
           onCameraPressed: isAdmin ? null : _openEvidenceFlow,

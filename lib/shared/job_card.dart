@@ -20,6 +20,7 @@ class SharedJobCard extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return QuickMapModal(
           jobData: jobData,

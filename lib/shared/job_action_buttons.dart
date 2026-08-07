@@ -176,24 +176,22 @@ class _JobActionButtonsState extends State<JobActionButtons> {
     bool hasClockedIn = isCurrentJobActive;
 
     if (isCompleted) {
-      return SizedBox(
+      const Color accentGreen = Color(0xFF10B981);
+      return Container(
         width: double.infinity,
         height: 55,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green.shade700,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-          onPressed: null, // Disabled
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle_outline, size: 18),
-              SizedBox(width: 8),
-              Text('✓ SHIFT COMPLETED', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ],
-          ),
+        decoration: BoxDecoration(
+          color: accentGreen.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accentGreen.withOpacity(0.4)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline, size: 18, color: Colors.white),
+            SizedBox(width: 8),
+            Text('SHIFT COMPLETED', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+          ],
         ),
       );
     }

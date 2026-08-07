@@ -5,6 +5,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/custom_code/widgets/index.dart'; // Imports other custom widgets
 import '/flutter_flow/custom_functions.dart'; // Imports custom functions
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // Begin custom widget code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
@@ -167,18 +168,19 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   }
 
   Widget _buildSimpleTextField(TextEditingController ctrl, String hint,
-      {bool isAddress = false, Function(String)? onChanged, IconData? icon, int maxLines = 1}) {
+      {bool isAddress = false, Function(String)? onChanged, IconData? icon, int maxLines = 1, String? errorText, List<TextInputFormatter>? inputFormatters}) {
     return Container(
-      height: maxLines > 1 ? null : 41,
+      height: (maxLines > 1 || errorText != null) ? null : 41,
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 0),
       decoration: BoxDecoration(
           color: const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10)),
+          border: Border.all(color: errorText != null ? Colors.red : Colors.white10)),
       alignment: maxLines > 1 ? Alignment.topLeft : Alignment.center,
       child: TextField(
         controller: ctrl,
         onChanged: onChanged,
+        inputFormatters: inputFormatters,
         maxLines: maxLines,
         minLines: maxLines > 1 ? 3 : 1,
         textAlignVertical: maxLines > 1 ? TextAlignVertical.top : TextAlignVertical.center,
@@ -186,6 +188,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+          errorText: errorText,
           prefixIconConstraints: (isAddress || icon != null)
               ? BoxConstraints(minWidth: 36, minHeight: maxLines > 1 ? 24 : 0)
               : null,
@@ -225,6 +228,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
+        useSafeArea: true,
         builder: (ctx) => StatefulBuilder(builder: (context, setModalState) {
               return Padding(
                   padding: EdgeInsets.only(
@@ -384,6 +388,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -504,6 +509,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (BuildContext context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -637,7 +643,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(firstNameCtrl, "First Name"),
+                              _buildSimpleTextField(firstNameCtrl, "First Name", inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
                               const SizedBox(height: 16),
                               const Text("Last Name",
                                   style: TextStyle(
@@ -645,7 +651,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(lastNameCtrl, "Last Name"),
+                              _buildSimpleTextField(lastNameCtrl, "Last Name", inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
                               const SizedBox(height: 16),
                               const Text("Phone Number",
                                   style: TextStyle(
@@ -653,7 +659,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(phoneCtrl, "Phone Number"),
+                              _buildSimpleTextField(phoneCtrl, "Phone Number", inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
                               const SizedBox(height: 16),
                               const Text("Email Address",
                                   style: TextStyle(
@@ -784,8 +790,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 16),
+                        padding: EdgeInsets.only(
+                            left: 24,
+                            right: 24,
+                            top: 16,
+                            bottom: 16 + MediaQuery.of(context).padding.bottom),
                         decoration: const BoxDecoration(
                           color: Color(0xFF0D1B2A),
                           border: Border(
@@ -936,6 +945,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (BuildContext context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -1069,7 +1079,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(firstNameCtrl, "First Name"),
+                              _buildSimpleTextField(firstNameCtrl, "First Name", inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
                               const SizedBox(height: 16),
                               const Text("Last Name",
                                   style: TextStyle(
@@ -1077,7 +1087,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(lastNameCtrl, "Last Name"),
+                              _buildSimpleTextField(lastNameCtrl, "Last Name", inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
                               const SizedBox(height: 16),
                               const Text("Phone Number",
                                   style: TextStyle(
@@ -1085,7 +1095,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(phoneCtrl, "Phone Number"),
+                              _buildSimpleTextField(phoneCtrl, "Phone Number", inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
                               const SizedBox(height: 16),
                               const Text("Email Address",
                                   style: TextStyle(
@@ -1392,6 +1402,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -1497,6 +1508,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return Container(
           decoration: const BoxDecoration(
@@ -1714,6 +1726,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (BuildContext context) {
         return Material(
           color: const Color(0xFF0D1B2A),
@@ -1812,6 +1825,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
+                  useSafeArea: true,
                   builder: (ctx) => StatefulBuilder(
                     builder: (ctx, setEditState) {
                       return Padding(
@@ -2542,24 +2556,35 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       icon: const Icon(
                                           Icons.keyboard_arrow_down,
                                           color: Color(0xFF3B82F6)),
-                                      items: itemsList
-                                          .map<DropdownMenuItem<String>>(
-                                              (item) {
-                                        double price = double.tryParse(
-                                                item['price']?.toString() ??
-                                                    "0") ??
-                                            0.0;
-                                        return DropdownMenuItem<String>(
-                                          value: item['id'].toString(),
-                                          child: Text(
-                                              "${item['name'] ?? ''} - \$${price.toStringAsFixed(2)}",
-                                              style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 13)),
-                                        );
-                                      }).toList(),
+                                      items: itemsList.isEmpty
+                                          ? [
+                                              const DropdownMenuItem<String>(
+                                                value: 'no_items',
+                                                child: Text("No items available",
+                                                    style: TextStyle(
+                                                        color: Colors.white54,
+                                                        fontSize: 13)),
+                                              )
+                                            ]
+                                          : itemsList
+                                              .map<DropdownMenuItem<String>>(
+                                                  (item) {
+                                              double price = double.tryParse(
+                                                      item['price']
+                                                              ?.toString() ??
+                                                          "0") ??
+                                                  0.0;
+                                              return DropdownMenuItem<String>(
+                                                value: item['id'].toString(),
+                                                child: Text(
+                                                    "${item['name'] ?? ''} - \$${price.toStringAsFixed(2)}",
+                                                    style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 13)),
+                                              );
+                                            }).toList(),
                                       onChanged: (val) {
-                                        if (val != null) {
+                                        if (val != null && val != 'no_items') {
                                           var selected = itemsList.firstWhere(
                                               (i) => i['id'].toString() == val);
                                           setModalState(() {
