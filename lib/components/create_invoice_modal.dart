@@ -132,10 +132,21 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
     if (jobId != null) {
       // auto-select customer if available in job list
       final job = _jobs.firstWhere((j) => j['id'].toString() == jobId, orElse: () => null);
-      if (job != null && job['customer_id'] != null) {
-        setState(() {
-          _selectedCustomerId = job['customer_id'].toString();
-        });
+      if (job != null) {
+        final rawCustId = job['customer_id'] ?? (job['customer'] != null ? job['customer']['id'] : null);
+        if (rawCustId != null) {
+          final custId = rawCustId.toString();
+          setState(() {
+            if (!_customers.any((c) => c['id'].toString() == custId)) {
+              _customers.add({
+                'id': custId,
+                'first_name': job['customer_name'] ?? (job['customer'] != null ? job['customer']['first_name'] : 'Assigned'),
+                'last_name': job['customer_name'] != null ? '' : (job['customer'] != null ? job['customer']['last_name'] : 'Customer'),
+              });
+            }
+            _selectedCustomerId = custId;
+          });
+        }
       }
       _fetchJobDetailsAndItems(jobId);
     }
@@ -155,7 +166,7 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
         'customer_id': _selectedCustomerId,
         'job_id': _selectedJobId,
         'total_amount': _amountCtrl.text.trim(),
-        'description': desc,
+        'notes': desc,
         'line_items': _lineItems,
       };
       
@@ -164,7 +175,7 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
       if (widget.onInvoiceCreated != null) widget.onInvoiceCreated!();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ToastService.error(context, "Failed to create invoice");
+      if (mounted) ToastService.error(context, 'Failed to create invoice: ${e.toString().replaceAll('Exception: ', '')}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -177,15 +188,17 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
       filteredJobs = _jobs.where((j) => j['customer_id'].toString() == _selectedCustomerId || j['id'].toString() == _selectedJobId).toList();
     }
 
-    return Container(
-      padding: EdgeInsets.only(
-        top: 24, left: 20, right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    return FractionallySizedBox(
+      heightFactor: 0.85,
+      child: Container(
+        padding: EdgeInsets.only(
+          top: 24, left: 20, right: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F172A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
       child: _isLoading 
         ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
         : SingleChildScrollView(
@@ -227,16 +240,9 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
                       value: c['id'].toString(),
                       child: Text("${c['first_name'] ?? ''} ${c['last_name'] ?? ''}".trim().isEmpty ? 'Unknown' : "${c['first_name']} ${c['last_name']}"),
                     )).toList(),
-                    onChanged: (widget.initialCustomerId != null || widget.initialJobId != null) ? null : (val) {
+                    onChanged: (val) {
                       setState(() {
                         _selectedCustomerId = val;
-                        if (_selectedJobId != null) {
-                          final currentJob = _jobs.firstWhere((j) => j['id'].toString() == _selectedJobId, orElse: () => null);
-                          if (currentJob != null && currentJob['customer_id'].toString() != val) {
-                            _selectedJobId = null;
-                            _lineItems = [];
-                          }
-                        }
                       });
                     },
                     validator: (val) => val == null ? 'Customer is required' : null,
@@ -361,7 +367,7 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
                   
                   LineItemsEditor(
                     initialItems: _lineItems,
-                    isReadOnly: _selectedJobId != null,
+                    isReadOnly: false,
                     onItemsChanged: (items, total) {
                       setState(() {
                         _lineItems = items;
@@ -375,7 +381,7 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
                     controller: _amountCtrl,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     style: const TextStyle(color: Colors.white, fontSize: 13),
-                    readOnly: _selectedJobId != null, // Auto-calculated when job is selected
+                    readOnly: false,
                     decoration: InputDecoration(
                       labelText: "Total Amount (\$)",
                       labelStyle: const TextStyle(color: Colors.white54),
@@ -421,6 +427,7 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
               ),
             ),
           ),
+        ),
     );
   }
 }
@@ -430,6 +437,7 @@ void showCreateInvoiceModal(BuildContext context, {String? initialJobId, String?
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
+    useSafeArea: true,
     builder: (ctx) => CreateInvoiceModal(
       initialJobId: initialJobId,
       initialCustomerId: initialCustomerId,

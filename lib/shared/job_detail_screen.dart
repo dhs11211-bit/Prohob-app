@@ -12,6 +12,10 @@ import '/shared/toast_service.dart';
 import '/workers_pag/custom_evidence_modal.dart';
 import '../components/create_invoice_modal.dart';
 import '../components/invoice_detail_modal.dart';
+import 'dart:convert';
+import 'dart:async';
+import 'package:http/http.dart' as http;
+import '/app_constants.dart';
 
 class SharedJobDetailScreen extends StatefulWidget {
   const SharedJobDetailScreen({
@@ -52,6 +56,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
   void initState() {
     super.initState();
     _loadJobDetail();
+    _fetchGoogleMapsKey();
   }
 
   Future<void> _loadJobDetail() async {
@@ -84,6 +89,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return QuickMapModal(
           jobData: _jobData!,
@@ -131,6 +137,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -206,6 +213,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                             }
                           }
                           _loadJobDetail();
+    _fetchGoogleMapsKey();
                         },
                         child: Text("Save", style: TextStyle(color: textWhite, fontWeight: FontWeight.bold)),
                       ),
@@ -244,6 +252,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -318,6 +327,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                             }
                           }
                           _loadJobDetail();
+    _fetchGoogleMapsKey();
                         },
                         child: Text("Save", style: TextStyle(color: textWhite, fontWeight: FontWeight.bold)),
                       ),
@@ -392,6 +402,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => Material(
         color: bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -492,6 +503,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => Material(
         color: bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -776,6 +788,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (ctx) {
         return Container(
           height: MediaQuery.of(context).size.height * 0.85,
@@ -872,6 +885,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) => Material(
           color: bg,
@@ -982,6 +996,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                 });
                                 Navigator.pop(ctx);
                                 _loadJobDetail();
+    _fetchGoogleMapsKey();
                                 ToastService.success(context, 'Job updated successfully');
                               } catch (e) {
                                 setModalState(() => isSaving = false);
@@ -1002,8 +1017,410 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     );
   }
 
+
+  String? _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
+
+  Future<void> _fetchGoogleMapsKey() async {
+    try {
+      final response = await ApiService.instance.get('/settings');
+      if (response != null && response['success'] == true) {
+        final settings = response['data'] ?? {};
+        if (settings.containsKey('google_maps_api_key') && settings['google_maps_api_key'] != null && settings['google_maps_api_key'].toString().trim().isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _googleMapsApiKey = settings['google_maps_api_key'];
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching maps key: $e');
+    }
+  }
+
+  void _showEditDescriptionModal() {
+    if (_jobData == null) return;
+    final ctrl = TextEditingController(text: _jobData!['description'] ?? '');
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          bool isSaving = false;
+          return Container(
+            height: MediaQuery.of(ctx).size.height * 0.8,
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Edit Job Description', style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white54),
+                        onPressed: () => Navigator.pop(ctx),
+                      )
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    controller: ctrl,
+                    minLines: 3,
+                    maxLines: 5,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Enter job description...',
+                      hintStyle: TextStyle(color: Colors.white30),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentBlue,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: isSaving ? null : () async {
+                        setModalState(() => isSaving = true);
+                        try {
+                          await ApiService.instance.put('/admin/jobs/${widget.jobId}', {
+                            'description': ctrl.text,
+                          });
+                          Navigator.pop(ctx);
+                          ToastService.success(context, 'Description updated');
+                          _loadJobDetail();
+    _fetchGoogleMapsKey();
+                        } catch (e) {
+                          ToastService.error(context, 'Failed to update description');
+                        } finally {
+                          setModalState(() => isSaving = false);
+                        }
+                      },
+                      child: isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text('Save Description', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                )
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditLocationModal() {
+    if (_jobData == null) return;
+    
+    final String currentAddress = _jobData!['address']?.toString() ?? _jobData!['service_location']?.toString() ?? '';
+    
+    final addressCtrl = TextEditingController(text: currentAddress);
+    final unitCtrl = TextEditingController(text: _jobData!['unit_number']?.toString() ?? '');
+    final gateCtrl = TextEditingController(text: _jobData!['gate_code']?.toString() ?? '');
+    final noteCtrl = TextEditingController(text: _jobData!['address_notes']?.toString() ?? '');
+    
+    bool saveToCustomer = true;
+    
+    Timer? _debounce;
+    List<dynamic> _suggestions = [];
+    bool _isSearching = false;
+    
+    String _city = '';
+    String _state = '';
+    String _zip = '';
+    String _country = '';
+    double _lat = double.tryParse(_jobData!['latitude']?.toString() ?? '0') ?? 0.0;
+    double _lng = double.tryParse(_jobData!['longitude']?.toString() ?? '0') ?? 0.0;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          
+          Future<void> searchPlaces(String query) async {
+            if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+            if (query.trim().isEmpty) {
+              setModalState(() { _suggestions = []; _isSearching = false; });
+              return;
+            }
+            setModalState(() => _isSearching = true);
+            try {
+              final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
+              final response = await http.get(uri);
+              if (response.statusCode == 200) {
+                final data = jsonDecode(response.body);
+                setModalState(() {
+                  _suggestions = data['predictions'] ?? [];
+                  _isSearching = false;
+                });
+              } else {
+                setModalState(() => _isSearching = false);
+              }
+            } catch (e) {
+              setModalState(() => _isSearching = false);
+            }
+          }
+
+          Future<void> getPlaceDetails(String placeId, String description) async {
+            if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+            setModalState(() => _isSearching = true);
+            try {
+              final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
+              final response = await http.get(uri);
+              if (response.statusCode == 200) {
+                final data = jsonDecode(response.body);
+                final result = data['result'];
+                if (result != null) {
+                  addressCtrl.text = description;
+                  _lat = result['geometry']['location']['lat'] ?? 0.0;
+                  _lng = result['geometry']['location']['lng'] ?? 0.0;
+                  
+                  final components = result['address_components'] as List<dynamic>?;
+                  if (components != null) {
+                    _city = ''; _state = ''; _zip = ''; _country = '';
+                    for (var c in components) {
+                      final types = c['types'] as List<dynamic>;
+                      if (types.contains('locality')) _city = c['long_name'];
+                      if (types.contains('administrative_area_level_1')) _state = c['short_name'];
+                      if (types.contains('postal_code')) _zip = c['long_name'];
+                      if (types.contains('country')) _country = c['short_name'];
+                    }
+                  }
+                  setModalState(() { _suggestions = []; });
+                }
+              }
+            } catch (e) {
+              debugPrint('Places Details Error: $e');
+            } finally {
+              setModalState(() => _isSearching = false);
+            }
+          }
+
+          bool isSaving = false;
+
+          return Container(
+            height: MediaQuery.of(ctx).size.height * 0.8,
+            decoration: BoxDecoration(color: bg, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Edit Location', style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold)),
+                      IconButton(icon: const Icon(Icons.close, color: Colors.white54), onPressed: () => Navigator.pop(ctx))
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Address', style: TextStyle(color: muted, fontSize: 12)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: addressCtrl,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Search address...',
+                            hintStyle: TextStyle(color: Colors.white30),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            filled: true,
+                            fillColor: cardBg,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            prefixIcon: Icon(Icons.search, color: muted),
+                          ),
+                          onChanged: (val) {
+                            if (_debounce?.isActive ?? false) _debounce!.cancel();
+                            _debounce = Timer(const Duration(milliseconds: 500), () {
+                              searchPlaces(val);
+                            });
+                          },
+                        ),
+                        if (_isSearching) const Padding(padding: EdgeInsets.all(8.0), child: Center(child: CircularProgressIndicator())),
+                        if (_suggestions.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(8)),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _suggestions.length,
+                              itemBuilder: (context, index) {
+                                final s = _suggestions[index];
+                                return ListTile(
+                                  leading: const Icon(Icons.location_on, color: Colors.white54),
+                                  title: Text(s['description'], style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                  onTap: () => getPlaceDetails(s['place_id'], s['description']),
+                                );
+                              },
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Unit / Apt #', style: TextStyle(color: muted, fontSize: 12)),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: unitCtrl,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      filled: true,
+                                      fillColor: cardBg,
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Gate Code', style: TextStyle(color: muted, fontSize: 12)),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: gateCtrl,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      filled: true,
+                                      fillColor: cardBg,
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text('Address Note', style: TextStyle(color: muted, fontSize: 12)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: noteCtrl,
+                          minLines: 1,
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            filled: true,
+                            fillColor: cardBg,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: saveToCustomer,
+                              onChanged: (val) => setModalState(() => saveToCustomer = val ?? true),
+                              fillColor: MaterialStateProperty.resolveWith((states) => states.contains(MaterialState.selected) ? accentBlue : Colors.transparent),
+                              side: BorderSide(color: muted),
+                            ),
+                            Expanded(child: Text('Save to customer profile', style: TextStyle(color: textWhite, fontSize: 14))),
+                          ],
+                        ),
+                        Text('If checked, updates the existing customer address. If unchecked, creates a new address for this job only.', style: TextStyle(color: muted, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: accentBlue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      onPressed: isSaving ? null : () async {
+                        if (addressCtrl.text.trim().isEmpty) {
+                          ToastService.error(context, 'Address is required');
+                          return;
+                        }
+                        setModalState(() => isSaving = true);
+                        try {
+                          final payload = {
+                            'new_address': {
+                              'address1': addressCtrl.text.trim(),
+                              'address2': unitCtrl.text.trim(),
+                              'city': _city,
+                              'state': _state,
+                              'zip_code': _zip,
+                              'country': _country,
+                              'latitude': _lat,
+                              'longitude': _lng,
+                              'gate_code': gateCtrl.text.trim(),
+                              'notes': noteCtrl.text.trim(),
+                            },
+                            'save_to_customer': saveToCustomer,
+                          };
+                          await ApiService.instance.put('/admin/jobs/${widget.jobId}', payload);
+                          Navigator.pop(ctx);
+                          ToastService.success(context, 'Location updated');
+                          _loadJobDetail();
+    _fetchGoogleMapsKey();
+                        } catch (e) {
+                          ToastService.error(context, 'Failed to update location');
+                        } finally {
+                          setModalState(() => isSaving = false);
+                        }
+                      },
+                      child: isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text('Save Location', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                )
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+
     final canViewFinancials = AuthHelpers.hasPermission('VIEW PROFITABILITY') || AuthHelpers.isAdmin;
     final canEditJob = AuthHelpers.hasPermission('EDIT JOBS') || AuthHelpers.isAdmin;
     final canDeleteJob = AuthHelpers.hasPermission('DELETE JOBS') || AuthHelpers.isAdmin;
@@ -1112,7 +1529,11 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                   : Stack(
                       children: [
                         SingleChildScrollView(
-                          padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 120),
+                          padding: EdgeInsets.only(
+                              left: 20,
+                              right: 20,
+                              top: 12,
+                              bottom: 120 + MediaQuery.of(context).padding.bottom),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1206,7 +1627,17 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                               ],
 
                               // LOCATION Section
-                              _buildSectionHeader('LOCATION'),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildSectionHeader('LOCATION'),
+                                  if (canEditJob)
+                                    IconButton(
+                                      icon: Icon(Icons.edit_square, color: accentBlue, size: 20),
+                                      onPressed: _showEditLocationModal,
+                                    ),
+                                ],
+                              ),
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(16),
@@ -1323,7 +1754,17 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                               ),
 
                               // JOB DESCRIPTION Section
-                              _buildSectionHeader('JOB DESCRIPTION'),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildSectionHeader('JOB DESCRIPTION'),
+                                  if (canEditJob)
+                                    IconButton(
+                                      icon: Icon(Icons.edit_square, color: accentBlue, size: 20),
+                                      onPressed: _showEditDescriptionModal,
+                                    ),
+                                ],
+                              ),
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(16),
@@ -1720,6 +2161,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                                         }
                                                       }
                                                       _loadJobDetail();
+    _fetchGoogleMapsKey();
                                                     },
                                                   ),
                                                 ],
@@ -1855,6 +2297,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                                       }
                                                     }
                                                     _loadJobDetail();
+    _fetchGoogleMapsKey();
                                                   },
                                                 ),
                                               ],
@@ -1880,6 +2323,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                         context: context,
                                         isScrollControlled: true,
                                         backgroundColor: Colors.transparent,
+                                        useSafeArea: true,
                                         builder: (ctx) => CustomEvidenceModal(
                                           jobId: widget.jobId,
                                           jobTitle: _jobData?['title'] ?? _jobData?['customer_name'] ?? 'Job',
@@ -1887,6 +2331,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                       ).then((_) {
                                         // Reload job details to show new photos
                                         _loadJobDetail();
+    _fetchGoogleMapsKey();
                                       });
                                     },
                                   ),
@@ -2132,7 +2577,12 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                         Align(
                           alignment: Alignment.bottomCenter,
                           child: Container(
-                            margin: const EdgeInsets.all(16),
+                            margin: EdgeInsets.only(
+                              left: 16,
+                              right: 16,
+                              top: 16,
+                              bottom: 16 + MediaQuery.of(context).padding.bottom,
+                            ),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
                               color: const Color(0xFF1E293B),

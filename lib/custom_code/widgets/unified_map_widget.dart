@@ -1221,6 +1221,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
+        useSafeArea: true,
         builder: (ctx) => StatefulBuilder(builder: (context, setModalState) {
               return Padding(
                   padding: EdgeInsets.only(
@@ -1352,6 +1353,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      useSafeArea: true,
       builder: (context) {
         return SafeArea(
           child: SingleChildScrollView(

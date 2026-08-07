@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../app_state.dart';
+import '../flutter_flow/nav/nav.dart';
 
 /// Centralized toast/snackbar service for the entire application.
 ///
@@ -54,11 +56,12 @@ class ToastService {
     dynamic message, {
     ToastType type = ToastType.info,
     int duration = 4,
+    VoidCallback? onTap,
   }) {
     final text  = _extractMessage(message);
     final color = _colorForType(type);
     final icon  = _iconForType(type);
-    _showRaw(messenger, text, color, icon, duration);
+    _showRaw(messenger, text, color, icon, duration, onTap);
   }
 
   /// Core show method.
@@ -68,6 +71,7 @@ class ToastService {
     dynamic message, {
     ToastType type = ToastType.info,
     int duration = 4,
+    VoidCallback? onTap,
   }) {
     final text = _extractMessage(message);
     final color = _colorForType(type);
@@ -79,12 +83,12 @@ class ToastService {
     if (messengerState == null) {
       // Fallback: use context directly if global key is not yet attached.
       try {
-        _showRaw(ScaffoldMessenger.of(context), text, color, icon, duration);
+        _showRaw(ScaffoldMessenger.of(context), text, color, icon, duration, onTap);
       } catch (_) {}
       return;
     }
 
-    _showRaw(messengerState, text, color, icon, duration);
+    _showRaw(messengerState, text, color, icon, duration, onTap);
   }
 
   // ─── Internal helpers ─────────────────────────────────────────────────────
@@ -132,11 +136,13 @@ class ToastService {
     Color color,
     IconData icon,
     int duration,
+    [VoidCallback? onTap]
   ) {
     final context = messenger.context;
-    final overlayState = Overlay.of(context);
+    // Get the root overlay from the global key we created in main.dart
+    final overlayState = globalOverlayKey.currentState;
     if (overlayState == null) return;
-
+    
     _currentOverlay?.remove();
     _currentOverlay = null;
 
@@ -146,7 +152,8 @@ class ToastService {
     overlayEntry = OverlayEntry(
       builder: (context) {
         // padding.top handles the physical device notch/status bar (it is 0 on the web)
-        final topPadding = MediaQuery.of(context).padding.top;
+        // Accessing MediaQuery on inactive web tabs can cause engine assertions, so we bypass it.
+        final double topPadding = kIsWeb ? 0 : MediaQuery.of(context).padding.top;
         return Positioned(
           top: topPadding + 15,
           left: 20,
@@ -164,37 +171,47 @@ class ToastService {
                 ),
               );
             },
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(icon, color: Colors.white, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        text,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+            child: GestureDetector(
+              onTap: () {
+                if (onTap != null) onTap();
+                if (!isRemoved && _currentOverlay == overlayEntry) {
+                  isRemoved = true;
+                  overlayEntry.remove();
+                  _currentOverlay = null;
+                }
+              },
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(icon, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          text,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -204,14 +221,20 @@ class ToastService {
     );
 
     _currentOverlay = overlayEntry;
-    overlayState.insert(overlayEntry);
     
-    Future.delayed(Duration(seconds: duration), () {
-      if (!isRemoved && _currentOverlay == overlayEntry) {
-        isRemoved = true;
-        overlayEntry.remove();
-        _currentOverlay = null;
-      }
+    // Use Future.microtask to defer the insertion safely outside of any active synchronous pipeline.
+    // This avoids Flutter Web engine assertions while ensuring it runs before the next frame,
+    // so the toast is guaranteed to show up.
+    Future.microtask(() {
+      overlayState.insert(overlayEntry);
+      
+      Future.delayed(Duration(seconds: duration), () {
+        if (!isRemoved && _currentOverlay == overlayEntry) {
+          isRemoved = true;
+          overlayEntry.remove();
+          _currentOverlay = null;
+        }
+      });
     });
   }
 }

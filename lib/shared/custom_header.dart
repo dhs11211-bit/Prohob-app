@@ -53,8 +53,8 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
       String fName = user['first_name'] ?? user['name'] ?? '';
       String lName = user['last_name'] ?? '';
       
-      // Use only last name if available, otherwise fallback to first name
-      _userName = lName.isNotEmpty ? lName : fName;
+      // Combine first name and last name for full display
+      _userName = [fName, lName].where((s) => s.isNotEmpty).join(' ').trim();
       if (_userName.isEmpty) _userName = 'User';
 
       _initials = fName.isNotEmpty
@@ -91,6 +91,7 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
           height: MediaQuery.of(context).size.height * 0.75,
@@ -173,6 +174,7 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.95,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

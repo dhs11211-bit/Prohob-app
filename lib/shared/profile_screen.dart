@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import '../backend/api_service.dart';
@@ -33,6 +34,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late ProfileTab _activeTab;
   final _formKey = GlobalKey<FormState>();
+  Map<String, String> _serverErrors = {};
 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -202,7 +204,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _serverErrors.clear();
+    });
+    
     try {
       final payload = {
         'first_name': _firstNameController.text.trim(),
@@ -227,10 +233,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ToastService.success(context, 'Profile updated successfully!');
         Navigator.pop(context);
       }
+    } on ValidationException catch (e) {
+      if (mounted) {
+        setState(() {
+          e.errors.forEach((key, value) {
+            _serverErrors[key] = (value as List).first.toString();
+          });
+        });
+        ToastService.error(context, 'Please fix the errors in the form.');
+      }
     } catch (e) {
       debugPrint("Error updating profile: $e");
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -556,7 +571,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: 'First Name',
                     controller: _firstNameController,
                     icon: Icons.person_outline,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                     validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                    errorText: _serverErrors['first_name'],
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -565,7 +582,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: 'Last Name',
                     controller: _lastNameController,
                     icon: Icons.person_outline,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                     validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                    errorText: _serverErrors['last_name'],
                   ),
                 ),
               ],
@@ -577,6 +596,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               controller: _phoneController,
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              errorText: _serverErrors['phone'],
             ),
             const SizedBox(height: 12),
 
@@ -839,6 +860,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
+    List<TextInputFormatter>? inputFormatters,
+    String? errorText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -856,6 +879,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: TextFormField(
             controller: controller,
             keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
             validator: validator,
             onChanged: onChanged,
             maxLines: maxLines,
@@ -865,6 +889,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               hintText: hint,
               hintStyle: TextStyle(color: muted.withOpacity(0.5), fontSize: 13),
               border: InputBorder.none,
+              errorText: errorText,
               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               isDense: true,
             ),

@@ -118,8 +118,12 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
 
   Future<void> _takePhoto() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image =
-        await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 70,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    );
 
     if (image != null) {
       final bytes = await image.readAsBytes();
