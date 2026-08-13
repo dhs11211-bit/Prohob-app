@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../backend/api_service.dart';
 import '../shared/toast_service.dart';
+import 'searchable_dropdown.dart';
 
 class LineItemsEditor extends StatefulWidget {
   final List<Map<String, dynamic>> initialItems;
@@ -125,33 +126,16 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
   }
 
   Widget _buildCatalogDropdown() {
-    return DropdownButtonFormField<String>(
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: const Color(0xFF1E293B),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        isDense: true,
-      ),
-      dropdownColor: const Color(0xFF1E293B),
-      style: const TextStyle(color: Colors.white, fontSize: 13),
-      isExpanded: true,
-      hint: Text(
-        _isLoadingCatalog ? "Loading items..." : "Select item...",
-        style: const TextStyle(color: Colors.white54, fontSize: 13)
-      ),
+    return SearchableDropdown(
+      value: null,
+      hint: _isLoadingCatalog ? "Loading items..." : "Select item...",
       items: _catalogItems.isEmpty
-          ? [
-              const DropdownMenuItem<String>(
-                value: 'no_items',
-                child: Text("No items available", style: TextStyle(color: Colors.white54, fontSize: 13)),
-              )
-            ]
+          ? [{'value': 'no_items', 'label': 'No items available'}]
           : _catalogItems.map((item) {
-              return DropdownMenuItem<String>(
-                value: item['id'].toString(),
-                child: Text("${item['name']} - \$${item['price']}", style: const TextStyle(color: Colors.white, fontSize: 13)),
-              );
+              return {
+                'value': item['id'].toString(),
+                'label': "${item['name']} - \$${item['price']}"
+              };
             }).toList(),
       onChanged: (val) {
         if (val == null || val == 'no_items') return;

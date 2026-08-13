@@ -636,7 +636,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                   // A job is "active" only when _clockStatus points to it
                                   bool isCurrentJobActive = _clockStatus != null &&
                                       _clockStatus!['status'] == 'clocked_in' &&
-                                      _clockStatus?['job_id'] == jobId;
+                                      _clockStatus?['job_id']?.toString() == jobId.toString();
 
                                   // A job is "completed" when its backend status says so
                                   String rawStatus = (jobData['job_status'] ?? '').toString().toLowerCase();
@@ -651,7 +651,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                   bool hasClockedOut = isCompleted;
 
                                   String buttonLabel = 'CLOCK IN';
-                                  if (hasClockedOut) {
+                                  if (hasClockedOut && !hasClockedIn) {
                                     buttonLabel = '✓ SHIFT COMPLETED';
                                   } else if (isOnBreak) {
                                     buttonLabel = 'ON BREAK — TAP TO RESUME';
@@ -1072,7 +1072,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                     return aCompleted ? 1 : -1;
                                   });
 
-                                  bool hasClockedIn = _clockStatus?['job_id'] == jobId;
+                                  bool hasClockedIn = _clockStatus?['job_id']?.toString() == jobId.toString();
                                   
                                   Map<String, dynamic> taskStatusMap = {};
                                   Map<String, String?> taskCompletedAtMap = {};

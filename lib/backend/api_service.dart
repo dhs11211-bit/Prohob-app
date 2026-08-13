@@ -50,6 +50,13 @@ class ApiService {
     };
   }
 
+  dynamic _unwrapData(dynamic data) {
+    if (data is Map && data['status'] == 'success' && data.containsKey('data')) {
+      return data['data'];
+    }
+    return data;
+  }
+
   // --- Auth Endpoints ---
 
   Future<Map<String, dynamic>> login(String email, String password, {int? clId}) async {
@@ -68,7 +75,7 @@ class ApiService {
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       // Success
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Login failed');
     }
@@ -112,7 +119,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to load dashboard stats');
     }
@@ -145,7 +152,7 @@ class ApiService {
 
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data; // Returns {id, url, filename}
+      return _unwrapData(data); // Returns {id, url, filename}
     } else {
       throw Exception(data['message'] ?? 'Failed to upload media');
     }
@@ -159,7 +166,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data; // Returns list of jobs
+      return _unwrapData(data) as List<dynamic>;
     } else {
       throw Exception(data['message'] ?? 'Failed to load today jobs');
     }
@@ -341,7 +348,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to get clock status');
     }
@@ -350,6 +357,7 @@ class ApiService {
   Future<Map<String, dynamic>> clockIn(
       int jobId, double? lat, double? lng) async {
     final url = Uri.parse('$baseUrl/clock/in');
+    final now = DateTime.now();
     final response = await http.post(
       url,
       headers: await _getHeaders(),
@@ -357,12 +365,14 @@ class ApiService {
         'job_id': jobId,
         'latitude': lat,
         'longitude': lng,
+        'start_date': now.toIso8601String().split('T')[0],
+        'start_time': now.toIso8601String().substring(11, 16),
       }),
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to clock in');
     }
@@ -371,6 +381,7 @@ class ApiService {
   Future<Map<String, dynamic>> clockOut(
       int jobId, double? lat, double? lng) async {
     final url = Uri.parse('$baseUrl/clock/out');
+    final now = DateTime.now();
     final response = await http.post(
       url,
       headers: await _getHeaders(),
@@ -378,12 +389,14 @@ class ApiService {
         'job_id': jobId,
         'latitude': lat,
         'longitude': lng,
+        'end_date': now.toIso8601String().split('T')[0],
+        'end_time': now.toIso8601String().substring(11, 16),
       }),
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to clock out');
     }
@@ -404,7 +417,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to toggle break');
     }
@@ -424,7 +437,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to submit swap request');
     }
@@ -468,7 +481,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to GET $endpoint');
     }
@@ -488,7 +501,7 @@ class ApiService {
       throw ValidationException(data['errors']);
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to POST $endpoint');
     }
@@ -508,7 +521,7 @@ class ApiService {
       throw ValidationException(data['errors']);
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to PUT $endpoint');
     }
@@ -525,7 +538,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to PATCH $endpoint');
     }
@@ -541,13 +554,23 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to DELETE $endpoint');
     }
   }
-
   // --- Chat Endpoints ---
+  Future<void> deleteConversation(int conversationId) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/conversations/$conversationId';
+    final response = await http.delete(Uri.parse(url), headers: await _getHeaders());
+    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete conversation');
+    }
+  }
   Future<Map<String, dynamic>> getConversations({String? type}) async {
     String url = baseUrl.replaceAll('/mob', '') + '/conversations';
     if (type != null) {
@@ -558,7 +581,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to GET conversations');
     }
@@ -572,7 +595,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to GET thread');
     }
@@ -599,7 +622,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to send message');
     }
@@ -621,7 +644,7 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to create conversation');
     }
@@ -642,7 +665,7 @@ class ApiService {
         throw ValidationException(data['errors']);
       }
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return data;
+      return _unwrapData(data);
       } else {
         throw Exception(data['message'] ?? 'Failed to update profile');
       }
@@ -672,7 +695,7 @@ class ApiService {
 
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to upload document');
     }
@@ -709,7 +732,7 @@ class ApiService {
 
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to upload image');
     }
@@ -758,7 +781,7 @@ class ApiService {
 
     if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
+      return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to upload evidence');
     }

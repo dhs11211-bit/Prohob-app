@@ -10,9 +10,15 @@ class SharedJobListPage extends StatefulWidget {
   const SharedJobListPage({
     Key? key,
     this.showWorkerFilter = false,
+    this.customerId,
+    this.staffId,
+    this.hideCalendar = false,
   }) : super(key: key);
 
   final bool showWorkerFilter;
+  final int? customerId;
+  final int? staffId;
+  final bool hideCalendar;
 
   @override
   State<SharedJobListPage> createState() => _SharedJobListPageState();
@@ -28,6 +34,8 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
 
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
+  DateTime? _filterStartDate;
+  DateTime? _filterEndDate;
   CalendarFormat _calendarFormat = CalendarFormat.week;
 
   List<dynamic> _allJobs = [];
@@ -43,6 +51,13 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
     super.initState();
     _focusedDay = DateTime.now();
     _selectedDay = DateTime.now();
+    
+    if (widget.hideCalendar) {
+      final now = DateTime.now();
+      _filterStartDate = now.subtract(Duration(days: now.weekday - 1));
+      _filterEndDate = _filterStartDate!.add(const Duration(days: 6));
+    }
+
     _listScrollController.addListener(_onScroll);
     _fetchJobs(reset: true);
   }
@@ -69,19 +84,39 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
         _isLoading = true;
       });
     } else if (loadMore) {
-      if (!_hasMore || _isLoadingMore) return;
+      if (!_hasMore || _isLoadingMore || _isLoading) return;
       setState(() => _isLoadingMore = true);
     }
 
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDay);
+      
+      final Map<String, dynamic> queryParams = {
+        'limit': 15,
+        'page': _currentPage,
+      };
+
+      if (widget.hideCalendar) {
+        if (_filterStartDate != null) {
+          queryParams['start_date'] = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
+        }
+        if (_filterEndDate != null) {
+          queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(_filterEndDate!);
+        }
+      } else {
+        queryParams['date'] = dateStr;
+      }
+
+      if (widget.customerId != null) {
+        queryParams['customer_id'] = widget.customerId.toString();
+      }
+      if (widget.staffId != null) {
+        queryParams['staff_id'] = widget.staffId.toString();
+      }
+
       final res = await ApiService.instance.get(
         '/jobs',
-        queryParams: {
-          'date': dateStr,
-          'limit': 15,
-          'page': _currentPage,
-        },
+        queryParams: queryParams,
       );
 
       final newItems = (res is Map && res['data'] is List)
@@ -135,8 +170,11 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
             children: [
               const SizedBox(height: 12),
 
-              // Calendar Card Container (Screenshot 2 Design)
-              Container(
+              // Calendar Card Container or Date Range Filter
+              if (widget.hideCalendar)
+                _buildDateRangeFilter()
+              else
+                Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -423,6 +461,115 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDateRangeFilter() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Filter by Date", style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+              TextButton(
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () {
+                  setState(() {
+                    final now = DateTime.now();
+                    _filterStartDate = now.subtract(Duration(days: now.weekday - 1));
+                    _filterEndDate = _filterStartDate!.add(const Duration(days: 6));
+                  });
+                  _fetchJobs(reset: true);
+                },
+                child: Text("Reset Filters", style: TextStyle(color: accentBlue, fontSize: 13, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _filterStartDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (picked != null) {
+                      setState(() => _filterStartDate = picked);
+                      _fetchJobs(reset: true);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: bg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_filterStartDate != null ? DateFormat('MM/dd/yyyy').format(_filterStartDate!) : "From Date", 
+                             style: TextStyle(color: _filterStartDate != null ? Colors.white : Colors.white38, fontSize: 14)),
+                        const Icon(Icons.calendar_today, color: Colors.white54, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _filterEndDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (picked != null) {
+                      setState(() => _filterEndDate = picked);
+                      _fetchJobs(reset: true);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: bg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_filterEndDate != null ? DateFormat('MM/dd/yyyy').format(_filterEndDate!) : "End Date", 
+                             style: TextStyle(color: _filterEndDate != null ? Colors.white : Colors.white38, fontSize: 14)),
+                        const Icon(Icons.calendar_today, color: Colors.white54, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

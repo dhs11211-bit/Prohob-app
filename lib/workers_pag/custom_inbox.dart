@@ -10,6 +10,7 @@ import '/backend/api_service.dart';
 import '/backend/reverb_service.dart';
 import '/shared/toast_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 class CustomInbox extends StatefulWidget {
@@ -20,10 +21,13 @@ class CustomInbox extends StatefulWidget {
   State<CustomInbox> createState() => _CustomInboxState();
 }
 
-class _CustomInboxState extends State<CustomInbox> {
+class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
-  final List<String> _pinnedChats = [];
+  List<String> _pinnedChats = [];
 
   List<dynamic> _conversations = [];
   bool _isLoading = true;
@@ -42,9 +46,22 @@ class _CustomInboxState extends State<CustomInbox> {
 
   int? _currentUserId;
 
+  Future<void> _loadPinnedChats() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _pinnedChats = prefs.getStringList('pinned_chats') ?? [];
+    });
+  }
+
+  Future<void> _savePinnedChats() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('pinned_chats', _pinnedChats);
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadPinnedChats();
     _fetchConversations();
     
     // Initialize Reverb
@@ -99,6 +116,7 @@ class _CustomInboxState extends State<CustomInbox> {
 
     showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (context) => Container(
             padding: const EdgeInsets.all(24),
@@ -106,7 +124,8 @@ class _CustomInboxState extends State<CustomInbox> {
                 color: card,
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(24))),
-            child: Column(
+            child: SingleChildScrollView(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
@@ -135,11 +154,46 @@ class _CustomInboxState extends State<CustomInbox> {
                           ? _pinnedChats.remove(chatId)
                           : _pinnedChats.add(chatId);
                     });
+                    _savePinnedChats();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: const Text('Delete Chat', style: TextStyle(color: Colors.redAccent)),
+                  onTap: () {
+                    Navigator.pop(context); // close bottom sheet
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: card,
+                        title: const Text('Delete Chat', style: TextStyle(color: Colors.white)),
+                        content: const Text('Are you sure you want to permanently delete this chat?', style: TextStyle(color: Colors.white70)),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              try {
+                                await ApiService.instance.deleteConversation(int.parse(chatId));
+                                _fetchConversations();
+                                ToastService.success(context, 'Chat deleted');
+                              } catch (e) {
+                                ToastService.error(context, 'Error deleting chat: $e');
+                              }
+                            },
+                            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(height: 20),
               ],
-            )));
+            ))));
   }
 
 
@@ -175,6 +229,7 @@ class _CustomInboxState extends State<CustomInbox> {
             setState(() {
               isPinned ? _pinnedChats.remove(chatId) : _pinnedChats.add(chatId);
             });
+            _savePinnedChats();
             return false;
           }
         },
@@ -566,6 +621,7 @@ class _CustomInboxState extends State<CustomInbox> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Container(
       width: widget.width ?? double.infinity,
       height: widget.height ?? double.infinity,

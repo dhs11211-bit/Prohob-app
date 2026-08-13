@@ -75,19 +75,19 @@ class LaravelAuthManager {
       return response;
     }
 
-    final token = response['data']['access_token'];
+    final token = response['access_token'];
     await _storage.write(key: 'auth_token', value: token);
     
     if (clId != null) {
       await _storage.write(key: 'active_cl_id', value: clId.toString());
     } else {
-      final userClId = response['data']['user']['cl_id'];
+      final userClId = response['user']['cl_id'];
       if (userClId != null) {
         await _storage.write(key: 'active_cl_id', value: userClId.toString());
       }
     }
     
-    _updateUser(response['data']['user']);
+    _updateUser(response['user']);
     return response;
   }
 

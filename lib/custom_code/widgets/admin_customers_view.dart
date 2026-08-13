@@ -10,13 +10,16 @@ import 'package:flutter/services.dart';
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 import 'dart:ui';
+import 'dart:convert';
+import '../../shared/toast_service.dart';
 import '../../backend/api_service.dart';
 import '/app_constants.dart';
 import 'dart:async';
 import '../../shared/job_parser.dart';
+import '../../shared/job_list_page.dart';
+import '../../components/searchable_dropdown.dart';
 
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:intl/intl.dart';
 
 class AdminCustomersView extends StatefulWidget {
@@ -169,48 +172,62 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
   Widget _buildSimpleTextField(TextEditingController ctrl, String hint,
       {bool isAddress = false, Function(String)? onChanged, IconData? icon, int maxLines = 1, String? errorText, List<TextInputFormatter>? inputFormatters}) {
-    return Container(
-      height: (maxLines > 1 || errorText != null) ? null : 41,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 0),
-      decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: errorText != null ? Colors.red : Colors.white10)),
-      alignment: maxLines > 1 ? Alignment.topLeft : Alignment.center,
-      child: TextField(
-        controller: ctrl,
-        onChanged: onChanged,
-        inputFormatters: inputFormatters,
-        maxLines: maxLines,
-        minLines: maxLines > 1 ? 3 : 1,
-        textAlignVertical: maxLines > 1 ? TextAlignVertical.top : TextAlignVertical.center,
-        style: const TextStyle(color: Colors.white, fontSize: 13),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-          errorText: errorText,
-          prefixIconConstraints: (isAddress || icon != null)
-              ? BoxConstraints(minWidth: 36, minHeight: maxLines > 1 ? 24 : 0)
-              : null,
-          prefixIcon: isAddress
-              ? const Icon(Icons.location_on, color: Color(0xFF3B82F6), size: 20)
-              : (icon != null
-                  ? Container(
-                      alignment: maxLines > 1 ? Alignment.topCenter : Alignment.center,
-                      width: 36,
-                      child: Padding(
-                        padding: EdgeInsets.only(top: maxLines > 1 ? 0 : 0),
-                        child: Icon(icon, color: const Color(0xFF3B82F6), size: 20),
-                      ),
-                    )
-                  : null),
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: maxLines > 1 ? const EdgeInsets.only(top: 2) : EdgeInsets.zero,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: maxLines > 1 ? null : 41,
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 0),
+          decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: errorText != null ? Colors.red : Colors.white10)),
+          alignment: maxLines > 1 ? Alignment.topLeft : Alignment.center,
+          child: TextField(
+            controller: ctrl,
+            onChanged: onChanged,
+            inputFormatters: inputFormatters,
+            maxLines: maxLines,
+            minLines: maxLines > 1 ? 3 : 1,
+            textAlignVertical: maxLines > 1 ? TextAlignVertical.top : TextAlignVertical.center,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+              prefixIconConstraints: (isAddress || icon != null)
+                  ? BoxConstraints(minWidth: 36, minHeight: maxLines > 1 ? 24 : 0)
+                  : null,
+              prefixIcon: isAddress
+                  ? const Icon(Icons.location_on, color: Color(0xFF3B82F6), size: 20)
+                  : (icon != null
+                      ? Container(
+                          alignment: maxLines > 1 ? Alignment.topCenter : Alignment.center,
+                          width: 36,
+                          child: Padding(
+                            padding: EdgeInsets.only(top: maxLines > 1 ? 0 : 0),
+                            child: Icon(icon, color: const Color(0xFF3B82F6), size: 20),
+                          ),
+                        )
+                      : null),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: maxLines > 1 ? const EdgeInsets.only(top: 2) : EdgeInsets.zero,
+            ),
+          ),
         ),
-      ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
+
+
 
   // =====================================================================
   // 🚀 MENÚ DE PERFIL UNIFICADO (IGUAL AL TEAM Y AL MAPA)
@@ -353,18 +370,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                               setState(() => _adminName =
                                                   '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}');
                                             Navigator.pop(ctx);
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(const SnackBar(
-                                                    content: Text(
-                                                        'Profile updated successfully!'),
-                                                    backgroundColor:
-                                                        Color(0xFF10B981)));
+                                            ToastService.success(context, 'Profile updated successfully!');
                                           } catch (e) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(SnackBar(
-                                                    content: Text('Error: $e'),
-                                                    backgroundColor:
-                                                        Colors.redAccent));
+                                            ToastService.error(context, 'Error: $e');
                                           } finally {
                                             setModalState(
                                                 () => isSaving = false);
@@ -485,7 +493,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   // 🚀 CREAR, EDITAR Y BORRAR CLIENTES (SOFT DELETE INCORPORADO)
   // =====================================================================
   void _showAddCustomerModal(
-      {Function(String customerId, String name, double lat, double lng)?
+      {Function(String customerId, String name, double lat, double lng, Map<String, dynamic> newDoc)?
           onCustomerCreated}) {
     TextEditingController firstNameCtrl = TextEditingController();
     TextEditingController lastNameCtrl = TextEditingController();
@@ -495,6 +503,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
     TextEditingController unitCtrl = TextEditingController();
     TextEditingController gateCtrl = TextEditingController();
     TextEditingController notesCtrl = TextEditingController();
+
+    String? emailError;
+    String? firstNameError;
+    String? lastNameError;
 
     List<dynamic> placePredictions = [];
     String address1 = '';
@@ -643,7 +655,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(firstNameCtrl, "First Name", inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
+                              _buildSimpleTextField(firstNameCtrl, "First Name", errorText: firstNameError, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
                               const SizedBox(height: 16),
                               const Text("Last Name",
                                   style: TextStyle(
@@ -651,7 +663,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(lastNameCtrl, "Last Name", inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
+                              _buildSimpleTextField(lastNameCtrl, "Last Name", errorText: lastNameError, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
                               const SizedBox(height: 16),
                               const Text("Phone Number",
                                   style: TextStyle(
@@ -667,7 +679,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(emailCtrl, "Email Address"),
+                              _buildSimpleTextField(emailCtrl, "Email Address", errorText: emailError),
                               const SizedBox(height: 16),
                               const Text("Service Address",
                                   style: TextStyle(
@@ -812,6 +824,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                               ),
                             ),
                             onPressed: () async {
+                              setModalState(() {
+                                emailError = null;
+                                firstNameError = null;
+                                lastNameError = null;
+                              });
+
                               if (firstNameCtrl.text.trim().isNotEmpty &&
                                   lastNameCtrl.text.trim().isNotEmpty) {
                                 try {
@@ -836,35 +854,36 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   if (lat != 0.0) payload['lat'] = lat;
                                   if (lng != 0.0) payload['lng'] = lng;
 
-                                  final messenger = ScaffoldMessenger.of(context);
-                                  var newDoc = await ApiService.instance
+                                  var rawResponse = await ApiService.instance
                                       .post('/customers', payload);
+                                  var newDoc = rawResponse['data'] ?? rawResponse;
                                   if (onCustomerCreated != null) {
                                     onCustomerCreated(
                                         newDoc['id'].toString(),
                                         '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}',
                                         lat,
-                                        lng);
+                                        lng,
+                                        newDoc);
                                   } else {
                                     _fetchCustomers();
                                   }
                                   Navigator.pop(context);
-                                  messenger.showSnackBar(const SnackBar(
-                                      content: Text(
-                                          "Customer created successfully!",
-                                          style: TextStyle(
-                                              color: Colors.white)),
-                                      backgroundColor: Color(0xFF10B981)));
+                                  ToastService.success(context, "Customer created successfully!");
                                 } catch (e) {
-                                  String errorMsg = e.toString().replaceAll('Exception: ', '');
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(SnackBar(
-                                            content: Text(
-                                                "Failed to create customer: $errorMsg",
-                                                style: const TextStyle(
-                                                    color: Colors.white)),
-                                            backgroundColor: const Color(0xFFEF4444)));
+                                  if (e is ValidationException) {
+                                    setModalState(() {
+                                      emailError = (e.errors['email'] as List?)?.first?.toString();
+                                      firstNameError = (e.errors['first_name'] as List?)?.first?.toString();
+                                      lastNameError = (e.errors['last_name'] as List?)?.first?.toString();
+                                    });
+                                    if (mounted) {
+                                      ToastService.error(context, "Failed to create customer: Validation Failed");
+                                    }
+                                  } else {
+                                    String errorMsg = e.toString().replaceAll('Exception: ', '');
+                                    if (mounted) {
+                                      ToastService.error(context, "Failed to create customer: $errorMsg");
+                                    }
                                   }
                                 }
                               }
@@ -1256,29 +1275,15 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   if (lat != 0.0) payload['lat'] = lat;
                                   if (lng != 0.0) payload['lng'] = lng;
 
-                                  final messenger = ScaffoldMessenger.of(context);
                                   await ApiService.instance
                                       .put('/customers/$customerId', payload);
                                   Navigator.pop(context);
-                                  Navigator.of(context).maybePop();
                                   _fetchCustomers();
-                                  messenger.showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              "Customer updated successfully!",
-                                              style: TextStyle(
-                                                  color: Colors.white)),
-                                          backgroundColor: Color(0xFF10B981)));
+                                  ToastService.success(context, "Customer updated successfully!");
                                 } catch (e) {
                                   String errorMsg = e.toString().replaceAll('Exception: ', '');
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                "Failed to update customer: $errorMsg",
-                                                style: const TextStyle(
-                                                    color: Colors.white)),
-                                            backgroundColor: const Color(0xFFEF4444)));
+                                    ToastService.error(context, "Failed to update customer: $errorMsg");
                                   }
                                 }
                               }
@@ -1371,13 +1376,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 if (mounted) {
                                   Navigator.pop(
                                       ctx); // Cierra modal de confirmación
-                                  Navigator.pop(
-                                      context); // Cierra modal de detalles del customere
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              "Customer deleted from directory."),
-                                          backgroundColor: Colors.green));
+                                  ToastService.success(context, "Customer deleted from directory.");
                                 }
                               } catch (e) {
                                 setDialogState(() => isDeleting = false);
@@ -1440,7 +1439,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                               child: CircularProgressIndicator());
                         }
 
-                        List<dynamic> jobsList = snapshot.data ?? [];
+                        List<dynamic> jobsList = [];
+                        if (snapshot.data is List) {
+                          jobsList = snapshot.data as List<dynamic>;
+                        } else if (snapshot.data is Map) {
+                          jobsList = (snapshot.data['data'] as List<dynamic>?) ?? (snapshot.data['jobs'] as List<dynamic>?) ?? [];
+                        }
+                        
                         if (jobsList.isEmpty) {
                           return const Center(
                               child: Text("No jobs found for this customer.",
@@ -1510,151 +1515,27 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-              color: Color(0xFF0D1B2A),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Icon(Icons.close, color: Colors.white70, size: 24),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(2))),
-                      ),
-                      Align(
-                          alignment: Alignment.centerRight,
-                          child: GestureDetector(
-                            onTap: () => _showDeleteCustomerDialog(
-                                id,
-                                '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
-                                        .trim()
-                                        .isEmpty
-                                    ? 'Customer'
-                                    : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
-                                        .trim()),
-                            child: const Icon(Icons.person_remove,
-                                color: Colors.redAccent),
-                          ))
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                          radius: 30,
-                          backgroundColor:
-                              const Color(0xFF3B82F6).withOpacity(0.2),
-                          child: const Icon(Icons.business,
-                              color: Color(0xFF3B82F6), size: 28)),
-                      const SizedBox(width: 16),
-                      Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text(
-                                '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
-                                        .trim()
-                                        .isEmpty
-                                    ? 'No Name'
-                                    : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
-                                        .trim(),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold)),
-                            const Text("Customer Profile",
-                                style: TextStyle(
-                                    color: Colors.white60, fontSize: 14))
-                          ])),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildInfoField(
-                      "Phone Number",
-                      customerData['phone']?.isNotEmpty == true
-                          ? customerData['phone']
-                          : '-'),
-                  const SizedBox(height: 12),
-                  _buildInfoField(
-                      "Email Address",
-                      customerData['email']?.isNotEmpty == true
-                          ? customerData['email']
-                          : '-'),
-                  const SizedBox(height: 12),
-                  _buildInfoField(
-                      "Primary Address",
-                      customerData['address']?.isNotEmpty == true
-                          ? customerData['address']
-                          : '-'),
-                  if (unitNumber.isNotEmpty || gateCode.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(child: _buildInfoField("Unit / Apartment #", unitNumber.isNotEmpty ? unitNumber : '-')),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildInfoField("Gate / Door / Lock Code", gateCode.isNotEmpty ? gateCode : '-')),
-                      ],
-                    ),
-                  ],
-                  if (notes.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    _buildInfoField("Notes / Key Notes", notes),
-                  ],
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                          child: ElevatedButton.icon(
-                              onPressed: () =>
-                                  _showEditCustomerDialog(id, customerData),
-                              icon: const Icon(Icons.edit,
-                                  color: Colors.white, size: 16),
-                              label: const Text("Edit Info",
-                                  style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1E293B),
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 16)))),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: ElevatedButton.icon(
-                              onPressed: () => _showJobHistoryModal(
-                                  id,
-                                  '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
-                                      .trim()),
-                              icon: const Icon(Icons.history,
-                                  color: Colors.white, size: 16),
-                              label: const Text("Job History",
-                                  style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF3B82F6),
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 16)))),
-                    ],
-                  )
-                ],
-              ),
-            ),
-          ),
+        return CustomerProfileModalWidget(
+          customerId: id,
+          customerData: customerData,
+          onEdit: () {
+            Navigator.pop(context);
+            _showEditCustomerDialog(id, customerData);
+          },
+          onDelete: () {
+            Navigator.pop(context);
+            _showDeleteCustomerDialog(
+                id,
+                '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
+                        .trim()
+                        .isEmpty
+                    ? 'Customer'
+                    : '${customerData['first_name'] ?? ''} ${customerData['last_name'] ?? ''}'
+                        .trim());
+          },
+          onRefresh: () {
+            _fetchCustomers();
+          },
         );
       },
     );
@@ -1665,8 +1546,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
     Future<dynamic>? workersFuture = ApiService.instance.get('/admin/workers');
     Future<dynamic>? teamsFuture = ApiService.instance.get('/admin/teams');
     Future<dynamic>? customersFuture =
-        ApiService.instance.get('/admin/customers');
+        ApiService.instance.get('/customers?limit=all');
     Future<dynamic>? itemsFuture = ApiService.instance.get('/items');
+    List<dynamic> cachedCustomersList = [];
 
     TextEditingController jobTitleCtrl = TextEditingController();
     TextEditingController notesCtrl = TextEditingController();
@@ -2073,11 +1955,54 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                             _buildSimpleTextField(
                                 jobTitleCtrl, "Enter job title..."),
                             const SizedBox(height: 16),
-                            const Text("Select Customer",
-                                style: TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text("Select Customer",
+                                    style: TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold)),
+                                GestureDetector(
+                                  onTap: () {
+                                    _showAddCustomerModal(
+                                      onCustomerCreated: (customerId, name, lat, lng, newDoc) {
+                                        setModalState(() {
+                                          if (newDoc != null) {
+                                            cachedCustomersList.add(newDoc);
+                                          }
+                                          customersFuture = ApiService.instance.get('/customers?limit=all');
+                                          selectedCustomerId = customerId;
+                                          selectedCustomerName = name;
+                                          
+                                          if (newDoc != null && newDoc['addresses'] != null) {
+                                            customerAddressesList = List.from(newDoc['addresses']);
+                                          } else {
+                                            customerAddressesList = [];
+                                          }
+
+                                          if (newDoc != null && newDoc['addresses'] != null && newDoc['addresses'].isNotEmpty) {
+                                            var addr = newDoc['addresses'][0];
+                                            selectedAddressId = addr['id'].toString();
+                                            addressCtrl.text = addr['address1'] ?? '';
+                                            latitude = double.tryParse(addr['latitude']?.toString() ?? '0') ?? 0.0;
+                                            longitude = double.tryParse(addr['longitude']?.toString() ?? '0') ?? 0.0;
+                                            showNewAddressForm = false;
+                                          } else {
+                                            selectedAddressId = null;
+                                          }
+                                        });
+                                      },
+                                    );
+                                  },
+                                  child: const Icon(
+                                    Icons.person_add,
+                                    color: Color(0xFF3B82F6),
+                                    size: 20,
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 8),
                             FutureBuilder<dynamic>(
                               future: customersFuture,
@@ -2097,77 +2022,61 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   );
                                 }
 
-                                var customers = snapshot.data is Map &&
-                                        snapshot.data.containsKey('data')
+                                dynamic dataObj = snapshot.data is Map && snapshot.data.containsKey('data')
                                     ? snapshot.data['data']
-                                    : (snapshot.data is List
-                                        ? snapshot.data
-                                        : []);
+                                    : snapshot.data;
+                                    
+                                List<dynamic> customersList = [];
+                                if (dataObj is Map && dataObj.containsKey('data')) {
+                                  customersList = List.from(dataObj['data']);
+                                } else if (dataObj is List) {
+                                  customersList = List.from(dataObj);
+                                }
+                                cachedCustomersList = customersList;
 
-                                List<dynamic> customersList =
-                                    List.from(customers);
+                                Set<String> seenIds = {};
+                                List<DropdownMenuEntry<String>> menuEntries = [];
+                                
+                                for (var customer in customersList) {
+                                  String idStr = customer['id'].toString();
+                                  if (!seenIds.contains(idStr)) {
+                                    seenIds.add(idStr);
+                                    String label = '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'.trim();
+                                    if (label.isEmpty) label = 'Unknown';
+                                    menuEntries.add(DropdownMenuEntry<String>(
+                                        value: idStr,
+                                        label: label,
+                                    ));
+                                  }
+                                }
 
-                                List<DropdownMenuItem<String>> customerItems =
-                                    customersList.map((customer) {
-                                  return DropdownMenuItem<String>(
-                                      value: customer['id'].toString(),
-                                      child: Text(
-                                          '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'
-                                                  .trim()
-                                                  .isEmpty
-                                              ? 'Unknown'
-                                              : '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'
-                                                  .trim(),
-                                          style: const TextStyle(
-                                              color: Colors.white)));
-                                }).toList();
+                                if (selectedCustomerId != null && !seenIds.contains(selectedCustomerId)) {
+                                  menuEntries.add(DropdownMenuEntry<String>(
+                                      value: selectedCustomerId!,
+                                      label: selectedCustomerName ?? 'Loading...',
+                                  ));
+                                }
 
-                                return Container(
-                                  height: 41,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16),
-                                  decoration: BoxDecoration(
-                                      color: const Color(0xFF1E293B),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border:
-                                          Border.all(color: Colors.white10)),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      isExpanded: true,
-                                      dropdownColor: const Color(0xFF1E293B),
-                                      value: selectedCustomerId,
-                                      hint: const Text("Choose a customer...",
-                                          style:
-                                              TextStyle(color: Colors.white38)),
-                                      icon: const Icon(
-                                          Icons.keyboard_arrow_down,
-                                          color: Color(0xFF3B82F6)),
-                                      items: customerItems,
-                                      onChanged: (val) {
-                                        if (val != null) {
-                                          var selectedDoc =
-                                              customersList.firstWhere((d) =>
-                                                  d['id'].toString() == val);
-
-                                          setModalState(() {
-                                            selectedCustomerId = val;
-                                            selectedCustomerName =
-                                                '${selectedDoc['first_name'] ?? ''} ${selectedDoc['last_name'] ?? ''}'
-                                                    .trim();
-                                            customerAddressesList = selectedDoc['addresses'] != null
-                                                ? List.from(selectedDoc['addresses'])
-                                                : [];
-                                            selectedAddressId = null;
-                                            showNewAddressForm = false;
-                                            newAddressData = null;
-                                            addressCtrl.clear();
-                                            latitude = 0.0;
-                                            longitude = 0.0;
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
+                                return SearchableDropdown(
+                                  value: selectedCustomerId,
+                                  hint: "Choose a customer...",
+                                  items: menuEntries.map((e) => {'value': e.value, 'label': e.label}).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      var selectedDoc = cachedCustomersList.firstWhere((d) => d['id'].toString() == val);
+                                      setModalState(() {
+                                        selectedCustomerId = val;
+                                        selectedCustomerName = '${selectedDoc['first_name'] ?? ''} ${selectedDoc['last_name'] ?? ''}'.trim();
+                                        customerAddressesList = selectedDoc['addresses'] != null ? List.from(selectedDoc['addresses']) : [];
+                                        selectedAddressId = null;
+                                        showNewAddressForm = false;
+                                        newAddressData = null;
+                                        addressCtrl.clear();
+                                        latitude = 0.0;
+                                        longitude = 0.0;
+                                      });
+                                    }
+                                  },
                                 );
                               },
                             ),
@@ -2213,60 +2122,87 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 ),
                                 child: const Text("Please select a customer first.", style: TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic)),
                               )
-                            else if (!showNewAddressForm) ...[
-                              if (customerAddressesList.isEmpty)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 20),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white10),
-                                  ),
-                                  child: const Text("No stored addresses found.", style: TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic)),
-                                )
-                              else
-                                ...customerAddressesList.map((addr) {
-                                  bool isSelected = selectedAddressId == addr['id'].toString();
-                                  return GestureDetector(
-                                    onTap: () {
-                                      setModalState(() {
-                                        selectedAddressId = addr['id'].toString();
-                                        showNewAddressForm = false;
-                                        newAddressData = null;
-                                        addressCtrl.text = addr['address1'] ?? '';
-                                        latitude = double.tryParse(addr['latitude']?.toString() ?? '0') ?? 0.0;
-                                        longitude = double.tryParse(addr['longitude']?.toString() ?? '0') ?? 0.0;
-                                      });
-                                    },
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      padding: const EdgeInsets.all(12),
+                            else if (!showNewAddressForm)
+                              Builder(
+                                builder: (context) {
+                                  List<dynamic> activeAddresses = [];
+                                  if (selectedCustomerId != null) {
+                                    var doc = cachedCustomersList.firstWhere((c) => c['id'].toString() == selectedCustomerId, orElse: () => null);
+                                    if (doc != null && doc['addresses'] != null) {
+                                      activeAddresses = List.from(doc['addresses']);
+                                      if (selectedAddressId == null && activeAddresses.isNotEmpty && !showNewAddressForm) {
+                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                          setModalState(() {
+                                            selectedAddressId = activeAddresses.first['id'].toString();
+                                            addressCtrl.text = activeAddresses.first['address1'] ?? '';
+                                            latitude = double.tryParse(activeAddresses.first['latitude']?.toString() ?? '0') ?? 0.0;
+                                            longitude = double.tryParse(activeAddresses.first['longitude']?.toString() ?? '0') ?? 0.0;
+                                          });
+                                        });
+                                      }
+                                    }
+                                  }
+
+                                  if (activeAddresses.isEmpty) {
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 20),
+                                      alignment: Alignment.center,
                                       decoration: BoxDecoration(
-                                        color: isSelected ? const Color(0xFF3B82F6).withOpacity(0.2) : const Color(0xFF1E293B),
-                                        border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : Colors.white10),
+                                        color: const Color(0xFF1E293B),
                                         borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.white10),
                                       ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                                            color: isSelected ? const Color(0xFF3B82F6) : Colors.white60,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              addr['address1'] ?? 'Unknown Address',
-                                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                                      child: const Text("No stored addresses found.", style: TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic)),
+                                    );
+                                  } else {
+                                    return Column(
+                                      children: activeAddresses.map((addr) {
+                                        bool isSelected = selectedAddressId == addr['id'].toString();
+                                        return GestureDetector(
+                                          onTap: () {
+                                            setModalState(() {
+                                              selectedAddressId = addr['id'].toString();
+                                              showNewAddressForm = false;
+                                              newAddressData = null;
+                                              addressCtrl.text = addr['address1'] ?? '';
+                                              latitude = double.tryParse(addr['latitude']?.toString() ?? '0') ?? 0.0;
+                                              longitude = double.tryParse(addr['longitude']?.toString() ?? '0') ?? 0.0;
+                                            });
+                                          },
+                                          child: Container(
+                                            margin: const EdgeInsets.only(bottom: 8),
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: isSelected ? const Color(0xFF3B82F6).withOpacity(0.2) : const Color(0xFF1E293B),
+                                              border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : Colors.white10),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                                                  color: isSelected ? const Color(0xFF3B82F6) : Colors.white60,
+                                                  size: 20,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    addr['address1'] ?? 'Unknown Address',
+                                                    style: TextStyle(
+                                                      color: isSelected ? const Color(0xFF3B82F6) : Colors.white,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                            ],
+                                        );
+                                      }).toList(),
+                                    );
+                                  }
+                                },
+                              ),
 
                             // New Address Form
                             if (selectedCustomerId != null && showNewAddressForm) ...[
@@ -2391,38 +2327,16 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            Container(
-                              height: 41,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                  color: const Color(0xFF1E293B),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10)),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  isExpanded: true,
-                                  dropdownColor: const Color(0xFF1E293B),
-                                  value: selectedJobType,
-                                  hint: const Text("Select or add new...",
-                                      style: TextStyle(color: Colors.white38)),
-                                  icon: const Icon(Icons.keyboard_arrow_down,
-                                      color: Color(0xFF3B82F6)),
-                                  items: _jobTypes
-                                      .map((type) => DropdownMenuItem(
-                                          value: type,
-                                          child: Text(type,
-                                              style: const TextStyle(
-                                                  color: Colors.white))))
-                                      .toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setModalState(
-                                          () => selectedJobType = val);
-                                    }
-                                  },
-                                ),
-                              ),
+                            SearchableDropdown(
+                              value: selectedJobType,
+                              hint: "Select or add new...",
+                              items: _jobTypes.map((type) => {'value': type, 'label': type}).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setModalState(
+                                      () => selectedJobType = val);
+                                }
+                              },
                             ),
                             const SizedBox(height: 20),
                             Row(
@@ -2536,70 +2450,32 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 } else if (snapshot.data is List) {
                                   itemsList = snapshot.data;
                                 }
-                                return Container(
-                                  height: 41,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16),
-                                  decoration: BoxDecoration(
-                                      color: const Color(0xFF1E293B),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border:
-                                          Border.all(color: Colors.white10)),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      isExpanded: true,
-                                      dropdownColor: const Color(0xFF1E293B),
-                                      hint: const Text("Select item...",
-                                          style: TextStyle(
-                                              color: Colors.white38,
-                                              fontSize: 13)),
-                                      icon: const Icon(
-                                          Icons.keyboard_arrow_down,
-                                          color: Color(0xFF3B82F6)),
-                                      items: itemsList.isEmpty
-                                          ? [
-                                              const DropdownMenuItem<String>(
-                                                value: 'no_items',
-                                                child: Text("No items available",
-                                                    style: TextStyle(
-                                                        color: Colors.white54,
-                                                        fontSize: 13)),
-                                              )
-                                            ]
-                                          : itemsList
-                                              .map<DropdownMenuItem<String>>(
-                                                  (item) {
-                                              double price = double.tryParse(
-                                                      item['price']
-                                                              ?.toString() ??
-                                                          "0") ??
-                                                  0.0;
-                                              return DropdownMenuItem<String>(
-                                                value: item['id'].toString(),
-                                                child: Text(
-                                                    "${item['name'] ?? ''} - \$${price.toStringAsFixed(2)}",
-                                                    style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 13)),
-                                              );
-                                            }).toList(),
-                                      onChanged: (val) {
-                                        if (val != null && val != 'no_items') {
-                                          var selected = itemsList.firstWhere(
-                                              (i) => i['id'].toString() == val);
-                                          setModalState(() {
-                                            selectedItems.add({
-                                              'item_id': selected['id'],
-                                              'description': selected['name'],
-                                              'price': selected['price'] ?? 0.0,
-                                              'quantity': 1,
-                                            });
+                                return SearchableDropdown(
+                                    value: null,
+                                    hint: "Select item...",
+                                    items: itemsList.isEmpty 
+                                        ? [{'value': 'no_items', 'label': 'No items available'}]
+                                        : itemsList.map<Map<String, String>>((item) {
+                                            double price = double.tryParse(item['price']?.toString() ?? "0") ?? 0.0;
+                                            return {
+                                              'value': item['id'].toString(),
+                                              'label': "${item['name'] ?? ''} - \$${price.toStringAsFixed(2)}"
+                                            };
+                                          }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null && val != 'no_items') {
+                                        var selected = itemsList.firstWhere((i) => i['id'].toString() == val);
+                                        setModalState(() {
+                                          selectedItems.add({
+                                            'item_id': selected['id'],
+                                            'description': selected['name'],
+                                            'price': selected['price'] ?? 0.0,
+                                            'quantity': 1,
                                           });
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                );
+                                        });
+                                      }
+                                    },
+                                  );
                               },
                             ),
                             if (selectedItems.isNotEmpty)
@@ -2941,6 +2817,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                         child: DropdownButtonHideUnderline(
                                           child: DropdownButton<String>(
                                             isExpanded: true,
+                                            menuMaxHeight: 300,
                                             dropdownColor:
                                                 const Color(0xFF1E293B),
                                             value: selectedTeamLeaderId,
@@ -3594,18 +3471,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                           if (widget.onJobCreated != null) {
                                             widget.onJobCreated!();
                                           }
-                                          messenger.showSnackBar(const SnackBar(
-                                              content: Text(
-                                                  "Success! Job assigned.",
-                                                  style: TextStyle(
-                                                      color: Colors.white)),
-                                              backgroundColor:
-                                                  Color(0xFF10B981)));
+                                          ToastService.success(context, "Success! Job assigned.");
                                         } catch (e) {
                                           setModalState(() => isSaving = false);
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(SnackBar(
-                                                  content: Text("Error: $e")));
+                                          ToastService.error(context, "Error: $e");
                                         }
                                       },
                                 style: ElevatedButton.styleFrom(
@@ -3751,6 +3620,748 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+class CustomerProfileModalWidget extends StatefulWidget {
+  final String customerId;
+  final Map<String, dynamic> customerData;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onRefresh;
+
+  const CustomerProfileModalWidget({
+    Key? key,
+    required this.customerId,
+    required this.customerData,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onRefresh,
+  }) : super(key: key);
+
+  @override
+  _CustomerProfileModalWidgetState createState() => _CustomerProfileModalWidgetState();
+}
+
+class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  late Map<String, dynamic> _customerData;
+  List<dynamic> _addresses = [];
+
+  bool _isAddingAddress = false;
+  Map<String, dynamic>? _editingAddress;
+  
+  final _titleCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _countryCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
+  final _stateCtrl = TextEditingController();
+  final _zipCtrl = TextEditingController();
+  final _unitCtrl = TextEditingController();
+  final _gateCodeCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+  
+  bool _isPrimary = false;
+
+  List<dynamic> _placePredictions = [];
+  double _lat = 0.0;
+  double _lng = 0.0;
+  String _city = '';
+  String _state = '';
+  String _zipCode = '';
+  String _country = '';
+  String _address1 = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _customerData = widget.customerData;
+    _addresses = _customerData['addresses'] != null ? List.from(_customerData['addresses']) : [];
+  }
+
+  void _resetAddressForm() {
+    _titleCtrl.clear();
+    _addressCtrl.clear();
+    _countryCtrl.clear();
+    _cityCtrl.clear();
+    _stateCtrl.clear();
+    _zipCtrl.clear();
+    _unitCtrl.clear();
+    _gateCodeCtrl.clear();
+    _notesCtrl.clear();
+    setState(() {
+      _isAddingAddress = false;
+      _editingAddress = null;
+      _isPrimary = false;
+    });
+  }
+
+  Future<void> _saveAddress() async {
+    if (_addressCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Address is required')));
+      return;
+    }
+
+    final payload = {
+      'entity_id': widget.customerId,
+      'entity_type': 'App\\Models\\User',
+      'title': _titleCtrl.text.trim(),
+      'address1': _addressCtrl.text.trim(),
+      'address2': _unitCtrl.text.trim(),
+      'country': _countryCtrl.text.trim(),
+      'city': _cityCtrl.text.trim(),
+      'state': _stateCtrl.text.trim(),
+      'zip_code': _zipCtrl.text.trim(),
+      'gate_code': _gateCodeCtrl.text.trim(),
+      'notes': _notesCtrl.text.trim(),
+      'is_primary': _isPrimary,
+    };
+
+    try {
+      if (_editingAddress != null) {
+        await ApiService.instance.put('/addresses/${_editingAddress!['id']}', payload);
+      } else {
+        await ApiService.instance.post('/addresses', payload);
+      }
+      
+      // Refresh customer data to get new addresses
+      final updatedCustomer = await ApiService.instance.get('/customers/${widget.customerId}');
+      if (mounted) {
+        setState(() {
+          if (updatedCustomer != null && updatedCustomer['data'] != null) {
+            _customerData = updatedCustomer['data'];
+            _addresses = _customerData['addresses'] != null ? List.from(_customerData['addresses']) : [];
+          }
+          _resetAddressForm();
+        });
+        widget.onRefresh();
+        ToastService.success(context, "Address saved successfully!");
+      }
+    } catch (e) {
+      if (mounted) {
+        if (e is ValidationException) {
+          String errorMessage = "Validation Failed";
+          if (e.errors.containsKey('title')) {
+            errorMessage = (e.errors['title'] as List?)?.first?.toString() ?? errorMessage;
+          } else if (e.errors.containsKey('address1')) {
+            errorMessage = (e.errors['address1'] as List?)?.first?.toString() ?? errorMessage;
+          }
+          ToastService.error(context, errorMessage);
+        } else {
+          String errorMsg = e.toString().replaceAll('Exception: ', '');
+          ToastService.error(context, "Error saving address: $errorMsg");
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String unitNumber = _customerData['address2']?.toString() ??
+        (_customerData['primary_address'] != null ? _customerData['primary_address']['address2']?.toString() ?? '' : '');
+    String gateCode = _customerData['gate_code']?.toString() ??
+        (_customerData['primary_address'] != null ? _customerData['primary_address']['gate_code']?.toString() ?? '' : '');
+    String notes = _customerData['address_notes']?.toString() ?? _customerData['notes']?.toString() ??
+        (_customerData['primary_address'] != null ? (_customerData['primary_address']['address_notes']?.toString() ?? _customerData['primary_address']['notes']?.toString() ?? '') : '');
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.9,
+      decoration: const BoxDecoration(
+          color: Color(0xFF0D1B2A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.close, color: Colors.white70, size: 24),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(2))),
+                  ),
+                  Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: widget.onDelete,
+                        child: const Icon(Icons.person_remove, color: Colors.redAccent),
+                      ))
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                      radius: 30,
+                      backgroundColor: const Color(0xFF3B82F6).withOpacity(0.2),
+                      child: const Icon(Icons.business, color: Color(0xFF3B82F6), size: 28)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        Text(
+                            '${_customerData['first_name'] ?? ''} ${_customerData['last_name'] ?? ''}'.trim().isEmpty
+                                ? 'No Name'
+                                : '${_customerData['first_name'] ?? ''} ${_customerData['last_name'] ?? ''}'.trim(),
+                            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                        const Text("Customer Profile", style: TextStyle(color: Colors.white60, fontSize: 14))
+                      ])),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TabBar(
+              controller: _tabController,
+              indicatorColor: const Color(0xFF3B82F6),
+              labelColor: const Color(0xFF3B82F6),
+              unselectedLabelColor: Colors.white60,
+              tabs: const [
+                Tab(text: "Basic Info"),
+                Tab(text: "Addresses"),
+                Tab(text: "Job History"),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // TAB 1: Basic Info
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoField("Phone Number", _customerData['phone']?.isNotEmpty == true ? _customerData['phone'] : '-'),
+                        const SizedBox(height: 12),
+                        _buildInfoField("Email Address", _customerData['email']?.isNotEmpty == true ? _customerData['email'] : '-'),
+                        const SizedBox(height: 12),
+                        _buildInfoField("Primary Address", _customerData['address']?.isNotEmpty == true ? _customerData['address'] : '-'),
+                        if (unitNumber.isNotEmpty || gateCode.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(child: _buildInfoField("Unit / Apartment #", unitNumber.isNotEmpty ? unitNumber : '-')),
+                              const SizedBox(width: 12),
+                              Expanded(child: _buildInfoField("Gate / Door / Lock Code", gateCode.isNotEmpty ? gateCode : '-')),
+                            ],
+                          ),
+                        ],
+                        if (notes.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildInfoField("Notes / Key Notes", notes),
+                        ],
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: widget.onEdit,
+                            icon: const Icon(Icons.edit, color: Colors.white, size: 16),
+                            label: const Text("Edit Info", style: TextStyle(color: Colors.white)),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), padding: const EdgeInsets.symmetric(vertical: 16)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // TAB 2: Addresses
+                  _isAddingAddress || _editingAddress != null
+                      ? _buildAddressForm()
+                      : _buildAddressesList(),
+
+                  // TAB 3: Job History
+                  SharedJobListPage(
+                    customerId: int.tryParse(widget.customerId.toString()),
+                    hideCalendar: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddressesList() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isAddingAddress = true;
+                  _editingAddress = null;
+                  _isPrimary = false;
+                  _titleCtrl.clear();
+                  _addressCtrl.clear();
+                  _countryCtrl.clear();
+                  _cityCtrl.clear();
+                  _stateCtrl.clear();
+                  _zipCtrl.clear();
+                  _unitCtrl.clear();
+                  _gateCodeCtrl.clear();
+                  _notesCtrl.clear();
+                });
+              },
+              icon: const Icon(Icons.add_location, color: Colors.white),
+              label: const Text("Add New Address", style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), padding: const EdgeInsets.symmetric(vertical: 16)),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _addresses.isEmpty
+              ? const Center(child: Text("No addresses found.", style: TextStyle(color: Colors.white38)))
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: _addresses.length,
+                  itemBuilder: (context, index) {
+                    var addr = _addresses[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(16)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.white60),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if ((addr['title'] != null && addr['title'].isNotEmpty) || (addr['is_primary'] == true || addr['is_primary'] == 1))
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4.0),
+                                    child: Row(
+                                      children: [
+                                        if (addr['title'] != null && addr['title'].isNotEmpty)
+                                          Expanded(
+                                            child: Text(addr['title'], style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 14)),
+                                          ),
+                                        if (addr['is_primary'] == true || addr['is_primary'] == 1)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF10B981).withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5)),
+                                            ),
+                                            child: const Text("PRIMARY", style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                Text(addr['address1'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                if (addr['address2'] != null && addr['address2'].isNotEmpty)
+                                  Text('Unit: ${addr['address2']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                if (addr['gate_code'] != null && addr['gate_code'].isNotEmpty)
+                                  Text('Gate Code: ${addr['gate_code']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.white60),
+                            onPressed: () {
+                              setState(() {
+                                _editingAddress = addr;
+                                _isAddingAddress = false;
+                                _isPrimary = addr['is_primary'] == true || addr['is_primary'] == 1;
+                                _titleCtrl.text = addr['title'] ?? '';
+                                _addressCtrl.text = addr['address1'] ?? '';
+                                _countryCtrl.text = addr['country'] ?? '';
+                                _cityCtrl.text = addr['city'] ?? '';
+                                _stateCtrl.text = addr['state'] ?? '';
+                                _zipCtrl.text = addr['zip_code'] ?? '';
+                                _unitCtrl.text = addr['address2'] ?? '';
+                                _gateCodeCtrl.text = addr['gate_code'] ?? '';
+                                _notesCtrl.text = addr['notes'] ?? '';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _searchPlaces(String query) async {
+    if (query.isEmpty) {
+      setState(() => _placePredictions = []);
+      return;
+    }
+    try {
+      final apiKey = AppConstants.fallbackGoogleMapsApiKey;
+      if (apiKey == null || apiKey.isEmpty) return;
+      final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$apiKey");
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          setState(() => _placePredictions = data['predictions']);
+        } else {
+          setState(() => _placePredictions = []);
+        }
+      }
+    } catch (e) {
+      setState(() => _placePredictions = []);
+    }
+  }
+
+  Widget _buildAddressForm() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(_editingAddress != null ? "Edit Address" : "New Address", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              IconButton(icon: const Icon(Icons.close, color: Colors.white60), onPressed: _resetAddressForm),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Site Title", style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _titleCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  hintText: "e.g. Primary, Billing",
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Location Search", style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _addressCtrl,
+                style: const TextStyle(color: Colors.white),
+                onChanged: (val) {
+                  _searchPlaces(val);
+                },
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  hintText: "Enter full address",
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  prefixIcon: const Icon(Icons.location_on, color: Colors.white60, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          if (_placePredictions.isNotEmpty)
+            Material(
+              color: const Color(0xFF1E293B),
+              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _placePredictions.length,
+                itemBuilder: (context, index) {
+                  final place = _placePredictions[index];
+                  return ListTile(
+                    leading: const Icon(Icons.location_on, color: Colors.white60),
+                    title: Text(place['description'], style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    onTap: () async {
+                      _addressCtrl.text = place['description'];
+                      setState(() => _placePredictions = []);
+                      try {
+                        final apiKey = AppConstants.fallbackGoogleMapsApiKey;
+                        final detailsUri = Uri.parse("https://maps.googleapis.com/maps/api/place/details/json?place_id=${place['place_id']}&key=$apiKey");
+                        final detailsRes = await http.get(detailsUri);
+                        if (detailsRes.statusCode == 200) {
+                          final detailsData = json.decode(detailsRes.body);
+                          if (detailsData['status'] == 'OK') {
+                            final result = detailsData['result'];
+                            final loc = result['geometry']['location'];
+                            _lat = loc['lat'];
+                            _lng = loc['lng'];
+                            final components = result['address_components'] as List;
+                            _address1 = ''; _city = ''; _state = ''; _zipCode = ''; _country = '';
+                            for (var c in components) {
+                              final types = c['types'] as List;
+                              if (types.contains('street_number')) _address1 = "${c['long_name']} $_address1";
+                              if (types.contains('route')) _address1 += c['short_name'];
+                              if (types.contains('locality')) _city = c['long_name'];
+                              if (types.contains('administrative_area_level_1')) _state = c['short_name'];
+                              if (types.contains('postal_code')) _zipCode = c['long_name'];
+                              if (types.contains('country')) _country = c['short_name'];
+                            }
+                            _address1 = _address1.trim();
+                            
+                            setState(() {
+                              _cityCtrl.text = _city;
+                              _stateCtrl.text = _state;
+                              _zipCtrl.text = _zipCode;
+                              _countryCtrl.text = _country;
+                            });
+                          }
+                        }
+                      } catch (_) {}
+                    },
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Country", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _countryCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("City", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _cityCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("State", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _stateCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Zip Code", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _zipCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Unit / Apt #", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _unitCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Gate Code", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _gateCodeCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text("Notes", style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _notesCtrl,
+            maxLines: 3,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              filled: true,
+              fillColor: const Color(0xFF1E293B),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Theme(
+                  data: ThemeData(unselectedWidgetColor: Colors.white60),
+                  child: Checkbox(
+                    value: _isPrimary,
+                    onChanged: (val) {
+                      setState(() {
+                        _isPrimary = val ?? false;
+                      });
+                    },
+                    activeColor: const Color(0xFF10B981),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text("SET AS PRIMARY ADDRESS", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
+                      Text("This will be used as the default for jobs and billing.", style: TextStyle(color: Colors.white54, fontSize: 11, fontStyle: FontStyle.italic)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _saveAddress,
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), padding: const EdgeInsets.symmetric(vertical: 16)),
+              child: const Text("Save Address", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+        const SizedBox(height: 4),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(12)),
+          child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+        ),
+      ],
     );
   }
 }

@@ -67,6 +67,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   List<dynamic> _allJobs = [];
   Timer? _refreshTimer;
   bool _isLoading = true;
+  bool _isModalOpening = false;
 
   // 🚀 VARIABLES DE LOS MULTI-FILTROS (SE PUEDEN APILAR)
   String? _filterWorkerId;
@@ -1059,14 +1060,19 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
   // 🚀 MENÚS DE LOS MULTI-FILTROS
   // =====================================================================
   void _showWorkerFilterModal() async {
+    if (_isModalOpening) return;
+    _isModalOpening = true;
     var apiResponse = await ApiService.instance.get('/admin/workers');
-    if (!mounted) return;
+    if (!mounted) {
+      _isModalOpening = false;
+      return;
+    }
     
     var workers = (apiResponse is Map && apiResponse.containsKey('data')) 
         ? apiResponse['data'] 
         : apiResponse;
         
-    showModalBottomSheet(
+    await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: const Color(0xFF1E293B),
@@ -1150,16 +1156,22 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                 ),
               ),
             )));
+    _isModalOpening = false;
   }
 
   void _showCustomerFilterModal() async {
+    if (_isModalOpening) return;
+    _isModalOpening = true;
     var apiResponse = await ApiService.instance.get('/admin/customers');
-    if (!mounted) return;
+    if (!mounted) {
+      _isModalOpening = false;
+      return;
+    }
     
     var clients = (apiResponse is Map && apiResponse.containsKey('data')) 
         ? apiResponse['data'] 
         : apiResponse;
-    showModalBottomSheet(
+    await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: const Color(0xFF1E293B),
@@ -1248,6 +1260,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                 ),
               ),
             )));
+    _isModalOpening = false;
   }
 
   void _showStatusFilterModal() {
@@ -1546,7 +1559,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                         child: _buildClickableKPICard(
                             title: "Monthly Revenue",
                             value:
-                                "\$${(_dashboardMetrics?['monthly_revenue'] ?? 0).toStringAsFixed(2)}",
+                                "\$${(double.tryParse(_dashboardMetrics?['monthly_revenue']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}",
                             icon: Icons.attach_money,
                             accentColor: const Color(0xFF10B981),
                             subtitle: "This Month",

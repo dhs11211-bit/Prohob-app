@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'create_invoice_modal.dart';
 
 void showInvoiceDetailModal(BuildContext context, Map<String, dynamic> invoice) {
   showModalBottomSheet(
@@ -77,9 +78,34 @@ class InvoiceDetailModal extends StatelessWidget {
                     ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: muted),
-                  onPressed: () => Navigator.pop(context),
+                Row(
+                  children: [
+                    if (invoice['invoice_status'] == 'draft')
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            useSafeArea: true,
+                            builder: (ctx) => CreateInvoiceModal(
+                              existingInvoice: invoice,
+                              onInvoiceCreated: () {
+                                // Since we popped this modal, the caller will need to refresh the list,
+                                // but we don't have a callback here. The user will refresh manually or the
+                                // parent screen should handle it.
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: muted),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 )
               ],
             ),

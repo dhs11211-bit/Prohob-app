@@ -253,7 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final response = await ApiService.instance.get('/settings');
       if (response != null && response['success'] == true) {
-        final settings = response['data'] as List<dynamic>;
+        final settings = response['data'] ?? response;
         final mapSetting = settings.firstWhere(
           (s) => s['setting_key'] == 'google_maps_api_key',
           orElse: () => null,
