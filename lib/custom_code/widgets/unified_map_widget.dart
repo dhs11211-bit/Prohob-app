@@ -172,8 +172,8 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
   Future<void> _fetchGoogleMapsKey() async {
     try {
       final response = await ApiService.instance.get('/public/settings');
-      if (mounted && response is Map && response.containsKey('data')) {
-        final settings = response['data'];
+      if (mounted && response is Map) {
+        final settings = response['data'] ?? response;
         if (settings is Map && 
             settings.containsKey('google_maps_api_key') &&
             settings['google_maps_api_key'] != null &&
@@ -846,7 +846,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
     String client = data['customer_name'] ?? 'Unknown Customer';
     String type = data['job_type'] ?? 'Standard Clean';
     String address = data['address'] ?? 'No address provided';
-    String status = (data['status'] ?? 'pending').toString().toUpperCase();
+    String status = (data['job_status'] ?? 'pending').toString().toUpperCase();
     List workers = data['assigned_workers'] ?? [];
 
     Color statusColor =
@@ -1484,7 +1484,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                             if (data is! Map<String, dynamic>) continue;
 
                             String status =
-                                (data['status'] ?? '').toString().toLowerCase();
+                                (data['job_status'] ?? '').toString().toLowerCase();
                             if (status == 'cancelled') continue;
 
                             double? lat;

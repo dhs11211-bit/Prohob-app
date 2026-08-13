@@ -23,12 +23,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import '../../shared/job_list_page.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../app_constants.dart';
 
 import '../../shared/image_editor_helper.dart';
 import '/shared/toast_service.dart';
+import '../../components/searchable_dropdown.dart';
 
 // =====================================================================
 // 🚀 WIDGET PRINCIPAL DE LA PANTALLA TEAM
@@ -2149,51 +2151,21 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                           ),
                                         ),
                                         const SizedBox(height: 16),
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF1E293B),
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: DropdownButtonFormField<int>(
-                                            value: _selectedRoleId,
-                                            isExpanded: true,
-                                            dropdownColor:
-                                                const Color(0xFF1E293B),
-                                            icon: const Padding(
-                                              padding:
-                                                  EdgeInsets.only(right: 8.0),
-                                              child: Icon(Icons.arrow_drop_down,
-                                                  color: Colors.white60),
-                                            ),
-                                            decoration: const InputDecoration(
-                                              prefixIcon: Icon(
-                                                  Icons.work_outline,
-                                                  color: Color(0xFF3B82F6)),
-                                              border: InputBorder.none,
-                                              contentPadding:
-                                                  EdgeInsets.symmetric(
-                                                      vertical: 16),
-                                            ),
-                                            hint: const Text("Select Role",
-                                                style: TextStyle(
-                                                    color: Colors.white38)),
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16),
-                                            items: _availableRoles.map((role) {
-                                              return DropdownMenuItem<int>(
-                                                value: role['id'] as int,
-                                                child: Text(role['name'] ??
-                                                    'Unknown Role'),
-                                              );
-                                            }).toList(),
-                                            onChanged: (int? newValue) {
-                                              setModalState(() {
-                                                _selectedRoleId = newValue;
-                                              });
-                                            },
-                                          ),
+                                        SearchableDropdown(
+                                          value: _selectedRoleId?.toString(),
+                                          hint: "Select Role",
+                                          prefixIcon: const Icon(Icons.work_outline, color: Color(0xFF3B82F6), size: 20),
+                                          items: _availableRoles.map((role) {
+                                            return {
+                                              'value': role['id'].toString(),
+                                              'label': role['name']?.toString() ?? 'Unknown Role'
+                                            };
+                                          }).toList(),
+                                          onChanged: (val) {
+                                            setModalState(() {
+                                              _selectedRoleId = int.tryParse(val ?? '');
+                                            });
+                                          },
                                         ),
                                         const SizedBox(height: 16),
                                         _buildTextField(
@@ -2914,8 +2886,17 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   }
 
   void _showWorkerDetailsModal(Map<String, dynamic> workerData) {
-    double hourlyRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 16.0;
-    
+    String userId = (workerData['uid'] ?? workerData['id'] ?? '').toString();
+    String name = workerData['display_name'] ?? workerData['name'] ?? '';
+    List<String> nameParts = name.trim().split(' ');
+    String defaultFirst = workerData['first_name'] ?? (nameParts.isNotEmpty ? nameParts.first : '');
+    String defaultLast = workerData['last_name'] ?? (nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
+
+    TextEditingController firstNameCtrl = TextEditingController(text: defaultFirst);
+    TextEditingController lastNameCtrl = TextEditingController(text: defaultLast);
+    TextEditingController emailCtrl = TextEditingController(text: workerData['email'] ?? '');
+    TextEditingController phoneCtrl = TextEditingController(text: workerData['phone'] ?? workerData['mobile'] ?? '');
+
     Map<String, dynamic> addrData = {};
     if (workerData['primary_address'] is Map) {
       addrData = workerData['primary_address'] as Map<String, dynamic>;
@@ -2923,281 +2904,237 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       addrData = (workerData['addresses'] as List)[0] as Map<String, dynamic>;
     }
 
-    String unitNumber = workerData['address2']?.toString() ?? addrData['address2']?.toString() ?? '';
-    String gateCode = workerData['gate_code']?.toString() ?? addrData['gate_code']?.toString() ?? '';
-    String notes = workerData['address_notes']?.toString() ?? workerData['notes']?.toString() ?? addrData['address_notes']?.toString() ?? addrData['notes']?.toString() ?? '';
+    TextEditingController addressCtrl = TextEditingController(text: workerData['address'] ?? workerData['address1'] ?? addrData['address1'] ?? addrData['address'] ?? '');
+    final unitCtrl = TextEditingController(text: workerData['address2']?.toString() ?? addrData['address2']?.toString() ?? '');
+    final gateCtrl = TextEditingController(text: workerData['gate_code']?.toString() ?? addrData['gate_code']?.toString() ?? '');
+    final notesCtrl = TextEditingController(text: workerData['address_notes']?.toString() ?? workerData['notes']?.toString() ?? addrData['address_notes']?.toString() ?? addrData['notes']?.toString() ?? '');
+
+    double currentRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 20.0;
+    TextEditingController rateCtrl = TextEditingController(text: currentRate.toStringAsFixed(2));
+
+    bool isSavingBasic = false;
+    bool isSavingDocs = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D1B2A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          height: MediaQuery.of(context).size.height * 0.85,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 8),
-                child: Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
+      builder: (modalContext) {
+        return DefaultTabController(
+          length: 3,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF0D1B2A),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            height: MediaQuery.of(modalContext).size.height * 0.9,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 16, bottom: 8),
+                  child: Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 8.0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor:
-                                const Color(0xFF3B82F6).withOpacity(0.2),
-                            child: Text(
-                              workerData['display_name']?[0]?.toUpperCase() ??
-                                  'W',
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: const Color(0xFF3B82F6).withOpacity(0.2),
+                        child: Text(
+                          workerData['display_name']?[0]?.toUpperCase() ?? 'W',
+                          style: const TextStyle(
+                            color: Color(0xFF3B82F6),
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              workerData['display_name'] ?? 'No Name',
                               style: const TextStyle(
-                                color: Color(0xFF3B82F6),
-                                fontSize: 24,
+                                color: Colors.white,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
+                            Text(
+                              workerData['email'] ?? 'No Email',
+                              style: const TextStyle(
+                                color: Colors.white60,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const TabBar(
+                  indicatorColor: Color(0xFF3B82F6),
+                  labelColor: Color(0xFF3B82F6),
+                  unselectedLabelColor: Colors.white60,
+                  tabs: [
+                    Tab(text: "Basic Info"),
+                    Tab(text: "Documents"),
+                    Tab(text: "Jobs History"),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      // TAB 1: BASIC INFO
+                      StatefulBuilder(
+                        builder: (context, setTabState) {
+                          return SingleChildScrollView(
+                            padding: const EdgeInsets.all(24.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  workerData['display_name'] ?? 'No Name',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                _buildTextField(controller: firstNameCtrl, label: "First Name", icon: Icons.person_outline),
+                                const SizedBox(height: 16),
+                                _buildTextField(controller: lastNameCtrl, label: "Last Name", icon: Icons.person_outline),
+                                const SizedBox(height: 16),
+                                _buildTextField(controller: emailCtrl, label: "Email Address", icon: Icons.email_outlined),
+                                const SizedBox(height: 16),
+                                _buildTextField(controller: phoneCtrl, label: "Mobile Phone", icon: Icons.phone_outlined),
+                                const SizedBox(height: 16),
+                                _buildTextField(controller: addressCtrl, label: "Street Address", icon: Icons.location_on_outlined),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(child: _buildTextField(controller: unitCtrl, label: "Unit / Apt", icon: Icons.apartment_outlined)),
+                                    const SizedBox(width: 16),
+                                    Expanded(child: _buildTextField(controller: gateCtrl, label: "Gate Code", icon: Icons.lock_outline)),
+                                  ],
                                 ),
-                                Text(
-                                  workerData['email'] ?? 'No Email',
-                                  style: const TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 14,
+                                const SizedBox(height: 16),
+                                _buildTextField(controller: notesCtrl, label: "Notes", icon: Icons.notes_outlined),
+                                const SizedBox(height: 16),
+                                _buildTextField(controller: rateCtrl, label: "Hourly Rate (\$)", icon: Icons.attach_money),
+                                const SizedBox(height: 32),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: isSavingBasic ? null : () async {
+                                      setTabState(() => isSavingBasic = true);
+                                      try {
+                                        double newRate = double.tryParse(rateCtrl.text) ?? currentRate;
+                                        Map<String, dynamic> payload = {
+                                          'phone': phoneCtrl.text,
+                                          'address': addressCtrl.text,
+                                          'address2': unitCtrl.text,
+                                          'gate_code': gateCtrl.text,
+                                          'notes': notesCtrl.text,
+                                          'hourly_rate': newRate,
+                                          'cost_rate': newRate,
+                                        };
+                                        if (firstNameCtrl.text.trim().isNotEmpty && firstNameCtrl.text.trim() != workerData['first_name']) {
+                                          payload['first_name'] = firstNameCtrl.text.trim();
+                                        }
+                                        if (lastNameCtrl.text.trim().isNotEmpty && lastNameCtrl.text.trim() != workerData['last_name']) {
+                                          payload['last_name'] = lastNameCtrl.text.trim();
+                                        }
+                                        if (emailCtrl.text.trim().isNotEmpty && emailCtrl.text.trim() != workerData['email']) {
+                                          payload['email'] = emailCtrl.text.trim();
+                                        }
+                                        await ApiService.instance.put('/admin/workers/$userId', payload);
+                                        ToastService.success(context, 'Basic info updated!');
+                                        _fetchWorkers();
+                                      } catch (e) {
+                                        ToastService.error(context, 'Failed to update basic info');
+                                      } finally {
+                                        if (mounted) setTabState(() => isSavingBasic = false);
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF3B82F6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    child: isSavingBasic
+                                      ? const CircularProgressIndicator(color: Colors.white)
+                                      : const Text("Save Basic Info", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                          );
+                        }
                       ),
-                      const SizedBox(height: 32),
-                      Row(
-                        children: const [
-                          Icon(Icons.folder_open,
-                              color: Colors.white, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            "Documents & Payroll",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "Compensation",
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInfoField(
-                              "Hourly Rate",
-                              "\$${hourlyRate.toStringAsFixed(2)} / hr",
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton(
-                            onPressed: () => _showEditRateDialog(
-                              workerData['uid']?.toString() ?? workerData['id']?.toString() ?? '',
-                              hourlyRate,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3B82F6),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                                horizontal: 16,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.edit,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        "Identity & Compliance",
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDocumentTile(
-                        context,
-                        "Photo ID",
-                        "Driver's license",
-                        Icons.badge_outlined,
-                        workerData['photo_id_url']?.toString(),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDocumentTile(
-                        context,
-                        "SSN Card",
-                        "Copy of SSN",
-                        Icons.credit_card_outlined,
-                        workerData['ssn_url']?.toString(),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        "Tax Information",
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDocumentTile(
-                        context,
-                        "W-9 Form",
-                        "Tax document",
-                        Icons.description_outlined,
-                        workerData['w9_url']?.toString(),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDocumentTile(
-                        context,
-                        "Direct Deposit",
-                        "Bank authorization",
-                        Icons.account_balance_outlined,
-                        workerData['bank_url']?.toString(),
-                      ),
-                      const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: const [
-                              Icon(Icons.person_outline,
-                                  color: Colors.white, size: 20),
-                              SizedBox(width: 8),
-                              Text(
-                                "Personal Info",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
+                      // TAB 2: DOCUMENTS
+                      StatefulBuilder(
+                        builder: (context, setTabState) {
+                          return SingleChildScrollView(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildDocumentTile(modalContext, "Photo ID", "Driver's license", Icons.badge_outlined, workerData['photo_id_url']?.toString()),
+                                const SizedBox(height: 12),
+                                _buildDocumentTile(modalContext, "SSN Card", "Copy of SSN", Icons.credit_card_outlined, workerData['ssn_url']?.toString()),
+                                const SizedBox(height: 12),
+                                _buildDocumentTile(modalContext, "W-9 Form", "Tax document", Icons.description_outlined, workerData['w9_url']?.toString()),
+                                const SizedBox(height: 12),
+                                _buildDocumentTile(modalContext, "Direct Deposit", "Bank authorization", Icons.account_balance_outlined, workerData['bank_url']?.toString()),
+                                const SizedBox(height: 32),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: isSavingDocs ? null : () async {
+                                      setTabState(() => isSavingDocs = true);
+                                      try {
+                                        await ApiService.instance.put('/admin/workers/$userId', {});
+                                        ToastService.success(context, 'Documents & Payroll updated!');
+                                        _fetchWorkers();
+                                      } catch (e) {
+                                        ToastService.error(context, 'Failed to update documents');
+                                      } finally {
+                                        if (mounted) setTabState(() => isSavingDocs = false);
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF10B981),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    child: isSavingDocs
+                                      ? const CircularProgressIndicator(color: Colors.white)
+                                      : const Text("Save Documents", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: () => _showEditWorkerModal(workerData),
-                            icon: const Icon(Icons.edit, color: Colors.white, size: 14),
-                            label: const Text("Edit Info", style: TextStyle(color: Colors.white, fontSize: 12)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3B82F6),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                              ],
                             ),
-                          ),
-                        ],
+                          );
+                        }
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "BASIC INFORMATION",
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      // TAB 3: JOBS HISTORY
+                      SharedJobListPage(
+                        staffId: int.tryParse(userId.toString()),
+                        hideCalendar: true,
                       ),
-                      const SizedBox(height: 12),
-                      _buildInfoField(
-                        "Full Legal Name",
-                        workerData['display_name'] ?? '-',
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        "CONTACT & ADDRESS",
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInfoField(
-                        "Mobile Phone",
-                        workerData['phone']?.isNotEmpty == true
-                            ? workerData['phone']
-                            : '-',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInfoField(
-                        "Street Address",
-                        workerData['address']?.isNotEmpty == true
-                            ? workerData['address']
-                            : '-',
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(child: _buildInfoField("Unit / Apartment #", unitNumber.isNotEmpty ? unitNumber : '-')),
-                          const SizedBox(width: 12),
-                          Expanded(child: _buildInfoField("Gate / Door / Lock Code", gateCode.isNotEmpty ? gateCode : '-')),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInfoField("Notes / Key Notes", notes.isNotEmpty ? notes : '-'),
-                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

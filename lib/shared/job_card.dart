@@ -45,7 +45,7 @@ class SharedJobCard extends StatelessWidget {
     final customerName = jobData['customer_name'] ?? jobData['job_type'] ?? 'Scheduled Job';
     final address = jobData['address'] ?? 'No address provided';
 
-    final status = (jobData['job_status'] ?? jobData['status'] ?? 'SCHEDULED').toString().toUpperCase();
+    final status = (jobData['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
     Color statusColor = accentBlue;
     if (status == 'ACTIVE' || status == 'IN PROGRESS') statusColor = const Color(0xFF10B981);
     if (status == 'PENDING' || status == 'DRAFT') statusColor = const Color(0xFFF59E0B);

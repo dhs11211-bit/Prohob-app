@@ -64,7 +64,7 @@ class _RecurringSeriesModalState extends State<RecurringSeriesModal> {
   }
 
   Widget _buildInstanceCard(dynamic job) {
-    String status = (job['job_status'] ?? job['status'] ?? 'SCHEDULED').toString().toUpperCase();
+    String status = (job['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
     Color statusColor = const Color(0xFF3B82F6);
     if (status == 'ACTIVE' || status == 'IN PROGRESS') statusColor = const Color(0xFF10B981);
     if (status == 'PENDING' || status == 'DRAFT') statusColor = const Color(0xFFF59E0B);

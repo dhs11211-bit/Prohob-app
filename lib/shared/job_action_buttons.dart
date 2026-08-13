@@ -55,7 +55,7 @@ class _JobActionButtonsState extends State<JobActionButtons> {
     _timer?.cancel();
     bool isCurrentJobActive = widget.clockStatus != null &&
         widget.clockStatus!['status'] == 'clocked_in' &&
-        widget.clockStatus!['job_id'] == widget.jobId;
+        widget.clockStatus!['job_id']?.toString() == widget.jobId.toString();
 
     if (isCurrentJobActive) {
       int serverElapsed = 0;
@@ -167,7 +167,7 @@ class _JobActionButtonsState extends State<JobActionButtons> {
   Widget build(BuildContext context) {
     bool isCurrentJobActive = widget.clockStatus != null &&
         widget.clockStatus!['status'] == 'clocked_in' &&
-        widget.clockStatus!['job_id'] == widget.jobId;
+        widget.clockStatus!['job_id']?.toString() == widget.jobId.toString();
 
     String rawStatus = widget.jobStatus.toLowerCase();
     bool isCompleted = rawStatus == 'completed';
@@ -175,7 +175,7 @@ class _JobActionButtonsState extends State<JobActionButtons> {
     bool isOnBreak = sessionStatus == 3 || rawStatus == 'on_hold';
     bool hasClockedIn = isCurrentJobActive;
 
-    if (isCompleted) {
+    if (isCompleted && !hasClockedIn) {
       const Color accentGreen = Color(0xFF10B981);
       return Container(
         width: double.infinity,

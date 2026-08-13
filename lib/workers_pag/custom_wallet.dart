@@ -101,8 +101,15 @@ class _CustomWalletState extends State<CustomWallet> {
     ];
 
     for (var log in logs) {
-      if (log['clock_in'] != null) {
-        DateTime clockIn = DateTime.parse(log['clock_in']);
+      if (log['start_date'] != null && log['start_time'] != null) {
+        String datePart = log['start_date'].toString().split('T')[0];
+        String combinedStr = "$datePart ${log['start_time']}";
+        DateTime clockIn;
+        try {
+          clockIn = DateTime.parse(combinedStr);
+        } catch (e) {
+          continue; // skip if unparseable
+        }
         int weekdayIndex = clockIn.weekday - 1;
 
         double hours = double.parse(log['hours'].toString());
@@ -111,9 +118,15 @@ class _CustomWalletState extends State<CustomWallet> {
         grid[weekdayIndex]['hrs'] += hours;
         grid[weekdayIndex]['pay'] += earned;
         grid[weekdayIndex]['in'] = DateFormat('hh:mm a').format(clockIn);
-        if (log['clock_out'] != null) {
-          grid[weekdayIndex]['out'] =
-              DateFormat('hh:mm a').format(DateTime.parse(log['clock_out']));
+        
+        if (log['end_date'] != null && log['end_time'] != null) {
+          String endDatePart = log['end_date'].toString().split('T')[0];
+          String endStr = "$endDatePart ${log['end_time']}";
+          try {
+            grid[weekdayIndex]['out'] = DateFormat('hh:mm a').format(DateTime.parse(endStr));
+          } catch (e) {
+            grid[weekdayIndex]['out'] = '--:--';
+          }
         } else {
           grid[weekdayIndex]['out'] = 'In Progress';
         }

@@ -64,8 +64,8 @@ class _QuickMapModalState extends State<QuickMapModal> {
   Future<void> _fetchGoogleMapsKey() async {
     try {
       final response = await ApiService.instance.get('/public/settings');
-      if (mounted && response is Map && response.containsKey('data')) {
-        final settings = response['data'];
+      if (mounted && response is Map) {
+        final settings = response['data'] ?? response;
         if (settings is Map && 
             settings.containsKey('google_maps_api_key') &&
             settings['google_maps_api_key'] != null &&

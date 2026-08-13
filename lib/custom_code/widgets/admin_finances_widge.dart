@@ -9,6 +9,9 @@ import 'package:flutter/material.dart';
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 import 'dart:ui';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../shared/toast_service.dart';
 import '../../auth/laravel_auth_manager.dart';
 import 'package:intl/intl.dart';
 import '/backend/api_service.dart';
@@ -548,14 +551,7 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                   });
 
                                   Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              "Payroll processed successfully!"),
-                                          backgroundColor: Color(0xFF10B981)));
-
-                                  // Refresh Data
-                                  _loadDashboardData();
+                                  ToastService.success(context, "Payroll processed successfully!");
                                 } catch (e) {
                                   setModalState(() {
                                     isSaving = false;
@@ -589,13 +585,10 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
   void _markAsPaid(String invoiceId) async {
     try {
       await _api.patch('admin/invoices/$invoiceId/pay', {});
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Invoice marked as PAID!"),
-          backgroundColor: Color(0xFF10B981)));
+      ToastService.success(context, "Invoice marked as PAID!");
       _loadDashboardData();
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
+      ToastService.error(context, "Error: $e");
     }
   }
 

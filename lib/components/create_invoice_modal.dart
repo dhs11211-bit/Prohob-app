@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import '../backend/api_service.dart';
 import '../shared/toast_service.dart';
 import 'line_items_editor.dart';
+import 'searchable_dropdown.dart';
 
 class CreateInvoiceModal extends StatefulWidget {
   final String? initialJobId;
   final String? initialCustomerId;
   final double? initialAmount;
   final VoidCallback? onInvoiceCreated;
+  final Map<String, dynamic>? existingInvoice;
 
   const CreateInvoiceModal({
     Key? key,
@@ -15,6 +17,7 @@ class CreateInvoiceModal extends StatefulWidget {
     this.initialCustomerId,
     this.initialAmount,
     this.onInvoiceCreated,
+    this.existingInvoice,
   }) : super(key: key);
 
   @override
@@ -39,10 +42,29 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
   @override
   void initState() {
     super.initState();
-    _selectedCustomerId = widget.initialCustomerId;
-    _selectedJobId = widget.initialJobId;
-    if (widget.initialAmount != null) {
-      _amountCtrl.text = widget.initialAmount!.toStringAsFixed(2);
+    if (widget.existingInvoice != null) {
+      final inv = widget.existingInvoice!;
+      _selectedCustomerId = inv['customer_id']?.toString();
+      _selectedJobId = inv['job_id']?.toString();
+      _amountCtrl.text = (double.tryParse(inv['total']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
+      _descriptionCtrl.text = inv['notes'] ?? '';
+      if (inv['line_items'] != null && inv['line_items'] is List) {
+        _lineItems = List<Map<String, dynamic>>.from(
+          (inv['line_items'] as List).map((i) => {
+            'description': i['description'] ?? '',
+            'quantity': i['quantity'] ?? 1,
+            'unit_price': i['unit_price'] ?? 0,
+            'tax_rate': i['tax_rate'] ?? 0,
+            'discount': i['discount'] ?? 0,
+          })
+        );
+      }
+    } else {
+      _selectedCustomerId = widget.initialCustomerId;
+      _selectedJobId = widget.initialJobId;
+      if (widget.initialAmount != null) {
+        _amountCtrl.text = widget.initialAmount!.toStringAsFixed(2);
+      }
     }
     _fetchData();
   }
@@ -170,12 +192,19 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
         'line_items': _lineItems,
       };
       
-      await ApiService.instance.post('/admin/invoices', payload);
-      if (mounted) ToastService.success(context, "Invoice created successfully!");
+      if (widget.existingInvoice != null) {
+        final id = widget.existingInvoice!['id'];
+        await ApiService.instance.put('/admin/invoices/$id', payload);
+        if (mounted) ToastService.success(context, "Invoice updated successfully!");
+      } else {
+        await ApiService.instance.post('/admin/invoices', payload);
+        if (mounted) ToastService.success(context, "Invoice created successfully!");
+      }
+      
       if (widget.onInvoiceCreated != null) widget.onInvoiceCreated!();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ToastService.error(context, 'Failed to create invoice: ${e.toString().replaceAll('Exception: ', '')}');
+      if (mounted) ToastService.error(context, 'Failed to save invoice: ${e.toString().replaceAll('Exception: ', '')}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -211,9 +240,9 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Create Invoice",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      Text(
+                        widget.existingInvoice != null ? "Edit Invoice" : "Create Invoice",
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.white54),
@@ -225,27 +254,19 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
                   
                   const Text("Select Customer", style: TextStyle(color: Colors.white70, fontSize: 13)),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  SearchableDropdown(
                     value: _selectedCustomerId,
-                    dropdownColor: const Color(0xFF1E293B),
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                    isDense: true,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: const Color(0xFF1E293B),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                    items: _customers.map((c) => DropdownMenuItem<String>(
-                      value: c['id'].toString(),
-                      child: Text("${c['first_name'] ?? ''} ${c['last_name'] ?? ''}".trim().isEmpty ? 'Unknown' : "${c['first_name']} ${c['last_name']}"),
-                    )).toList(),
+                    hint: "Choose a customer...",
+                    items: _customers.map((c) {
+                      String label = "${c['first_name'] ?? ''} ${c['last_name'] ?? ''}".trim();
+                      if (label.isEmpty) label = 'Unknown';
+                      return {'value': c['id'].toString(), 'label': label};
+                    }).toList(),
                     onChanged: (val) {
                       setState(() {
                         _selectedCustomerId = val;
                       });
                     },
-                    validator: (val) => val == null ? 'Customer is required' : null,
                   ),
                   const SizedBox(height: 12),
                   
@@ -420,7 +441,10 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: _submitInvoice,
-                      child: const Text("Create Invoice", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: Text(
+                        widget.existingInvoice != null ? "Save Changes" : "Create Invoice", 
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)
+                      ),
                     ),
                   ),
                 ],

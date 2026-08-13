@@ -142,7 +142,12 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: 24 + MediaQuery.of(context).padding.bottom,
+              ),
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -257,7 +262,12 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: 24 + MediaQuery.of(context).padding.bottom,
+              ),
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -819,7 +829,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                     final job = seriesJobs[index];
                     final String jobNum = job['job_number'] ?? 'JOB-${job['id']}';
                     final String title = job['title'] ?? 'Job Details';
-                    final String status = (job['job_status'] ?? job['status'] ?? 'SCHEDULED').toString().toUpperCase();
+                    final String status = (job['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
                     
                     DateTime? sTime = JobParser.getStartDate(job);
                     final String dateStr = sTime != null ? DateFormat('MMM d, yyyy').format(sTime) : 'No date';
@@ -878,7 +888,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     if (_jobData == null) return;
     TextEditingController titleCtrl = TextEditingController(text: _jobData!['title'] ?? '');
     TextEditingController notesCtrl = TextEditingController(text: _jobData!['description'] ?? _jobData!['notes'] ?? '');
-    String currentStatus = _jobData!['job_status'] ?? _jobData!['status'] ?? 'scheduled';
+    String currentStatus = _jobData!['job_status'] ?? 'scheduled';
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -1024,7 +1034,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     try {
       final response = await ApiService.instance.get('/settings');
       if (response != null && response['success'] == true) {
-        final settings = response['data'] ?? {};
+        final settings = response['data'] ?? response;
         if (settings.containsKey('google_maps_api_key') && settings['google_maps_api_key'] != null && settings['google_maps_api_key'].toString().trim().isNotEmpty) {
           if (mounted) {
             setState(() {
@@ -1452,7 +1462,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
         ? '${DateFormat('h:mm a').format(scheduledTime)} - ${DateFormat('h:mm a').format(scheduledTime.add(const Duration(hours: 2)))}'
         : 'No time set';
 
-    String status = (_jobData?['job_status'] ?? _jobData?['status'] ?? 'SCHEDULED').toString().toUpperCase();
+    String status = (_jobData?['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
 
     return Scaffold(
       backgroundColor: bg,
@@ -2542,7 +2552,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                         }).toList(),
                                         const SizedBox(height: 16),
                                       ],
-                                      if (AuthHelpers.hasPermission('CREATE INVOICES') || AuthHelpers.isAdmin)
+                                      if ((_jobData!['invoices'] == null || (_jobData!['invoices'] as List).isEmpty) && (AuthHelpers.hasPermission('CREATE INVOICES') || AuthHelpers.isAdmin))
                                         Padding(
                                           padding: const EdgeInsets.only(bottom: 20),
                                           child: ElevatedButton.icon(
@@ -2574,7 +2584,8 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                         ),
 
                         // Fixed Bottom Action Dock (CHAT, CALL, MAP)
-                        Align(
+                        if (MediaQuery.of(context).viewInsets.bottom == 0)
+                          Align(
                           alignment: Alignment.bottomCenter,
                           child: Container(
                             margin: EdgeInsets.only(

@@ -227,15 +227,13 @@ class GlobalChatModal {
             }
           };
 
-          return Padding(
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom),
-            child: Container(
-              height: (MediaQuery.of(context).size.height * 0.90) - MediaQuery.of(context).viewInsets.bottom,
-              decoration: const BoxDecoration(
-                  color: bg,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(32))),
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.95,
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            decoration: const BoxDecoration(
+                color: bg,
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(32))),
               child: Column(
                 children: [
                   Center(
@@ -660,8 +658,7 @@ class GlobalChatModal {
                   ), // Container
                 ], // Column children
               ), // Column
-            ), // Container (216)
-          ); // Padding (213)
+            ); // Container
         });
       },
     ).whenComplete(() {
@@ -683,9 +680,9 @@ class LinkifiedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Combined regex: URLs first, then phone numbers
+    // Combined regex: URLs first (supporting optional http/www), then phone numbers
     final RegExp linkRegex = RegExp(
-      r'(https?://[^\s]+)|(\+?\d[\d\s\-\.\(\)]{4,18}\d)',
+      r'((?:https?://)?(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?)|(\+?\d[\d\s\-\.\(\)]{4,18}\d)',
       caseSensitive: false,
     );
 
@@ -694,7 +691,7 @@ class LinkifiedText extends StatelessWidget {
       linkRegex,
       onMatch: (Match match) {
         final matched = match[0]!;
-        final isUrl = matched.startsWith('http://') || matched.startsWith('https://');
+        final isUrl = match.group(1) != null;
 
         spans.add(
           TextSpan(
@@ -707,7 +704,8 @@ class LinkifiedText extends StatelessWidget {
               ..onTap = () async {
                 Uri url;
                 if (isUrl) {
-                  url = Uri.parse(matched);
+                  final urlStr = matched.toLowerCase().startsWith('http') ? matched : 'https://$matched';
+                  url = Uri.parse(urlStr);
                 } else {
                   url = Uri.parse('tel:${matched.replaceAll(RegExp(r'[^\d+]'), '')}');
                 }
