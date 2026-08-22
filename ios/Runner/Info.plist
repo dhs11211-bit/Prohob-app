@@ -58,6 +58,26 @@
 
 
 
+	<!-- Camera & Microphone -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to take job site photos and proof of service.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is required for video capture during job inspections.</string>
+	
+	<!-- Location (Foreground & Background) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app accesses your location only when you press Start or Finish Job to verify you are at the job site.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Location access is used to verify job site attendance and track travel time.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Location access is used to verify job site attendance and track travel time.</string>
+	
+	<!-- Photos & Files -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app accesses your photo library to attach images to job records.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app saves job photos directly to your photo library.</string>
+
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
