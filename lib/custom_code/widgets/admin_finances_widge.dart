@@ -81,24 +81,29 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
         endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
       } else if (_timeFilter == 'This Week') {
         int daysToSubtract = now.weekday - DateTime.monday;
-        startDate = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysToSubtract));
-        endDate = startDate.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+        startDate = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: daysToSubtract));
+        endDate = startDate
+            .add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
       } else if (_timeFilter == 'This Month') {
         startDate = DateTime(now.year, now.month, 1);
         endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
       } else if (_timeFilter == 'This Year') {
         startDate = DateTime(now.year, 1, 1);
         endDate = DateTime(now.year, 12, 31, 23, 59, 59);
-      } else if (_timeFilter == 'Custom Date Range' && _customDateRange != null) {
+      } else if (_timeFilter == 'Custom Date Range' &&
+          _customDateRange != null) {
         startDate = _customDateRange!.start;
-        endDate = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
+        endDate = DateTime(_customDateRange!.end.year,
+            _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
       } else {
         startDate = DateTime(now.year, now.month, 1);
         endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
       }
 
       final df = DateFormat('yyyy-MM-dd');
-      String url = 'admin/finance/dashboard?start_date=${df.format(startDate)}&end_date=${df.format(endDate)}';
+      String url =
+          'admin/finance/dashboard?start_date=${df.format(startDate)}&end_date=${df.format(endDate)}';
 
       final summary = await _api.get(url);
       final data = summary['data'] ?? summary;
@@ -292,7 +297,8 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                             itemBuilder: (context, index) {
                               var data = docs[index];
                               return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4.0),
                                 child: _buildInvoiceCard(data),
                               );
                             }),
@@ -362,16 +368,25 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                             itemBuilder: (context, index) {
                               var data = docs[index];
                               String workerName = 'Payroll Run';
-                              if (data['workers'] != null && data['workers'].isNotEmpty) {
+                              if (data['workers'] != null &&
+                                  data['workers'].isNotEmpty) {
                                 var firstWorker = data['workers'][0];
                                 if (firstWorker['user'] != null) {
-                                  workerName = '${firstWorker['user']['first_name']} ${firstWorker['user']['last_name']}';
+                                  workerName =
+                                      '${firstWorker['user']['first_name']} ${firstWorker['user']['last_name']}';
                                 }
                               } else if (data['processor'] != null) {
-                                workerName = '${data['processor']['first_name'] ?? ''} ${data['processor']['last_name'] ?? ''}'.trim().isEmpty ? 'Payroll Run' : '${data['processor']['first_name'] ?? ''} ${data['processor']['last_name'] ?? ''}'.trim();
+                                workerName =
+                                    '${data['processor']['first_name'] ?? ''} ${data['processor']['last_name'] ?? ''}'
+                                            .trim()
+                                            .isEmpty
+                                        ? 'Payroll Run'
+                                        : '${data['processor']['first_name'] ?? ''} ${data['processor']['last_name'] ?? ''}'
+                                            .trim();
                               }
                               return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4.0),
                                 child: _buildPayoutCard(data, workerName),
                               );
                             }),
@@ -513,22 +528,22 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                   const SizedBox(height: 32),
                   if (errorMessage != null) ...[
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.redAccent.withOpacity(0.5))
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: Colors.redAccent.withOpacity(0.5))),
+                        child: Row(children: [
+                          const Icon(Icons.error_outline,
+                              color: Colors.redAccent, size: 20),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                            child: Text(errorMessage!,
+                                style: const TextStyle(
+                                    color: Colors.redAccent, fontSize: 13)),
                           )
-                        ]
-                      )
-                    ),
+                        ])),
                     const SizedBox(height: 16),
                   ],
                   SizedBox(
@@ -539,26 +554,29 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                           ? null
                           : () async {
                               setModalState(() => isSaving = true);
-                                setModalState(() => errorMessage = null);
-                                try {
-                                  // Calls our Laravel API to process payroll
-                                  await _api.post('admin/payroll/process', {
-                                    'worker_ids': [workerId],
-                                    'period_start': workerData['period_start'],
-                                    'period_end': workerData['period_end'],
-                                    'pay_method': 'ach',
-                                    'notes': 'Processed from mobile app'
-                                  });
+                              setModalState(() => errorMessage = null);
+                              try {
+                                // Calls our Laravel API to process payroll
+                                await _api.post('admin/payroll/process', {
+                                  'worker_ids': [workerId],
+                                  'period_start': workerData['period_start'],
+                                  'period_end': workerData['period_end'],
+                                  'pay_method': 'ach',
+                                  'notes': 'Processed from mobile app'
+                                });
 
-                                  Navigator.pop(context);
-                                  ToastService.success(context, "Payroll processed successfully!");
-                                } catch (e) {
-                                  setModalState(() {
-                                    isSaving = false;
-                                    errorMessage = e.toString().replaceAll("Exception: ", "");
-                                  });
-                                }
-                              },
+                                Navigator.pop(context);
+                                ToastService.success(
+                                    context, "Payroll processed successfully!");
+                              } catch (e) {
+                                setModalState(() {
+                                  isSaving = false;
+                                  errorMessage = e
+                                      .toString()
+                                      .replaceAll("Exception: ", "");
+                                });
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF3B82F6),
                           shape: RoundedRectangleBorder(
@@ -594,167 +612,196 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
 
   Widget _buildInvoiceCard(Map<String, dynamic> data) {
     bool isPaid = data['invoice_status'] == 'paid';
-    
-    final customerName = data['customer'] != null 
-        ? ('${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim().isEmpty ? 'Client' : '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'.trim()) 
+
+    final customerName = data['customer'] != null
+        ? ('${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'
+                .trim()
+                .isEmpty
+            ? 'Client'
+            : '${data['customer']['first_name'] ?? ''} ${data['customer']['last_name'] ?? ''}'
+                .trim())
         : 'Client';
-        
-    final dateStr = data['issue_date'] != null 
-        ? DateFormat('MMM d, yyyy').format(DateTime.tryParse(data['issue_date'].toString()) ?? DateTime.now())
+
+    final dateStr = data['issue_date'] != null
+        ? DateFormat('MMM d, yyyy').format(
+            DateTime.tryParse(data['issue_date'].toString()) ?? DateTime.now())
         : 'N/A';
 
     final invoiceNum = data['invoice_number'] ?? 'N/A';
-    final amount = currencyFormat.format(double.tryParse(data['total']?.toString() ?? '0') ?? 0.0);
+    final amount = currencyFormat
+        .format(double.tryParse(data['total']?.toString() ?? '0') ?? 0.0);
 
     return GestureDetector(
-      onTap: () {
-        showInvoiceDetailModal(context, data);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10)),
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        onTap: () {
+          showInvoiceDetailModal(context, data);
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white10)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                      color: isPaid
-                          ? const Color(0xFF10B981).withOpacity(0.15)
-                          : const Color(0xFFF59E0B).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Icon(isPaid ? Icons.check_circle : Icons.schedule,
-                      size: 20,
-                      color: isPaid
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFFF59E0B))),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      customerName,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Invoice $invoiceNum',
-                      style: const TextStyle(color: Colors.white60, fontSize: 13)
-                    )
-                  ]
-                )
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Total", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                  const SizedBox(height: 2),
-                  Text(amount,
-                      style: TextStyle(
-                          color: isPaid ? Colors.white : const Color(0xFFF59E0B),
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold)),
+                  Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                          color: isPaid
+                              ? const Color(0xFF10B981).withOpacity(0.15)
+                              : const Color(0xFFF59E0B).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10)),
+                      child: Icon(isPaid ? Icons.check_circle : Icons.schedule,
+                          size: 20,
+                          color: isPaid
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFF59E0B))),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        Text(
+                          customerName,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Invoice $invoiceNum',
+                            style: const TextStyle(
+                                color: Colors.white60, fontSize: 13))
+                      ])),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text("Total",
+                          style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0)),
+                      const SizedBox(height: 2),
+                      Text(amount,
+                          style: TextStyle(
+                              color: isPaid
+                                  ? Colors.white
+                                  : const Color(0xFFF59E0B),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 10),
+                    child: Icon(Icons.chevron_right,
+                        color: Colors.white54, size: 20),
+                  ),
                 ],
               ),
-              const SizedBox(width: 8),
-              const Padding(
-                padding: EdgeInsets.only(top: 10),
-                child: Icon(Icons.chevron_right, color: Colors.white54, size: 20),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  dateStr,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500)
-                ),
-              ),
-              if (!isPaid)
-                GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          backgroundColor: const Color(0xFF1E293B),
-                          title: const Text("Confirm Payment", style: TextStyle(color: Colors.white)),
-                          content: const Text("Are you sure you want to mark this invoice as paid?", style: TextStyle(color: Colors.white70)),
-                          actions: [
-                            TextButton(
-                              child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
-                              onPressed: () => Navigator.of(context).pop(),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
-                              child: const Text("Confirm", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _markAsPaid(data['id'].toString());
-                              },
-                            ),
-                          ],
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(dateStr,
+                        style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500)),
+                  ),
+                  if (!isPaid)
+                    GestureDetector(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              backgroundColor: const Color(0xFF1E293B),
+                              title: const Text("Confirm Payment",
+                                  style: TextStyle(color: Colors.white)),
+                              content: const Text(
+                                  "Are you sure you want to mark this invoice as paid?",
+                                  style: TextStyle(color: Colors.white70)),
+                              actions: [
+                                TextButton(
+                                  child: const Text("Cancel",
+                                      style: TextStyle(color: Colors.white60)),
+                                  onPressed: () => Navigator.of(context).pop(),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF10B981)),
+                                  child: const Text("Confirm",
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _markAsPaid(data['id'].toString());
+                                  },
+                                ),
+                              ],
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5))
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color:
+                                    const Color(0xFF10B981).withOpacity(0.5))),
+                        child: const Text("Mark as Paid",
+                            style: TextStyle(
+                                color: Color(0xFF10B981),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text("PAID",
+                          style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1)),
                     ),
-                    child: const Text("Mark as Paid",
-                        style: TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text("PAID",
-                      style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1)),
-                ),
+                ],
+              )
             ],
-          )
-        ],
-      ),
-    ));
+          ),
+        ));
   }
 
   Widget _buildPayoutCard(Map<String, dynamic> data, String workerName) {
-    final dateStr = data['created_at'] != null 
-        ? DateFormat('MMM d, yyyy').format(DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now())
+    final dateStr = data['created_at'] != null
+        ? DateFormat('MMM d, yyyy').format(
+            DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now())
         : 'N/A';
-    final amount = currencyFormat.format(double.tryParse(data['total_amount']?.toString() ?? '0') ?? 0.0);
-    
+    final amount = currencyFormat.format(
+        double.tryParse(data['total_amount']?.toString() ?? '0') ?? 0.0);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -773,33 +820,41 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                   decoration: BoxDecoration(
                       color: const Color(0xFF8B5CF6).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.outbound, size: 20, color: Color(0xFF8B5CF6))),
+                  child: const Icon(Icons.outbound,
+                      size: 20, color: Color(0xFF8B5CF6))),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                     Text(
                       workerName,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       data['notes'] ?? 'Payroll run',
-                      style: const TextStyle(color: Colors.white60, fontSize: 13),
+                      style:
+                          const TextStyle(color: Colors.white60, fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     )
-                  ]
-                )
-              ),
+                  ])),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text("Total", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                  const Text("Total",
+                      style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0)),
                   const SizedBox(height: 2),
                   Text(amount,
                       style: const TextStyle(
@@ -817,13 +872,15 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
             children: [
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  dateStr,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500)
-                ),
+                child: Text(dateStr,
+                    style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(6),
@@ -841,7 +898,6 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -867,16 +923,21 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24.0, vertical: 8.0),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
                             "Finances",
-                            style: TextStyle(color: Colors.white70, fontSize: 19, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w600),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 2),
                             decoration: BoxDecoration(
                               color: const Color(0xFF1E293B),
                               borderRadius: BorderRadius.circular(10),
@@ -899,14 +960,17 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                     .map((f) => DropdownMenuItem(
                                           value: f,
                                           child: Text(
-                                              f == 'Custom Date Range' && _customDateRange != null && _timeFilter == 'Custom Date Range'
+                                              f == 'Custom Date Range' &&
+                                                      _customDateRange !=
+                                                          null &&
+                                                      _timeFilter ==
+                                                          'Custom Date Range'
                                                   ? '${DateFormat('MMM d').format(_customDateRange!.start)} - ${DateFormat('MMM d').format(_customDateRange!.end)}'
                                                   : f,
                                               style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 12,
-                                                  fontWeight:
-                                                      FontWeight.w600)),
+                                                  fontWeight: FontWeight.w600)),
                                         ))
                                     .toList(),
                                 onChanged: (val) async {
@@ -919,7 +983,8 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                         builder: (context, child) {
                                           return Theme(
                                             data: ThemeData.dark().copyWith(
-                                              colorScheme: const ColorScheme.dark(
+                                              colorScheme:
+                                                  const ColorScheme.dark(
                                                 primary: Color(0xFF3B82F6),
                                                 onPrimary: Colors.white,
                                                 surface: Color(0xFF1E293B),
@@ -1097,66 +1162,71 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                             children: [
                               Expanded(
                                   child: GestureDetector(
-                                onTap: () => _showMetricDetailsModal(
-                                    "Net Profit",
-                                    netProfit,
-                                    _paidInvoices,
-                                    true),
-                                child: Container(
-                                    padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                          color:
-                                              netProfitColor.withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
+                                      onTap: () => _showMetricDetailsModal(
+                                          "Net Profit",
+                                          netProfit,
+                                          _paidInvoices,
+                                          true),
+                                      child: Container(
+                                          padding: const EdgeInsets.all(20),
+                                          decoration: BoxDecoration(
                                               color: netProfitColor
-                                                  .withOpacity(0.5))),
-                                      child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              8),
-                                                      decoration: BoxDecoration(
-                                                          color: netProfitColor
-                                                              .withOpacity(0.2),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(8)),
-                                                      child: Icon(
-                                                          Icons.insights,
-                                                          color: netProfitColor,
-                                                          size: 20)),
-                                                  Text("Margin",
-                                                      style: TextStyle(
-                                                          color: netProfitColor,
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.bold))
-                                                ]),
-                                            const SizedBox(height: 16),
-                                            Text(
-                                                currencyFormat
-                                                    .format(netProfit),
-                                                style: TextStyle(
-                                                    color: netProfitColor,
-                                                    fontSize: 24,
-                                                    fontWeight:
-                                                        FontWeight.bold)),
-                                            const SizedBox(height: 4),
-                                              const Text("Net Profit",
-                                                  style: TextStyle(
-                                                      color: Colors.white60,
-                                                      fontSize: 13))
-                                            ])))),
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                  color: netProfitColor
+                                                      .withOpacity(0.5))),
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .all(8),
+                                                          decoration: BoxDecoration(
+                                                              color: netProfitColor
+                                                                  .withOpacity(
+                                                                      0.2),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          8)),
+                                                          child: Icon(
+                                                              Icons.insights,
+                                                              color:
+                                                                  netProfitColor,
+                                                              size: 20)),
+                                                      Text("Margin",
+                                                          style: TextStyle(
+                                                              color:
+                                                                  netProfitColor,
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold))
+                                                    ]),
+                                                const SizedBox(height: 16),
+                                                Text(
+                                                    currencyFormat
+                                                        .format(netProfit),
+                                                    style: TextStyle(
+                                                        color: netProfitColor,
+                                                        fontSize: 24,
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                                const SizedBox(height: 4),
+                                                const Text("Net Profit",
+                                                    style: TextStyle(
+                                                        color: Colors.white60,
+                                                        fontSize: 13))
+                                              ])))),
                               const SizedBox(width: 16),
                               Expanded(
                                   child: GestureDetector(
@@ -1467,47 +1537,132 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                                                     style: const TextStyle(
                                                         color: Colors.white,
                                                         fontSize: 16,
-                                                        fontWeight: FontWeight.bold)),
+                                                        fontWeight:
+                                                            FontWeight.bold)),
                                                 const SizedBox(height: 8),
-                                                Row(
-                                                  children: [
-                                                      Expanded(
-                                                        child: Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                                          children: [
-                                                            const Text("REG / OT", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                                                            Text("${workerData['regular_hours'] ?? 0}h / ${workerData['overtime_hours'] ?? 0}h", style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                                            const SizedBox(height: 8),
-                                                            const Text("TRAVEL / GAP", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                                                            Text("${workerData['travel_hours'] ?? 0}h / ${workerData['gap_hours'] ?? 0}h", style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                                          ]
-                                                        ),
-                                                      ),
-                                                      Expanded(
-                                                        child: Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                                          children: [
-                                                            const Text("GROSS", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                                                            Text(currencyFormat.format((workerData['total_amount'] ?? 0).toDouble()), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                                                            const SizedBox(height: 8),
-                                                            const Text("TAX", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                                                            Text("-${currencyFormat.format((workerData['tax_amount'] ?? 0).toDouble())}", style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
-                                                          ]
-                                                        ),
-                                                      ),
-                                                      Expanded(
-                                                        child: Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                                          mainAxisAlignment: MainAxisAlignment.center,
-                                                          children: [
-                                                            const Text("NET", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                                                            Text(currencyFormat.format((workerData['net_amount'] ?? workerData['total_amount'] ?? 0).toDouble()), style: const TextStyle(color: Color(0xFF10B981), fontSize: 16, fontWeight: FontWeight.bold)),
-                                                            const SizedBox(height: 16),
-                                                          ]
-                                                        ),
-                                                      )
-                                                  ]
-                                                )
+                                                Row(children: [
+                                                  Expanded(
+                                                    child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          const Text("REG / OT",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white54,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          Text(
+                                                              "${workerData['regular_hours'] ?? 0}h / ${workerData['overtime_hours'] ?? 0}h",
+                                                              style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize:
+                                                                      12)),
+                                                          const SizedBox(
+                                                              height: 8),
+                                                          const Text(
+                                                              "TRAVEL / GAP",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white54,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          Text(
+                                                              "${workerData['travel_hours'] ?? 0}h / ${workerData['gap_hours'] ?? 0}h",
+                                                              style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize:
+                                                                      12)),
+                                                        ]),
+                                                  ),
+                                                  Expanded(
+                                                    child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          const Text("GROSS",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white54,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          Text(
+                                                              currencyFormat.format(
+                                                                  (workerData['total_amount'] ??
+                                                                          0)
+                                                                      .toDouble()),
+                                                              style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 14,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          const SizedBox(
+                                                              height: 8),
+                                                          const Text("TAX",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white54,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          Text(
+                                                              "-${currencyFormat.format((workerData['tax_amount'] ?? 0).toDouble())}",
+                                                              style: const TextStyle(
+                                                                  color: Colors
+                                                                      .redAccent,
+                                                                  fontSize:
+                                                                      12)),
+                                                        ]),
+                                                  ),
+                                                  Expanded(
+                                                    child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          const Text("NET",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .white54,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          Text(
+                                                              currencyFormat.format((workerData[
+                                                                          'net_amount'] ??
+                                                                      workerData[
+                                                                          'total_amount'] ??
+                                                                      0)
+                                                                  .toDouble()),
+                                                              style: const TextStyle(
+                                                                  color: Color(
+                                                                      0xFF10B981),
+                                                                  fontSize: 16,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          const SizedBox(
+                                                              height: 16),
+                                                        ]),
+                                                  )
+                                                ])
                                               ],
                                             ),
                                           ),
@@ -1552,7 +1707,7 @@ class _AdminFinancesWidgeState extends State<AdminFinancesWidge> {
                 ), // End outer Column
               ), // End SingleChildScrollView
             ), // End RefreshIndicator
-            
+
             // Loading Overlay
             if (_isLoading)
               Positioned.fill(

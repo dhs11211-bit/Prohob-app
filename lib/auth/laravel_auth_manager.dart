@@ -18,7 +18,9 @@ class LaravelAuthUser extends BaseAuthUser {
   AuthUserInfo get authUserInfo => AuthUserInfo(
         uid: userData?['id']?.toString(),
         email: userData?['email'],
-        displayName: '${userData?['first_name'] ?? ''} ${userData?['last_name'] ?? ''}'.trim(),
+        displayName:
+            '${userData?['first_name'] ?? ''} ${userData?['last_name'] ?? ''}'
+                .trim(),
         photoUrl: null,
         phoneNumber: userData?['phone'] ?? userData?['mobile'],
       );
@@ -50,7 +52,8 @@ class LaravelAuthUser extends BaseAuthUser {
 
 class LaravelAuthManager {
   static const _storage = FlutterSecureStorage();
-  static final BehaviorSubject<BaseAuthUser> _userStreamController = BehaviorSubject<BaseAuthUser>();
+  static final BehaviorSubject<BaseAuthUser> _userStreamController =
+      BehaviorSubject<BaseAuthUser>();
 
   // The stream required by main.dart
   static Stream<BaseAuthUser> get userStream => _userStreamController.stream;
@@ -68,16 +71,18 @@ class LaravelAuthManager {
     _updateUser(user);
   }
 
-  static Future<dynamic> login(String email, String password, {int? clId}) async {
-    final response = await ApiService.instance.login(email, password, clId: clId);
-    
+  static Future<dynamic> login(String email, String password,
+      {int? clId}) async {
+    final response =
+        await ApiService.instance.login(email, password, clId: clId);
+
     if (response['requires_selection'] == true) {
       return response;
     }
 
     final token = response['access_token'];
     await _storage.write(key: 'auth_token', value: token);
-    
+
     if (clId != null) {
       await _storage.write(key: 'active_cl_id', value: clId.toString());
     } else {
@@ -86,7 +91,7 @@ class LaravelAuthManager {
         await _storage.write(key: 'active_cl_id', value: userClId.toString());
       }
     }
-    
+
     _updateUser(response['user']);
     return response;
   }

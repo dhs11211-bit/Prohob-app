@@ -5,7 +5,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/custom_code/widgets/index.dart'; // Imports other custom widgets
 import '/flutter_flow/custom_functions.dart'; // Imports custom functions
 import '/backend/api_service.dart';
-import '/backend/reverb_service.dart';
+
 import '/components/global_chat_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -57,7 +57,8 @@ class AdminTeamWidge extends StatefulWidget {
   State<AdminTeamWidge> createState() => _AdminTeamWidgeState();
 }
 
-class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProviderStateMixin {
+class _AdminTeamWidgeState extends State<AdminTeamWidge>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final BaseAuthUser? _currentUser = currentUser;
   int? _currentUserId;
@@ -81,12 +82,14 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   String _gateCode = '';
   String _notes = '';
   String? _googleMapsApiKey;
-  final TextEditingController _confirmPasswordController = TextEditingController();
-  final TextEditingController _hourlyRateController = TextEditingController(text: '20');
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+  final TextEditingController _hourlyRateController =
+      TextEditingController(text: '20');
   bool _isCreatingUser = false;
 
   String _chatFilter = 'All'; // 'All', 'Unread', 'Groups'
-  
+
   List<dynamic> _allJobs = [];
   bool _isLoadingJobs = true;
   List<dynamic> _allWorkers = [];
@@ -116,24 +119,12 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       });
     }
 
-    ReverbService.instance.init().then((_) {
-      ReverbService.instance.onConversationUpdated = (data) {
-        if (_tabController.index == 1) {
-          _fetchChats();
-        }
-      };
-      
-      ApiService.instance.getMe().then((user) {
-        if (mounted && user != null) {
-          int? clId = user['cl_id'];
-          setState(() {
-            _currentUserId = user['id'];
-          });
-          if (clId != null) {
-            ReverbService.instance.subscribeToConversations(clId);
-          }
-        }
-      });
+    ApiService.instance.getMe().then((user) {
+      if (mounted && user != null) {
+        setState(() {
+          _currentUserId = user['id'];
+        });
+      }
     });
   }
 
@@ -206,7 +197,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   Future<void> _fetchJobs() async {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final res = await ApiService.instance.get('/admin/jobs?start_date=$dateStr&end_date=$dateStr');
+      final res = await ApiService.instance
+          .get('/admin/jobs?start_date=$dateStr&end_date=$dateStr');
       if (mounted) {
         setState(() {
           if (res is List) {
@@ -225,10 +217,11 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   Future<void> _fetchWorkers() async {
     try {
       final settingsRes = await ApiService.instance.get('/settings');
-      if (settingsRes is Map<String, dynamic> && settingsRes.containsKey('data')) {
+      if (settingsRes is Map<String, dynamic> &&
+          settingsRes.containsKey('data')) {
         final data = settingsRes['data'] as Map<String, dynamic>;
-        if (data.containsKey('google_maps_api_key') && 
-            data['google_maps_api_key'] != null && 
+        if (data.containsKey('google_maps_api_key') &&
+            data['google_maps_api_key'] != null &&
             data['google_maps_api_key'].toString().trim().isNotEmpty) {
           _googleMapsApiKey = data['google_maps_api_key'].toString();
         }
@@ -236,7 +229,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) {
         _googleMapsApiKey = AppConstants.fallbackGoogleMapsApiKey;
       }
-      
+
       final res = await ApiService.instance.get('/admin/workers');
       if (mounted) {
         setState(() {
@@ -261,7 +254,13 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       if (user != null) {
         if (mounted) {
           setState(() {
-            _adminName = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim().isEmpty ? "Admin" : '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+            _adminName =
+                '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'
+                        .trim()
+                        .isEmpty
+                    ? "Admin"
+                    : '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'
+                        .trim();
           });
         }
       }
@@ -283,7 +282,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
 
   String _formatTimestamp(dynamic timestamp) {
     if (timestamp == null) return '';
-    DateTime date = timestamp is String ? DateTime.parse(timestamp) : DateTime.now();
+    DateTime date =
+        timestamp is String ? DateTime.parse(timestamp) : DateTime.now();
     DateTime now = DateTime.now();
 
     if (date.year == now.year &&
@@ -350,10 +350,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         useSafeArea: true,
         builder: (context) =>
             StatefulBuilder(builder: (context, setModalState) {
-
               void _fetchMessages() async {
                 try {
-                  var res = await ApiService.instance.get('/chat/$chatId/messages');
+                  var res =
+                      await ApiService.instance.get('/chat/$chatId/messages');
                   if (res != null && res['data'] != null) {
                     if (res['data'] is Map && res['data']['data'] != null) {
                       _messages = List<dynamic>.from(res['data']['data']);
@@ -361,8 +361,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                       _messages = List<dynamic>.from(res['data'] ?? []);
                     }
                     _messages.sort((a, b) {
-                      DateTime timeA = DateTime.parse(a['created_at']).toLocal();
-                      DateTime timeB = DateTime.parse(b['created_at']).toLocal();
+                      DateTime timeA =
+                          DateTime.parse(a['created_at']).toLocal();
+                      DateTime timeB =
+                          DateTime.parse(b['created_at']).toLocal();
                       return timeB.compareTo(timeA);
                     });
                   }
@@ -380,24 +382,11 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
               if (!hasInitialized) {
                 hasInitialized = true;
                 _fetchMessages();
-                ReverbService.instance.subscribeToChat(chatId);
-                ReverbService.instance.onMessageReceived = (data) {
-                  if (data != null) {
-                    // Message payload is passed directly now because backend uses broadcastWith
-                    if (data['conversation_id']?.toString() == chatId.toString()) {
-                      setModalState(() {
-                        // Avoid duplicates if we sent it
-                        bool exists = _messages.any((m) => m['id'] == data['id']);
-                        if (!exists) {
-                          _messages.insert(0, data);
-                        }
-                      });
-                    }
-                  }
-                };
-                
+
+
                 // Mark as read API call
-                ApiService.instance.post('/chat/$chatId/read', {}).catchError((e) {
+                ApiService.instance
+                    .post('/chat/$chatId/read', {}).catchError((e) {
                   debugPrint("Error marking read: $e");
                 });
               }
@@ -424,26 +413,32 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
 
                   setModalState(() => isSending = true);
 
-                  String fileName = '${_currentUserId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-                  
-                  var uploadRes = await ApiService.instance.uploadChatMedia(chatId, editedBytes, fileName);
+                  String fileName =
+                      '${_currentUserId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+                  var uploadRes = await ApiService.instance
+                      .uploadChatMedia(chatId, editedBytes, fileName);
                   if (uploadRes != null && uploadRes['url'] != null) {
-                    var msgRes = await ApiService.instance.post('/chat/$chatId/messages', {
+                    var msgRes = await ApiService.instance
+                        .post('/chat/$chatId/messages', {
                       'content': '📷 Image',
                       'type': 'image',
-                      'attachments': [{
-                        'url': uploadRes['url'],
-                        'filename': uploadRes['filename'],
-                      }]
+                      'attachments': [
+                        {
+                          'url': uploadRes['url'],
+                          'filename': uploadRes['filename'],
+                        }
+                      ]
                     });
-                    
-                    if (msgRes != null && msgRes['status'] == 'success' && msgRes['data'] != null) {
-                       setModalState(() {
-                         _messages.insert(0, msgRes['data']);
-                       });
+
+                    if (msgRes != null &&
+                        msgRes['status'] == 'success' &&
+                        msgRes['data'] != null) {
+                      setModalState(() {
+                        _messages.insert(0, msgRes['data']);
+                      });
                     }
                   }
-
                 } catch (e) {
                   ToastService.error(context, 'Upload failed: $e');
                 } finally {
@@ -483,24 +478,29 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                     bytes = await file.readAsBytes();
                   }
 
-                  var uploadRes = await ApiService.instance.uploadChatMedia(chatId, bytes, fileName);
+                  var uploadRes = await ApiService.instance
+                      .uploadChatMedia(chatId, bytes, fileName);
                   if (uploadRes != null && uploadRes['url'] != null) {
-                    var msgRes = await ApiService.instance.post('/chat/$chatId/messages', {
+                    var msgRes = await ApiService.instance
+                        .post('/chat/$chatId/messages', {
                       'content': msgText,
                       'type': msgType,
-                      'attachments': [{
-                        'url': uploadRes['url'],
-                        'filename': uploadRes['filename'],
-                      }]
+                      'attachments': [
+                        {
+                          'url': uploadRes['url'],
+                          'filename': uploadRes['filename'],
+                        }
+                      ]
                     });
-                    
-                    if (msgRes != null && msgRes['status'] == 'success' && msgRes['data'] != null) {
-                       setModalState(() {
-                         _messages.insert(0, msgRes['data']);
-                       });
+
+                    if (msgRes != null &&
+                        msgRes['status'] == 'success' &&
+                        msgRes['data'] != null) {
+                      setModalState(() {
+                        _messages.insert(0, msgRes['data']);
+                      });
                     }
                   }
-
                 } catch (e) {
                   ToastService.error(context, 'Upload failed: $e');
                 } finally {
@@ -635,8 +635,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
                                   color: isGroup
-                                      ? const Color(0xFF10B981)
-                                          .withOpacity(0.2)
+                                      ? const Color(0xFF10B981).withOpacity(0.2)
                                       : const Color(0xFF3B82F6)
                                           .withOpacity(0.2),
                                   shape: BoxShape.circle,
@@ -652,8 +651,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       chatName,
@@ -693,8 +691,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   ? const Center(
                                       child: Text(
                                         "Say hello to start the chat!",
-                                        style: TextStyle(
-                                            color: Colors.white38),
+                                        style: TextStyle(color: Colors.white38),
                                       ),
                                     )
                                   : ListView.builder(
@@ -704,20 +701,28 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                           horizontal: 16, vertical: 20),
                                       itemCount: _messages.length,
                                       itemBuilder: (context, index) {
-                                        var data = _messages[index] as Map<String, dynamic>;
-                                        bool isMe = data['sender_id'] == _currentUserId;
-                                        
-                                        String? fileUrl;
-                                        if (data['attachments'] != null && (data['attachments'] as List).isNotEmpty) {
-                                          fileUrl = data['attachments'][0]['url'];
-                                        }
-                                        
-                                        bool isImageMsg =
-                                            data['type'] == 'image' && fileUrl != null;
-                                        bool isDocMsg =
-                                            data['type'] == 'file' && fileUrl != null;
+                                        var data = _messages[index]
+                                            as Map<String, dynamic>;
+                                        bool isMe =
+                                            data['sender_id'] == _currentUserId;
 
-                                        String senderName = data['sender_name'] ?? 'Worker';
+                                        String? fileUrl;
+                                        if (data['attachments'] != null &&
+                                            (data['attachments'] as List)
+                                                .isNotEmpty) {
+                                          fileUrl =
+                                              data['attachments'][0]['url'];
+                                        }
+
+                                        bool isImageMsg =
+                                            data['type'] == 'image' &&
+                                                fileUrl != null;
+                                        bool isDocMsg =
+                                            data['type'] == 'file' &&
+                                                fileUrl != null;
+
+                                        String senderName =
+                                            data['sender_name'] ?? 'Worker';
                                         String senderInitial =
                                             senderName.isNotEmpty
                                                 ? senderName[0].toUpperCase()
@@ -803,7 +808,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                                       if (isImageMsg)
                                                         GestureDetector(
                                                           onTap: () =>
-                                                              _openFileUrl(fileUrl!),
+                                                              _openFileUrl(
+                                                                  fileUrl!),
                                                           child: ClipRRect(
                                                             borderRadius:
                                                                 BorderRadius
@@ -820,7 +826,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                                       else if (isDocMsg)
                                                         GestureDetector(
                                                           onTap: () =>
-                                                              _openFileUrl(fileUrl!),
+                                                              _openFileUrl(
+                                                                  fileUrl!),
                                                           child: Row(
                                                             mainAxisSize:
                                                                 MainAxisSize
@@ -879,7 +886,9 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                                               : 0,
                                                         ),
                                                         child: Text(
-                                                          _formatTimestampLaravel(data['created_at']),
+                                                          _formatTimestampLaravel(
+                                                              data[
+                                                                  'created_at']),
                                                           style: TextStyle(
                                                             color: isMe
                                                                 ? Colors.white
@@ -908,8 +917,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                             color: const Color(0xFF1E293B),
                             border: Border(
                                 top: BorderSide(
-                                    color:
-                                        Colors.white.withOpacity(0.05))),
+                                    color: Colors.white.withOpacity(0.05))),
                           ),
                           child: isSending
                               ? const Center(
@@ -930,25 +938,22 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                     ),
                                     Expanded(
                                       child: Container(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 16),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF0D1B2A),
                                           borderRadius:
                                               BorderRadius.circular(24),
-                                          border: Border.all(
-                                              color: Colors.white10),
+                                          border:
+                                              Border.all(color: Colors.white10),
                                         ),
                                         child: TextField(
                                           controller: msgController,
                                           style: const TextStyle(
                                               color: Colors.white),
                                           maxLines: null,
-                                          keyboardType:
-                                              TextInputType.multiline,
-                                          decoration:
-                                              const InputDecoration(
+                                          keyboardType: TextInputType.multiline,
+                                          decoration: const InputDecoration(
                                             hintText: "Message...",
                                             hintStyle: TextStyle(
                                                 color: Colors.white38),
@@ -960,25 +965,25 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                     const SizedBox(width: 8),
                                     GestureDetector(
                                       onTap: () async {
-                                        if (msgController.text
-                                                .trim()
-                                                .isEmpty ||
+                                        if (msgController.text.trim().isEmpty ||
                                             _currentUserId == null) return;
-                                        setModalState(
-                                            () => isSending = true);
-                                        String text =
-                                            msgController.text.trim();
+                                        setModalState(() => isSending = true);
+                                        String text = msgController.text.trim();
                                         msgController.clear();
 
                                         try {
-                                          var msgRes = await ApiService.instance.post('/chat/$chatId/messages', {
+                                          var msgRes = await ApiService.instance
+                                              .post('/chat/$chatId/messages', {
                                             'content': text,
                                             'type': 'text',
                                           });
-                                          
-                                          if (msgRes != null && msgRes['status'] == 'success' && msgRes['data'] != null) {
+
+                                          if (msgRes != null &&
+                                              msgRes['status'] == 'success' &&
+                                              msgRes['data'] != null) {
                                             setModalState(() {
-                                              _messages.insert(0, msgRes['data']);
+                                              _messages.insert(
+                                                  0, msgRes['data']);
                                             });
                                           }
                                         } catch (e) {
@@ -997,8 +1002,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(Icons.send,
-                                            color: Colors.white,
-                                            size: 20),
+                                            color: Colors.white, size: 20),
                                       ),
                                     ),
                                   ],
@@ -1010,8 +1014,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                 ),
               );
             })).whenComplete(() {
-      ReverbService.instance.unsubscribeFromChat(chatId);
-      ReverbService.instance.onMessageReceived = null;
+
     });
   }
 
@@ -1019,7 +1022,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     if (dateStr == null) return '';
     try {
       DateTime dt = DateTime.parse(dateStr).toLocal();
-      String hour = dt.hour > 12 ? (dt.hour - 12).toString() : dt.hour.toString();
+      String hour =
+          dt.hour > 12 ? (dt.hour - 12).toString() : dt.hour.toString();
       if (hour == '0') hour = '12';
       String minute = dt.minute.toString().padLeft(2, '0');
       String ampm = dt.hour >= 12 ? 'PM' : 'AM';
@@ -1048,19 +1052,19 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       }
 
       if (existingChatId != null) {
-        _openChatThreadModal(
-            existingChatId, workerName, false, workerIdStr, [_currentUserId, workerId]);
+        _openChatThreadModal(existingChatId, workerName, false, workerIdStr,
+            [_currentUserId, workerId]);
       } else {
         var newChat = await ApiService.instance.post('/conversations', {
           'type': 'internal',
           'participants': [_currentUserId, workerId],
           'name': workerName,
         });
-        
+
         if (newChat != null && newChat['id'] != null) {
-            _openChatThreadModal(
-                newChat['id'].toString(), workerName, false, workerIdStr, [_currentUserId, workerId]);
-            _fetchChats(); // Refresh the list
+          _openChatThreadModal(newChat['id'].toString(), workerName, false,
+              workerIdStr, [_currentUserId, workerId]);
+          _fetchChats(); // Refresh the list
         }
       }
     } catch (e) {
@@ -1119,103 +1123,107 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                 ),
               ),
               const SizedBox(height: 20),
-              Expanded(
-                  child: Builder(
-                      builder: (context) {
-                        if (_isLoadingJobs) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
+              Expanded(child: Builder(builder: (context) {
+                if (_isLoadingJobs) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                        var jobs = _allJobs.where((data) {
-                          // The API returns assigned_users as an array of user objects
-                          List workers = data['assigned_users'] ?? [];
-                          return workers.length >= 2;
-                        }).toList();
+                var jobs = _allJobs.where((data) {
+                  // The API returns assigned_users as an array of user objects
+                  List workers = data['assigned_users'] ?? [];
+                  return workers.length >= 2;
+                }).toList();
 
-                        if (jobs.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'No jobs with multiple workers found.',
-                              style: TextStyle(color: Colors.white60),
-                            ),
-                          );
-                        }
+                if (jobs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No jobs with multiple workers found.',
+                      style: TextStyle(color: Colors.white60),
+                    ),
+                  );
+                }
 
-                        return ListView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: jobs.length,
-                            itemBuilder: (ctx, i) {
-                              var data = jobs[i];
-                              String jobId = data['id'].toString();
-                              String jobName =
-                                  "${data['customer_name'] ?? data['title']} - ${data['job_type'] ?? ''}";
-                              List assignedUsers = data['assigned_users'] as List? ?? [];
+                return ListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: jobs.length,
+                    itemBuilder: (ctx, i) {
+                      var data = jobs[i];
+                      String jobId = data['id'].toString();
+                      String jobName =
+                          "${data['customer_name'] ?? data['title']} - ${data['job_type'] ?? ''}";
+                      List assignedUsers =
+                          data['assigned_users'] as List? ?? [];
 
-                              return GestureDetector(
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    _createGroupFromJob(
-                                        jobId, jobName, assignedUsers);
-                                  },
-                                  child: Container(
-                                      margin: const EdgeInsets.only(bottom: 12),
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF1E293B),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border:
-                                            Border.all(color: Colors.white10),
+                      return GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _createGroupFromJob(jobId, jobName, assignedUsers);
+                          },
+                          child: Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white10),
+                              ),
+                              child: Row(children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981)
+                                        .withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.groups,
+                                      color: Color(0xFF10B981)),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        jobName,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
                                       ),
-                                      child: Row(children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF10B981)
-                                                .withOpacity(0.2),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.groups,
-                                              color: Color(0xFF10B981)),
+                                      Text(
+                                        "${assignedUsers.length} Workers assigned",
+                                        style: const TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 12,
                                         ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                jobName,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              Text(
-                                                "${assignedUsers.length} Workers assigned",
-                                                style: const TextStyle(
-                                                  color: Colors.white60,
-                                                  fontSize: 12,
-                                                ),
-                                              )
-                                            ],
-                                          ),
-                                        ),
-                                        const Icon(Icons.add_circle,
-                                            color: Color(0xFF3B82F6), size: 24)
-                                      ])));
-                            });
-                      }))
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.add_circle,
+                                    color: Color(0xFF3B82F6), size: 24)
+                              ])));
+                    });
+              }))
             ])));
   }
 
-  void _createGroupFromJob(String jobId, String jobName, List assignedUsers) async {
+  void _createGroupFromJob(
+      String jobId, String jobName, List assignedUsers) async {
     List<Map<String, dynamic>> workersInfo = [];
     for (var u in assignedUsers) {
-      workersInfo.add({'id': u['id'].toString(), 'name': '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim().isEmpty ? 'Worker' : '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim()});
+      workersInfo.add({
+        'id': u['id'].toString(),
+        'name':
+            '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim().isEmpty
+                ? 'Worker'
+                : '${u['first_name'] ?? ''} ${u['last_name'] ?? ''}'.trim()
+      });
     }
-    List<String> selectedWorkers = workersInfo.map((w) => w['id'] as String).toList();
+    List<String> selectedWorkers =
+        workersInfo.map((w) => w['id'] as String).toList();
 
     showDialog(
         context: context,
@@ -1262,29 +1270,34 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                               backgroundColor: const Color(0xFF10B981)),
                           onPressed: () async {
                             if (selectedWorkers.isEmpty) return;
-                            List<dynamic> participants = List.from(selectedWorkers.map((id) => int.tryParse(id)).where((id) => id != null));
-                            
-                            if (_currentUserId != null && !participants.contains(_currentUserId)) {
+                            List<dynamic> participants = List.from(
+                                selectedWorkers
+                                    .map((id) => int.tryParse(id))
+                                    .where((id) => id != null));
+
+                            if (_currentUserId != null &&
+                                !participants.contains(_currentUserId)) {
                               participants.add(_currentUserId);
                             }
 
                             try {
-                                var newChat = await ApiService.instance.post('/conversations', {
-                                    'type': 'group',
-                                    'name': jobName,
-                                    'job_id': int.tryParse(jobId),
-                                    'participants': participants,
-                                });
-                                
-                                Navigator.pop(ctx);
-                                
-                                if (newChat != null && newChat['id'] != null) {
-                                    _openChatThreadModal(
-                                        newChat['id'].toString(), jobName, true, null, participants);
-                                    _fetchChats(); // Refresh the list
-                                }
+                              var newChat = await ApiService.instance
+                                  .post('/conversations', {
+                                'type': 'group',
+                                'name': jobName,
+                                'job_id': int.tryParse(jobId),
+                                'participants': participants,
+                              });
+
+                              Navigator.pop(ctx);
+
+                              if (newChat != null && newChat['id'] != null) {
+                                _openChatThreadModal(newChat['id'].toString(),
+                                    jobName, true, null, participants);
+                                _fetchChats(); // Refresh the list
+                              }
                             } catch (e) {
-                                print("Error creating group: $e");
+                              print("Error creating group: $e");
                             }
                           },
                           child: const Text("Create Group",
@@ -1327,7 +1340,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                             color: const Color(0xFF3B82F6).withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.person, color: Color(0xFF3B82F6)),
+                          child: const Icon(Icons.person,
+                              color: Color(0xFF3B82F6)),
                         ),
                         title: const Text(
                           "Direct Message",
@@ -1353,7 +1367,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                             color: const Color(0xFF10B981).withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.groups, color: Color(0xFF10B981)),
+                          child: const Icon(Icons.groups,
+                              color: Color(0xFF10B981)),
                         ),
                         title: const Text(
                           "Job Group",
@@ -1426,78 +1441,78 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                 ),
               ),
               const SizedBox(height: 20),
-              Expanded(
-                  child: Builder(
-                      builder: (context) {
-                        if (_isLoadingWorkers) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        if (_allWorkers.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'No staff members found.',
-                              style: TextStyle(color: Colors.white60),
-                            ),
-                          );
-                        }
+              Expanded(child: Builder(builder: (context) {
+                if (_isLoadingWorkers) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (_allWorkers.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No staff members found.',
+                      style: TextStyle(color: Colors.white60),
+                    ),
+                  );
+                }
 
-                        return ListView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: _allWorkers.length,
-                            itemBuilder: (ctx, i) {
-                              var data = _allWorkers[i] as Map<String, dynamic>;
-                              String workerId = data['id']?.toString() ?? '';
-                              String workerName =
-                                  data['display_name'] ?? ('${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim().isEmpty ? 'Staff Member' : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim());
+                return ListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _allWorkers.length,
+                    itemBuilder: (ctx, i) {
+                      var data = _allWorkers[i] as Map<String, dynamic>;
+                      String workerId = data['id']?.toString() ?? '';
+                      String workerName = data['display_name'] ??
+                          ('${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'
+                                  .trim()
+                                  .isEmpty
+                              ? 'Staff Member'
+                              : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'
+                                  .trim());
 
-                              return GestureDetector(
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    _startDirectChat(workerId, workerName);
-                                  },
-                                  child: Container(
-                                      margin: const EdgeInsets.only(bottom: 12),
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF1E293B),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border:
-                                            Border.all(color: Colors.white10),
-                                      ),
-                                      child: Row(children: [
-                                        CircleAvatar(
-                                          radius: 20,
-                                          backgroundColor:
-                                              const Color(0xFF3B82F6)
-                                                  .withOpacity(0.2),
-                                          child: Text(
-                                            workerName[0].toUpperCase(),
-                                            style: const TextStyle(
-                                              color: Color(0xFF3B82F6),
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Text(
-                                            workerName,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ),
-                                        const Icon(
-                                          Icons.chat_bubble_outline,
-                                          color: Colors.white38,
-                                          size: 20,
-                                        )
-                                      ])));
-                            });
-                      }))
+                      return GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _startDirectChat(workerId, workerName);
+                          },
+                          child: Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white10),
+                              ),
+                              child: Row(children: [
+                                CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor:
+                                      const Color(0xFF3B82F6).withOpacity(0.2),
+                                  child: Text(
+                                    workerName[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Color(0xFF3B82F6),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    workerName,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chat_bubble_outline,
+                                  color: Colors.white38,
+                                  size: 20,
+                                )
+                              ])));
+                    });
+              }))
             ])));
   }
 
@@ -1506,8 +1521,12 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   // =====================================================================
 
   void _showAdminPersonalInfoModal() {
-    TextEditingController firstNameCtrl = TextEditingController(text: _adminName.split(' ').first);
-    TextEditingController lastNameCtrl = TextEditingController(text: _adminName.split(' ').length > 1 ? _adminName.split(' ').sublist(1).join(' ') : '');
+    TextEditingController firstNameCtrl =
+        TextEditingController(text: _adminName.split(' ').first);
+    TextEditingController lastNameCtrl = TextEditingController(
+        text: _adminName.split(' ').length > 1
+            ? _adminName.split(' ').sublist(1).join(' ')
+            : '');
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -1568,7 +1587,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 controller: firstNameCtrl,
                                 label: "First Name",
                                 icon: Icons.person,
-                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[a-zA-Z0-9 ]'))
+                                ]),
                             const SizedBox(height: 20),
                             const Text("Last Name",
                                 style: TextStyle(
@@ -1578,7 +1600,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 controller: lastNameCtrl,
                                 label: "Last Name",
                                 icon: Icons.person_outline,
-                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[a-zA-Z0-9 ]'))
+                                ]),
                             const SizedBox(height: 32),
                             SizedBox(
                                 width: double.infinity,
@@ -1592,20 +1617,28 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   onPressed: isSaving
                                       ? null
                                       : () async {
-                                          if (firstNameCtrl.text.trim().isEmpty || lastNameCtrl.text.trim().isEmpty)
+                                          if (firstNameCtrl.text
+                                                  .trim()
+                                                  .isEmpty ||
+                                              lastNameCtrl.text.trim().isEmpty)
                                             return;
                                           setModalState(() => isSaving = true);
                                           try {
-                                            await ApiService.instance.put('/employee/profile', {
-                                              'first_name': firstNameCtrl.text.trim(),
-                                              'last_name': lastNameCtrl.text.trim(),
+                                            await ApiService.instance
+                                                .put('/employee/profile', {
+                                              'first_name':
+                                                  firstNameCtrl.text.trim(),
+                                              'last_name':
+                                                  lastNameCtrl.text.trim(),
                                             });
                                             setState(() => _adminName =
                                                 '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}');
                                             Navigator.pop(ctx);
-                                            ToastService.success(context, 'Profile updated successfully!');
+                                            ToastService.success(context,
+                                                'Profile updated successfully!');
                                           } catch (e) {
-                                            ToastService.error(context, 'Error: $e');
+                                            ToastService.error(
+                                                context, 'Error: $e');
                                           } finally {
                                             setModalState(
                                                 () => isSaving = false);
@@ -1767,7 +1800,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         _confirmPasswordController.text.isEmpty) {
       return "Please fill all fields";
     }
-    
+
     if (_passwordController.text != _confirmPasswordController.text) {
       return "Passwords do not match";
     }
@@ -1786,7 +1819,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
         'hourly_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
         'cost_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
         'role_id': _selectedRoleId,
-        'address1': _address1.isNotEmpty ? _address1 : _addressController.text.trim(),
+        'address1':
+            _address1.isNotEmpty ? _address1 : _addressController.text.trim(),
         'address': _addressController.text.trim(),
         'city': _city,
         'state': _state,
@@ -1865,7 +1899,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                   return;
                 }
                 try {
-                  if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                  if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                    return;
                   final uri = Uri.parse(
                       "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
                   final response = await http.get(uri);
@@ -1883,7 +1918,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
 
               Future<void> getPlaceDetails(String placeId) async {
                 try {
-                  if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                  if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                    return;
                   final uri = Uri.parse(
                       "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
                   final response = await http.get(uri);
@@ -1891,28 +1927,36 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                     final data = jsonDecode(response.body);
                     if (data['status'] == 'OK') {
                       var location = data['result']['geometry']['location'];
-                      var components = data['result']['address_components'] as List<dynamic>?;
-                      
+                      var components = data['result']['address_components']
+                          as List<dynamic>?;
+
                       String pStreetNumber = '';
                       String pRoute = '';
                       String pCity = '';
                       String pState = '';
                       String pPostal = '';
                       String pCountry = '';
-                      
+
                       if (components != null) {
                         for (var c in components) {
                           List<dynamic> types = c['types'] ?? [];
-                          if (types.contains('street_number')) pStreetNumber = c['long_name'];
+                          if (types.contains('street_number'))
+                            pStreetNumber = c['long_name'];
                           if (types.contains('route')) pRoute = c['long_name'];
-                          if (types.contains('locality')) pCity = c['long_name'];
-                          if (types.contains('administrative_area_level_1')) pState = c['short_name'];
-                          if (types.contains('postal_code')) pPostal = c['long_name'];
-                          if (types.contains('country')) pCountry = c['long_name'];
+                          if (types.contains('locality'))
+                            pCity = c['long_name'];
+                          if (types.contains('administrative_area_level_1'))
+                            pState = c['short_name'];
+                          if (types.contains('postal_code'))
+                            pPostal = c['long_name'];
+                          if (types.contains('country'))
+                            pCountry = c['long_name'];
                         }
                       }
 
-                      String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+                      String pAddress1 = pStreetNumber.isNotEmpty
+                          ? "$pStreetNumber $pRoute".trim()
+                          : pRoute;
 
                       setModalState(() {
                         _lat = location['lat'];
@@ -1964,8 +2008,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close,
-                                color: Colors.white60),
+                            icon:
+                                const Icon(Icons.close, color: Colors.white60),
                             onPressed: () => Navigator.pop(context),
                           ),
                         ],
@@ -2017,7 +2061,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                                   child: Text(
                                                     _createWorkerError!,
                                                     style: const TextStyle(
-                                                        color: Color(0xFFEF4444),
+                                                        color:
+                                                            Color(0xFFEF4444),
                                                         fontSize: 14),
                                                   ),
                                                 ),
@@ -2030,14 +2075,20 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                           controller: _firstNameController,
                                           label: "First Name",
                                           icon: Icons.person_outline,
-                                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(
+                                                RegExp(r'[a-zA-Z0-9 ]'))
+                                          ],
                                         ),
                                         const SizedBox(height: 16),
                                         _buildTextField(
                                           controller: _lastNameController,
                                           label: "Last Name",
                                           icon: Icons.person_outline,
-                                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(
+                                                RegExp(r'[a-zA-Z0-9 ]'))
+                                          ],
                                         ),
                                         const SizedBox(height: 16),
                                         _buildTextField(
@@ -2049,18 +2100,28 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                         Container(
                                           decoration: BoxDecoration(
                                             color: const Color(0xFF1E293B),
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
                                           ),
                                           child: TextField(
                                             controller: _addressController,
-                                            style: const TextStyle(color: Colors.white, fontSize: 16),
-                                            onChanged: (val) => searchPlaces(val),
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16),
+                                            onChanged: (val) =>
+                                                searchPlaces(val),
                                             decoration: const InputDecoration(
-                                              prefixIcon: Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                                              prefixIcon: Icon(
+                                                  Icons.location_on,
+                                                  color: Color(0xFF3B82F6)),
                                               labelText: "Staff Address",
-                                              labelStyle: TextStyle(color: Colors.white38),
+                                              labelStyle: TextStyle(
+                                                  color: Colors.white38),
                                               border: InputBorder.none,
-                                              contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                      vertical: 16,
+                                                      horizontal: 16),
                                             ),
                                           ),
                                         ),
@@ -2068,22 +2129,42 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                           Container(
                                             decoration: const BoxDecoration(
                                               color: Color(0xFF1E293B),
-                                              borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                                              borderRadius:
+                                                  BorderRadius.vertical(
+                                                      bottom:
+                                                          Radius.circular(12)),
                                             ),
                                             child: Column(
                                               mainAxisSize: MainAxisSize.min,
-                                              children: _placePredictions.map<Widget>((p) => ListTile(
-                                                title: Text(p['description']?.toString() ?? '',
-                                                    style: const TextStyle(color: Colors.white, fontSize: 13)),
-                                                onTap: () async {
-                                                  String pId = p['place_id']?.toString() ?? '';
-                                                  setModalState(() {
-                                                    _addressController.text = p['description']?.toString() ?? '';
-                                                    _placePredictions.clear();
-                                                  });
-                                                  await getPlaceDetails(pId);
-                                                },
-                                              )).toList(),
+                                              children: _placePredictions
+                                                  .map<Widget>((p) => ListTile(
+                                                        title: Text(
+                                                            p['description']
+                                                                    ?.toString() ??
+                                                                '',
+                                                            style: const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 13)),
+                                                        onTap: () async {
+                                                          String pId = p[
+                                                                      'place_id']
+                                                                  ?.toString() ??
+                                                              '';
+                                                          setModalState(() {
+                                                            _addressController
+                                                                    .text =
+                                                                p['description']
+                                                                        ?.toString() ??
+                                                                    '';
+                                                            _placePredictions
+                                                                .clear();
+                                                          });
+                                                          await getPlaceDetails(
+                                                              pId);
+                                                        },
+                                                      ))
+                                                  .toList(),
                                             ),
                                           ),
                                         const SizedBox(height: 16),
@@ -2092,18 +2173,31 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                             Expanded(
                                               child: Container(
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFF1E293B),
-                                                  borderRadius: BorderRadius.circular(12),
+                                                  color:
+                                                      const Color(0xFF1E293B),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
                                                 ),
                                                 child: TextField(
-                                                  onChanged: (val) => _address2 = val,
-                                                  style: const TextStyle(color: Colors.white),
-                                                  decoration: const InputDecoration(
-                                                    hintText: "Unit / Apartment #",
-                                                    hintStyle: TextStyle(color: Colors.white38),
-                                                    prefixIcon: Icon(Icons.apartment_outlined, color: Color(0xFF3B82F6)),
+                                                  onChanged: (val) =>
+                                                      _address2 = val,
+                                                  style: const TextStyle(
+                                                      color: Colors.white),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                    hintText:
+                                                        "Unit / Apartment #",
+                                                    hintStyle: TextStyle(
+                                                        color: Colors.white38),
+                                                    prefixIcon: Icon(
+                                                        Icons
+                                                            .apartment_outlined,
+                                                        color:
+                                                            Color(0xFF3B82F6)),
                                                     border: InputBorder.none,
-                                                    contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                            vertical: 16),
                                                   ),
                                                 ),
                                               ),
@@ -2112,18 +2206,30 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                             Expanded(
                                               child: Container(
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFF1E293B),
-                                                  borderRadius: BorderRadius.circular(12),
+                                                  color:
+                                                      const Color(0xFF1E293B),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
                                                 ),
                                                 child: TextField(
-                                                  onChanged: (val) => _gateCode = val,
-                                                  style: const TextStyle(color: Colors.white),
-                                                  decoration: const InputDecoration(
-                                                    hintText: "Gate / Door / Lock Code",
-                                                    hintStyle: TextStyle(color: Colors.white38),
-                                                    prefixIcon: Icon(Icons.lock_outline, color: Color(0xFF3B82F6)),
+                                                  onChanged: (val) =>
+                                                      _gateCode = val,
+                                                  style: const TextStyle(
+                                                      color: Colors.white),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                    hintText:
+                                                        "Gate / Door / Lock Code",
+                                                    hintStyle: TextStyle(
+                                                        color: Colors.white38),
+                                                    prefixIcon: Icon(
+                                                        Icons.lock_outline,
+                                                        color:
+                                                            Color(0xFF3B82F6)),
                                                     border: InputBorder.none,
-                                                    contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                            vertical: 16),
                                                   ),
                                                 ),
                                               ),
@@ -2134,19 +2240,26 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                         Container(
                                           decoration: BoxDecoration(
                                             color: const Color(0xFF1E293B),
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
                                           ),
                                           child: TextField(
                                             onChanged: (val) => _notes = val,
-                                            style: const TextStyle(color: Colors.white),
+                                            style: const TextStyle(
+                                                color: Colors.white),
                                             maxLines: 3,
                                             minLines: 1,
                                             decoration: const InputDecoration(
                                               hintText: "Notes / Key Notes",
-                                              hintStyle: TextStyle(color: Colors.white38),
-                                              prefixIcon: Icon(Icons.notes_outlined, color: Color(0xFF3B82F6)),
+                                              hintStyle: TextStyle(
+                                                  color: Colors.white38),
+                                              prefixIcon: Icon(
+                                                  Icons.notes_outlined,
+                                                  color: Color(0xFF3B82F6)),
                                               border: InputBorder.none,
-                                              contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                      vertical: 16),
                                             ),
                                           ),
                                         ),
@@ -2154,16 +2267,22 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                         SearchableDropdown(
                                           value: _selectedRoleId?.toString(),
                                           hint: "Select Role",
-                                          prefixIcon: const Icon(Icons.work_outline, color: Color(0xFF3B82F6), size: 20),
+                                          prefixIcon: const Icon(
+                                              Icons.work_outline,
+                                              color: Color(0xFF3B82F6),
+                                              size: 20),
                                           items: _availableRoles.map((role) {
                                             return {
                                               'value': role['id'].toString(),
-                                              'label': role['name']?.toString() ?? 'Unknown Role'
+                                              'label':
+                                                  role['name']?.toString() ??
+                                                      'Unknown Role'
                                             };
                                           }).toList(),
                                           onChanged: (val) {
                                             setModalState(() {
-                                              _selectedRoleId = int.tryParse(val ?? '');
+                                              _selectedRoleId =
+                                                  int.tryParse(val ?? '');
                                             });
                                           },
                                         ),
@@ -2262,7 +2381,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                       _createWorkerError = error;
                                     });
                                     if (error != null) {
-                                      ToastService.error(context, 'Failed to create staff member: $error');
+                                      ToastService.error(context,
+                                          'Failed to create staff member: $error');
                                     }
                                   }
                                 },
@@ -2341,7 +2461,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                   try {
                     double newRate =
                         double.tryParse(rateCtrl.text) ?? currentRate;
-                    
+
                     await ApiService.instance.put('/admin/workers/$idStr', {
                       'hourly_rate': newRate,
                       'cost_rate': newRate,
@@ -2351,11 +2471,14 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                     Navigator.pop(context);
                     _fetchWorkers(); // Refresh the data
 
-                    ToastService.success(context, 'Hourly Rate updated successfully!');
+                    ToastService.success(
+                        context, 'Hourly Rate updated successfully!');
                   } catch (e) {
-                    String errorMsg = e.toString().replaceAll('Exception: ', '');
+                    String errorMsg =
+                        e.toString().replaceAll('Exception: ', '');
                     if (mounted) {
-                      ToastService.error(context, 'Failed to update hourly rate: $errorMsg');
+                      ToastService.error(
+                          context, 'Failed to update hourly rate: $errorMsg');
                     }
                   }
                 }
@@ -2375,9 +2498,11 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     String userId = (workerData['uid'] ?? workerData['id'] ?? '').toString();
     String name = workerData['display_name'] ?? workerData['name'] ?? '';
     List<String> nameParts = name.trim().split(' ');
-    String defaultFirst = workerData['first_name'] ?? (nameParts.isNotEmpty ? nameParts.first : '');
-    String defaultLast = workerData['last_name'] ?? (nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
-    
+    String defaultFirst = workerData['first_name'] ??
+        (nameParts.isNotEmpty ? nameParts.first : '');
+    String defaultLast = workerData['last_name'] ??
+        (nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
+
     int? currentRoleId;
     if (workerData['role_id'] != null) {
       currentRoleId = int.tryParse(workerData['role_id'].toString());
@@ -2387,37 +2512,71 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     String currentRoleSlug = '';
     if (workerData['role_slug'] != null) {
       currentRoleSlug = workerData['role_slug'].toString().toLowerCase();
-    } else if (workerData['role'] is Map && workerData['role']['slug'] != null) {
+    } else if (workerData['role'] is Map &&
+        workerData['role']['slug'] != null) {
       currentRoleSlug = workerData['role']['slug'].toString().toLowerCase();
     } else if (workerData['role'] is String) {
       currentRoleSlug = workerData['role'].toString().toLowerCase();
     }
-    bool isAdmin = currentRoleSlug == 'admin' || currentRoleSlug == 'super-admin';
+    bool isAdmin =
+        currentRoleSlug == 'admin' || currentRoleSlug == 'super-admin';
 
-    TextEditingController firstNameCtrl = TextEditingController(text: defaultFirst);
-    TextEditingController lastNameCtrl = TextEditingController(text: defaultLast);
-    TextEditingController emailCtrl = TextEditingController(text: workerData['email'] ?? '');
-    TextEditingController phoneCtrl = TextEditingController(text: workerData['phone'] ?? workerData['mobile'] ?? '');
+    TextEditingController firstNameCtrl =
+        TextEditingController(text: defaultFirst);
+    TextEditingController lastNameCtrl =
+        TextEditingController(text: defaultLast);
+    TextEditingController emailCtrl =
+        TextEditingController(text: workerData['email'] ?? '');
+    TextEditingController phoneCtrl = TextEditingController(
+        text: workerData['phone'] ?? workerData['mobile'] ?? '');
     Map<String, dynamic> addrData = {};
     if (workerData['primary_address'] is Map) {
       addrData = workerData['primary_address'] as Map<String, dynamic>;
-    } else if (workerData['addresses'] is List && (workerData['addresses'] as List).isNotEmpty) {
+    } else if (workerData['addresses'] is List &&
+        (workerData['addresses'] as List).isNotEmpty) {
       addrData = (workerData['addresses'] as List)[0] as Map<String, dynamic>;
     }
 
-    TextEditingController addressCtrl = TextEditingController(text: workerData['address'] ?? workerData['address1'] ?? addrData['address1'] ?? addrData['address'] ?? '');
-    
-    final unitCtrl = TextEditingController(text: workerData['address2']?.toString() ?? addrData['address2']?.toString() ?? '');
-    final gateCtrl = TextEditingController(text: workerData['gate_code']?.toString() ?? addrData['gate_code']?.toString() ?? '');
-    final notesCtrl = TextEditingController(text: workerData['address_notes']?.toString() ?? workerData['notes']?.toString() ?? addrData['address_notes']?.toString() ?? addrData['notes']?.toString() ?? '');
+    TextEditingController addressCtrl = TextEditingController(
+        text: workerData['address'] ??
+            workerData['address1'] ??
+            addrData['address1'] ??
+            addrData['address'] ??
+            '');
 
-    double currentRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 20.0;
-    TextEditingController rateCtrl = TextEditingController(text: currentRate.toStringAsFixed(2));
+    final unitCtrl = TextEditingController(
+        text: workerData['address2']?.toString() ??
+            addrData['address2']?.toString() ??
+            '');
+    final gateCtrl = TextEditingController(
+        text: workerData['gate_code']?.toString() ??
+            addrData['gate_code']?.toString() ??
+            '');
+    final notesCtrl = TextEditingController(
+        text: workerData['address_notes']?.toString() ??
+            workerData['notes']?.toString() ??
+            addrData['address_notes']?.toString() ??
+            addrData['notes']?.toString() ??
+            '');
+
+    double currentRate = double.tryParse(
+            workerData['hourly_rate']?.toString() ??
+                workerData['cost_rate']?.toString() ??
+                '') ??
+        20.0;
+    TextEditingController rateCtrl =
+        TextEditingController(text: currentRate.toStringAsFixed(2));
 
     List<dynamic> placePredictions = [];
     String address1 = '';
-    double lat = double.tryParse(workerData['latitude']?.toString() ?? addrData['latitude']?.toString() ?? '0') ?? 0.0;
-    double lng = double.tryParse(workerData['longitude']?.toString() ?? addrData['longitude']?.toString() ?? '0') ?? 0.0;
+    double lat = double.tryParse(workerData['latitude']?.toString() ??
+            addrData['latitude']?.toString() ??
+            '0') ??
+        0.0;
+    double lng = double.tryParse(workerData['longitude']?.toString() ??
+            addrData['longitude']?.toString() ??
+            '0') ??
+        0.0;
     String city = workerData['city'] ?? addrData['city'] ?? '';
     String stateStr = workerData['state'] ?? addrData['state'] ?? '';
     String zipCode = workerData['zip_code'] ?? addrData['zip_code'] ?? '';
@@ -2437,14 +2596,14 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
             height: MediaQuery.of(context).size.height * 0.95,
             child: StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
-
                 Future<void> searchPlaces(String query) async {
                   if (query.isEmpty) {
                     setModalState(() => placePredictions = []);
                     return;
                   }
                   try {
-                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                      return;
                     final uri = Uri.parse(
                         "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
                     final response = await http.get(uri);
@@ -2462,7 +2621,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
 
                 Future<void> getPlaceDetails(String placeId) async {
                   try {
-                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                      return;
                     final uri = Uri.parse(
                         "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
                     final response = await http.get(uri);
@@ -2470,28 +2630,37 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                       final data = jsonDecode(response.body);
                       if (data['status'] == 'OK') {
                         var location = data['result']['geometry']['location'];
-                        var components = data['result']['address_components'] as List<dynamic>?;
-                        
+                        var components = data['result']['address_components']
+                            as List<dynamic>?;
+
                         String pStreetNumber = '';
                         String pRoute = '';
                         String pCity = '';
                         String pState = '';
                         String pPostal = '';
                         String pCountry = '';
-                        
+
                         if (components != null) {
                           for (var c in components) {
                             List<dynamic> types = c['types'] ?? [];
-                            if (types.contains('street_number')) pStreetNumber = c['long_name'];
-                            if (types.contains('route')) pRoute = c['long_name'];
-                            if (types.contains('locality')) pCity = c['long_name'];
-                            if (types.contains('administrative_area_level_1')) pState = c['short_name'];
-                            if (types.contains('postal_code')) pPostal = c['long_name'];
-                            if (types.contains('country')) pCountry = c['long_name'];
+                            if (types.contains('street_number'))
+                              pStreetNumber = c['long_name'];
+                            if (types.contains('route'))
+                              pRoute = c['long_name'];
+                            if (types.contains('locality'))
+                              pCity = c['long_name'];
+                            if (types.contains('administrative_area_level_1'))
+                              pState = c['short_name'];
+                            if (types.contains('postal_code'))
+                              pPostal = c['long_name'];
+                            if (types.contains('country'))
+                              pCountry = c['long_name'];
                           }
                         }
 
-                        String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+                        String pAddress1 = pStreetNumber.isNotEmpty
+                            ? "$pStreetNumber $pRoute".trim()
+                            : pRoute;
 
                         setModalState(() {
                           lat = location['lat'];
@@ -2566,7 +2735,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 controller: firstNameCtrl,
                                 label: "First Name",
                                 icon: Icons.person_outline,
-                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[a-zA-Z0-9 ]'))
+                                ],
                               ),
                               const SizedBox(height: 16),
                               const Text("Last Name",
@@ -2579,7 +2751,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 controller: lastNameCtrl,
                                 label: "Last Name",
                                 icon: Icons.person_outline,
-                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[a-zA-Z0-9 ]'))
+                                ],
                               ),
                               const SizedBox(height: 16),
                               const Text("Role",
@@ -2590,13 +2765,16 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                               const SizedBox(height: 8),
                               if (isAdmin)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 16, horizontal: 16),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF1E293B),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   width: double.infinity,
-                                  child: const Text("Admin (Cannot be changed)", style: TextStyle(color: Colors.white38, fontSize: 16)),
+                                  child: const Text("Admin (Cannot be changed)",
+                                      style: TextStyle(
+                                          color: Colors.white38, fontSize: 16)),
                                 )
                               else
                                 Container(
@@ -2609,18 +2787,23 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                     isExpanded: true,
                                     dropdownColor: const Color(0xFF1E293B),
                                     icon: const Padding(
-                                      padding: EdgeInsets.only(right: 8.0),
-                                      child: Icon(Icons.arrow_drop_down, color: Colors.white38)),
+                                        padding: EdgeInsets.only(right: 8.0),
+                                        child: Icon(Icons.arrow_drop_down,
+                                            color: Colors.white38)),
                                     decoration: const InputDecoration(
-                                      prefixIcon: Icon(Icons.badge_outlined, color: Colors.white38),
+                                      prefixIcon: Icon(Icons.badge_outlined,
+                                          color: Colors.white38),
                                       border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                      contentPadding:
+                                          EdgeInsets.symmetric(vertical: 16),
                                     ),
-                                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 16),
                                     items: _availableRoles.map((role) {
                                       return DropdownMenuItem<int>(
                                         value: role['id'] as int,
-                                        child: Text(role['name'] ?? 'Unknown Role'),
+                                        child: Text(
+                                            role['name'] ?? 'Unknown Role'),
                                       );
                                     }).toList(),
                                     onChanged: (val) {
@@ -2654,7 +2837,9 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 label: "Phone Number",
                                 icon: Icons.phone_outlined,
                                 keyboardType: TextInputType.phone,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly
+                                ],
                               ),
                               const SizedBox(height: 16),
                               const Text("Street Address",
@@ -2670,14 +2855,18 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 ),
                                 child: TextField(
                                   controller: addressCtrl,
-                                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 16),
                                   onChanged: (val) => searchPlaces(val),
                                   decoration: const InputDecoration(
-                                    prefixIcon: Icon(Icons.location_on_outlined, color: Colors.white38),
+                                    prefixIcon: Icon(Icons.location_on_outlined,
+                                        color: Colors.white38),
                                     labelText: "Address",
-                                    labelStyle: TextStyle(color: Colors.white38),
+                                    labelStyle:
+                                        TextStyle(color: Colors.white38),
                                     border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                    contentPadding: EdgeInsets.symmetric(
+                                        vertical: 16, horizontal: 16),
                                   ),
                                 ),
                               ),
@@ -2685,22 +2874,35 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 Container(
                                   decoration: const BoxDecoration(
                                     color: Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                                    borderRadius: BorderRadius.vertical(
+                                        bottom: Radius.circular(12)),
                                   ),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
-                                    children: placePredictions.map<Widget>((p) => ListTile(
-                                      title: Text(p['description']?.toString() ?? '',
-                                          style: const TextStyle(color: Colors.white, fontSize: 13)),
-                                      onTap: () async {
-                                        String pId = p['place_id']?.toString() ?? '';
-                                        setModalState(() {
-                                          addressCtrl.text = p['description']?.toString() ?? '';
-                                          placePredictions.clear();
-                                        });
-                                        await getPlaceDetails(pId);
-                                      },
-                                    )).toList(),
+                                    children: placePredictions
+                                        .map<Widget>((p) => ListTile(
+                                              title: Text(
+                                                  p['description']
+                                                          ?.toString() ??
+                                                      '',
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 13)),
+                                              onTap: () async {
+                                                String pId =
+                                                    p['place_id']?.toString() ??
+                                                        '';
+                                                setModalState(() {
+                                                  addressCtrl.text =
+                                                      p['description']
+                                                              ?.toString() ??
+                                                          '';
+                                                  placePredictions.clear();
+                                                });
+                                                await getPlaceDetails(pId);
+                                              },
+                                            ))
+                                        .toList(),
                                   ),
                                 ),
                               const SizedBox(height: 16),
@@ -2709,7 +2911,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text("Unit / Apartment #",
                                             style: TextStyle(
@@ -2728,7 +2931,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text("Gate / Door / Lock Code",
                                             style: TextStyle(
@@ -2766,9 +2970,11 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   decoration: const InputDecoration(
                                     hintText: "Notes / Key Notes",
                                     hintStyle: TextStyle(color: Colors.white38),
-                                    prefixIcon: Icon(Icons.notes_outlined, color: Color(0xFF3B82F6)),
+                                    prefixIcon: Icon(Icons.notes_outlined,
+                                        color: Color(0xFF3B82F6)),
                                     border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(vertical: 16),
+                                    contentPadding:
+                                        EdgeInsets.symmetric(vertical: 16),
                                   ),
                                 ),
                               ),
@@ -2783,7 +2989,9 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                 controller: rateCtrl,
                                 label: "Hourly Rate (\$)",
                                 icon: Icons.attach_money,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
                               ),
                               const SizedBox(height: 32),
                             ],
@@ -2822,27 +3030,33 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                     'hourly_rate': newRate,
                                     'cost_rate': newRate,
                                   };
-                                  if (emailCtrl.text.trim().isNotEmpty) payload['email'] = emailCtrl.text.trim();
+                                  if (emailCtrl.text.trim().isNotEmpty)
+                                    payload['email'] = emailCtrl.text.trim();
                                   if (phoneCtrl.text.trim().isNotEmpty) {
                                     payload['phone'] = phoneCtrl.text.trim();
                                     payload['mobile'] = phoneCtrl.text.trim();
                                   }
                                   if (addressCtrl.text.trim().isNotEmpty) {
-                                    payload['address'] = addressCtrl.text.trim();
-                                    payload['address1'] = address1.isNotEmpty ? address1 : addressCtrl.text.trim();
+                                    payload['address'] =
+                                        addressCtrl.text.trim();
+                                    payload['address1'] = address1.isNotEmpty
+                                        ? address1
+                                        : addressCtrl.text.trim();
                                     payload['city'] = city;
                                     payload['state'] = stateStr;
                                     payload['zip_code'] = zipCode;
-                                    payload['country'] = country.isNotEmpty ? country : 'USA';
+                                    payload['country'] =
+                                        country.isNotEmpty ? country : 'USA';
                                     if (lat != 0.0) payload['latitude'] = lat;
                                     if (lng != 0.0) payload['longitude'] = lng;
                                   }
-                                  
+
                                   payload['address2'] = unitCtrl.text.trim();
                                   payload['gate_code'] = gateCtrl.text.trim();
-                                  payload['address_notes'] = notesCtrl.text.trim();
+                                  payload['address_notes'] =
+                                      notesCtrl.text.trim();
                                   payload['notes'] = notesCtrl.text.trim();
-                                  
+
                                   if (!isAdmin && currentRoleId != null) {
                                     payload['role_id'] = currentRoleId;
                                   }
@@ -2854,11 +3068,15 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                                   Navigator.of(context).maybePop();
                                   _fetchWorkers();
 
-                                  ToastService.success(context, 'Staff info updated successfully!');
+                                  ToastService.success(context,
+                                      'Staff info updated successfully!');
                                 } catch (e) {
-                                  String errorMsg = e.toString().replaceAll('Exception: ', '');
+                                  String errorMsg = e
+                                      .toString()
+                                      .replaceAll('Exception: ', '');
                                   if (mounted) {
-                                    ToastService.error(context, 'Failed to update staff info: $errorMsg');
+                                    ToastService.error(context,
+                                        'Failed to update staff info: $errorMsg');
                                   }
                                 }
                               }
@@ -2889,28 +3107,56 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
     String userId = (workerData['uid'] ?? workerData['id'] ?? '').toString();
     String name = workerData['display_name'] ?? workerData['name'] ?? '';
     List<String> nameParts = name.trim().split(' ');
-    String defaultFirst = workerData['first_name'] ?? (nameParts.isNotEmpty ? nameParts.first : '');
-    String defaultLast = workerData['last_name'] ?? (nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
+    String defaultFirst = workerData['first_name'] ??
+        (nameParts.isNotEmpty ? nameParts.first : '');
+    String defaultLast = workerData['last_name'] ??
+        (nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
 
-    TextEditingController firstNameCtrl = TextEditingController(text: defaultFirst);
-    TextEditingController lastNameCtrl = TextEditingController(text: defaultLast);
-    TextEditingController emailCtrl = TextEditingController(text: workerData['email'] ?? '');
-    TextEditingController phoneCtrl = TextEditingController(text: workerData['phone'] ?? workerData['mobile'] ?? '');
+    TextEditingController firstNameCtrl =
+        TextEditingController(text: defaultFirst);
+    TextEditingController lastNameCtrl =
+        TextEditingController(text: defaultLast);
+    TextEditingController emailCtrl =
+        TextEditingController(text: workerData['email'] ?? '');
+    TextEditingController phoneCtrl = TextEditingController(
+        text: workerData['phone'] ?? workerData['mobile'] ?? '');
 
     Map<String, dynamic> addrData = {};
     if (workerData['primary_address'] is Map) {
       addrData = workerData['primary_address'] as Map<String, dynamic>;
-    } else if (workerData['addresses'] is List && (workerData['addresses'] as List).isNotEmpty) {
+    } else if (workerData['addresses'] is List &&
+        (workerData['addresses'] as List).isNotEmpty) {
       addrData = (workerData['addresses'] as List)[0] as Map<String, dynamic>;
     }
 
-    TextEditingController addressCtrl = TextEditingController(text: workerData['address'] ?? workerData['address1'] ?? addrData['address1'] ?? addrData['address'] ?? '');
-    final unitCtrl = TextEditingController(text: workerData['address2']?.toString() ?? addrData['address2']?.toString() ?? '');
-    final gateCtrl = TextEditingController(text: workerData['gate_code']?.toString() ?? addrData['gate_code']?.toString() ?? '');
-    final notesCtrl = TextEditingController(text: workerData['address_notes']?.toString() ?? workerData['notes']?.toString() ?? addrData['address_notes']?.toString() ?? addrData['notes']?.toString() ?? '');
+    TextEditingController addressCtrl = TextEditingController(
+        text: workerData['address'] ??
+            workerData['address1'] ??
+            addrData['address1'] ??
+            addrData['address'] ??
+            '');
+    final unitCtrl = TextEditingController(
+        text: workerData['address2']?.toString() ??
+            addrData['address2']?.toString() ??
+            '');
+    final gateCtrl = TextEditingController(
+        text: workerData['gate_code']?.toString() ??
+            addrData['gate_code']?.toString() ??
+            '');
+    final notesCtrl = TextEditingController(
+        text: workerData['address_notes']?.toString() ??
+            workerData['notes']?.toString() ??
+            addrData['address_notes']?.toString() ??
+            addrData['notes']?.toString() ??
+            '');
 
-    double currentRate = double.tryParse(workerData['hourly_rate']?.toString() ?? workerData['cost_rate']?.toString() ?? '') ?? 20.0;
-    TextEditingController rateCtrl = TextEditingController(text: currentRate.toStringAsFixed(2));
+    double currentRate = double.tryParse(
+            workerData['hourly_rate']?.toString() ??
+                workerData['cost_rate']?.toString() ??
+                '') ??
+        20.0;
+    TextEditingController rateCtrl =
+        TextEditingController(text: currentRate.toStringAsFixed(2));
 
     bool isSavingBasic = false;
     bool isSavingDocs = false;
@@ -2945,12 +3191,14 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0, vertical: 8.0),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 30,
-                        backgroundColor: const Color(0xFF3B82F6).withOpacity(0.2),
+                        backgroundColor:
+                            const Color(0xFF3B82F6).withOpacity(0.2),
                         child: Text(
                           workerData['display_name']?[0]?.toUpperCase() ?? 'W',
                           style: const TextStyle(
@@ -3001,130 +3249,223 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                   child: TabBarView(
                     children: [
                       // TAB 1: BASIC INFO
-                      StatefulBuilder(
-                        builder: (context, setTabState) {
-                          return SingleChildScrollView(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildTextField(controller: firstNameCtrl, label: "First Name", icon: Icons.person_outline),
-                                const SizedBox(height: 16),
-                                _buildTextField(controller: lastNameCtrl, label: "Last Name", icon: Icons.person_outline),
-                                const SizedBox(height: 16),
-                                _buildTextField(controller: emailCtrl, label: "Email Address", icon: Icons.email_outlined),
-                                const SizedBox(height: 16),
-                                _buildTextField(controller: phoneCtrl, label: "Mobile Phone", icon: Icons.phone_outlined),
-                                const SizedBox(height: 16),
-                                _buildTextField(controller: addressCtrl, label: "Street Address", icon: Icons.location_on_outlined),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(child: _buildTextField(controller: unitCtrl, label: "Unit / Apt", icon: Icons.apartment_outlined)),
-                                    const SizedBox(width: 16),
-                                    Expanded(child: _buildTextField(controller: gateCtrl, label: "Gate Code", icon: Icons.lock_outline)),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTextField(controller: notesCtrl, label: "Notes", icon: Icons.notes_outlined),
-                                const SizedBox(height: 16),
-                                _buildTextField(controller: rateCtrl, label: "Hourly Rate (\$)", icon: Icons.attach_money),
-                                const SizedBox(height: 32),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: ElevatedButton(
-                                    onPressed: isSavingBasic ? null : () async {
-                                      setTabState(() => isSavingBasic = true);
-                                      try {
-                                        double newRate = double.tryParse(rateCtrl.text) ?? currentRate;
-                                        Map<String, dynamic> payload = {
-                                          'phone': phoneCtrl.text,
-                                          'address': addressCtrl.text,
-                                          'address2': unitCtrl.text,
-                                          'gate_code': gateCtrl.text,
-                                          'notes': notesCtrl.text,
-                                          'hourly_rate': newRate,
-                                          'cost_rate': newRate,
-                                        };
-                                        if (firstNameCtrl.text.trim().isNotEmpty && firstNameCtrl.text.trim() != workerData['first_name']) {
-                                          payload['first_name'] = firstNameCtrl.text.trim();
-                                        }
-                                        if (lastNameCtrl.text.trim().isNotEmpty && lastNameCtrl.text.trim() != workerData['last_name']) {
-                                          payload['last_name'] = lastNameCtrl.text.trim();
-                                        }
-                                        if (emailCtrl.text.trim().isNotEmpty && emailCtrl.text.trim() != workerData['email']) {
-                                          payload['email'] = emailCtrl.text.trim();
-                                        }
-                                        await ApiService.instance.put('/admin/workers/$userId', payload);
-                                        ToastService.success(context, 'Basic info updated!');
-                                        _fetchWorkers();
-                                      } catch (e) {
-                                        ToastService.error(context, 'Failed to update basic info');
-                                      } finally {
-                                        if (mounted) setTabState(() => isSavingBasic = false);
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF3B82F6),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                    ),
-                                    child: isSavingBasic
-                                      ? const CircularProgressIndicator(color: Colors.white)
-                                      : const Text("Save Basic Info", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      StatefulBuilder(builder: (context, setTabState) {
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildTextField(
+                                  controller: firstNameCtrl,
+                                  label: "First Name",
+                                  icon: Icons.person_outline),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                  controller: lastNameCtrl,
+                                  label: "Last Name",
+                                  icon: Icons.person_outline),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                  controller: emailCtrl,
+                                  label: "Email Address",
+                                  icon: Icons.email_outlined),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                  controller: phoneCtrl,
+                                  label: "Mobile Phone",
+                                  icon: Icons.phone_outlined),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                  controller: addressCtrl,
+                                  label: "Street Address",
+                                  icon: Icons.location_on_outlined),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                      child: _buildTextField(
+                                          controller: unitCtrl,
+                                          label: "Unit / Apt",
+                                          icon: Icons.apartment_outlined)),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                      child: _buildTextField(
+                                          controller: gateCtrl,
+                                          label: "Gate Code",
+                                          icon: Icons.lock_outline)),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                  controller: notesCtrl,
+                                  label: "Notes",
+                                  icon: Icons.notes_outlined),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                  controller: rateCtrl,
+                                  label: "Hourly Rate (\$)",
+                                  icon: Icons.attach_money),
+                              const SizedBox(height: 32),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: isSavingBasic
+                                      ? null
+                                      : () async {
+                                          setTabState(
+                                              () => isSavingBasic = true);
+                                          try {
+                                            double newRate = double.tryParse(
+                                                    rateCtrl.text) ??
+                                                currentRate;
+                                            Map<String, dynamic> payload = {
+                                              'phone': phoneCtrl.text,
+                                              'address': addressCtrl.text,
+                                              'address2': unitCtrl.text,
+                                              'gate_code': gateCtrl.text,
+                                              'notes': notesCtrl.text,
+                                              'hourly_rate': newRate,
+                                              'cost_rate': newRate,
+                                            };
+                                            if (firstNameCtrl.text
+                                                    .trim()
+                                                    .isNotEmpty &&
+                                                firstNameCtrl.text.trim() !=
+                                                    workerData['first_name']) {
+                                              payload['first_name'] =
+                                                  firstNameCtrl.text.trim();
+                                            }
+                                            if (lastNameCtrl.text
+                                                    .trim()
+                                                    .isNotEmpty &&
+                                                lastNameCtrl.text.trim() !=
+                                                    workerData['last_name']) {
+                                              payload['last_name'] =
+                                                  lastNameCtrl.text.trim();
+                                            }
+                                            if (emailCtrl.text
+                                                    .trim()
+                                                    .isNotEmpty &&
+                                                emailCtrl.text.trim() !=
+                                                    workerData['email']) {
+                                              payload['email'] =
+                                                  emailCtrl.text.trim();
+                                            }
+                                            await ApiService.instance.put(
+                                                '/admin/workers/$userId',
+                                                payload);
+                                            ToastService.success(
+                                                context, 'Basic info updated!');
+                                            _fetchWorkers();
+                                          } catch (e) {
+                                            ToastService.error(context,
+                                                'Failed to update basic info');
+                                          } finally {
+                                            if (mounted)
+                                              setTabState(
+                                                  () => isSavingBasic = false);
+                                          }
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF3B82F6),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
                                   ),
+                                  child: isSavingBasic
+                                      ? const CircularProgressIndicator(
+                                          color: Colors.white)
+                                      : const Text("Save Basic Info",
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold)),
                                 ),
-                              ],
-                            ),
-                          );
-                        }
-                      ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                       // TAB 2: DOCUMENTS
-                      StatefulBuilder(
-                        builder: (context, setTabState) {
-                          return SingleChildScrollView(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildDocumentTile(modalContext, "Photo ID", "Driver's license", Icons.badge_outlined, workerData['photo_id_url']?.toString()),
-                                const SizedBox(height: 12),
-                                _buildDocumentTile(modalContext, "SSN Card", "Copy of SSN", Icons.credit_card_outlined, workerData['ssn_url']?.toString()),
-                                const SizedBox(height: 12),
-                                _buildDocumentTile(modalContext, "W-9 Form", "Tax document", Icons.description_outlined, workerData['w9_url']?.toString()),
-                                const SizedBox(height: 12),
-                                _buildDocumentTile(modalContext, "Direct Deposit", "Bank authorization", Icons.account_balance_outlined, workerData['bank_url']?.toString()),
-                                const SizedBox(height: 32),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: ElevatedButton(
-                                    onPressed: isSavingDocs ? null : () async {
-                                      setTabState(() => isSavingDocs = true);
-                                      try {
-                                        await ApiService.instance.put('/admin/workers/$userId', {});
-                                        ToastService.success(context, 'Documents & Payroll updated!');
-                                        _fetchWorkers();
-                                      } catch (e) {
-                                        ToastService.error(context, 'Failed to update documents');
-                                      } finally {
-                                        if (mounted) setTabState(() => isSavingDocs = false);
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF10B981),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                    ),
-                                    child: isSavingDocs
-                                      ? const CircularProgressIndicator(color: Colors.white)
-                                      : const Text("Save Documents", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      StatefulBuilder(builder: (context, setTabState) {
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildDocumentTile(
+                                  modalContext,
+                                  "Photo ID",
+                                  "Driver's license",
+                                  Icons.badge_outlined,
+                                  workerData['photo_id_url']?.toString()),
+                              const SizedBox(height: 12),
+                              _buildDocumentTile(
+                                  modalContext,
+                                  "SSN Card",
+                                  "Copy of SSN",
+                                  Icons.credit_card_outlined,
+                                  workerData['ssn_url']?.toString()),
+                              const SizedBox(height: 12),
+                              _buildDocumentTile(
+                                  modalContext,
+                                  "W-9 Form",
+                                  "Tax document",
+                                  Icons.description_outlined,
+                                  workerData['w9_url']?.toString()),
+                              const SizedBox(height: 12),
+                              _buildDocumentTile(
+                                  modalContext,
+                                  "Direct Deposit",
+                                  "Bank authorization",
+                                  Icons.account_balance_outlined,
+                                  workerData['bank_url']?.toString()),
+                              const SizedBox(height: 32),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: isSavingDocs
+                                      ? null
+                                      : () async {
+                                          setTabState(
+                                              () => isSavingDocs = true);
+                                          try {
+                                            await ApiService.instance.put(
+                                                '/admin/workers/$userId', {});
+                                            ToastService.success(context,
+                                                'Documents & Payroll updated!');
+                                            _fetchWorkers();
+                                          } catch (e) {
+                                            ToastService.error(context,
+                                                'Failed to update documents');
+                                          } finally {
+                                            if (mounted)
+                                              setTabState(
+                                                  () => isSavingDocs = false);
+                                          }
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF10B981),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
                                   ),
+                                  child: isSavingDocs
+                                      ? const CircularProgressIndicator(
+                                          color: Colors.white)
+                                      : const Text("Save Documents",
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold)),
                                 ),
-                              ],
-                            ),
-                          );
-                        }
-                      ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                       // TAB 3: JOBS HISTORY
                       SharedJobListPage(
                         staffId: int.tryParse(userId.toString()),
@@ -3282,7 +3623,8 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: errorText != null ? Colors.red : Colors.transparent),
+        border: Border.all(
+            color: errorText != null ? Colors.red : Colors.transparent),
       ),
       child: TextField(
         controller: controller,
@@ -3309,61 +3651,62 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: const Color(0xFF0D1B2A),
-        body: SafeArea(
-          child: Column(
-            children: [
-              TabBar(
+      backgroundColor: const Color(0xFF0D1B2A),
+      body: SafeArea(
+        child: Column(
+          children: [
+            TabBar(
+              controller: _tabController,
+              indicatorColor: const Color(0xFF3B82F6),
+              indicatorWeight: 3,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white38,
+              tabs: const [Tab(text: "Staff Members"), Tab(text: "Chats")],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: TabBarView(
                 controller: _tabController,
-                indicatorColor: const Color(0xFF3B82F6),
-                indicatorWeight: 3,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white38,
-                tabs: const [Tab(text: "Staff Members"), Tab(text: "Chats")],
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // --- PESTAÑA 1: DIRECTORIO DE TRABAJADORES ---
-                    Stack(
-                      children: [
-                        RefreshIndicator(
-                          onRefresh: _fetchWorkers,
-                          color: const Color(0xFF3B82F6),
-                          child: Builder(
-                            builder: (context) {
-                              if (_isLoadingWorkers) {
-                                return const Center(
-                                  child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
-                                );
-                              }
-                              if (_allWorkers.isEmpty) {
-                                return ListView(
-                                  children: const [
-                                    Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(32.0),
-                                        child: Text(
-                                          "No workers registered yet.",
-                                          style: TextStyle(color: Colors.white60),
-                                        ),
+                children: [
+                  // --- PESTAÑA 1: DIRECTORIO DE TRABAJADORES ---
+                  Stack(
+                    children: [
+                      RefreshIndicator(
+                        onRefresh: _fetchWorkers,
+                        color: const Color(0xFF3B82F6),
+                        child: Builder(
+                          builder: (context) {
+                            if (_isLoadingWorkers) {
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                    color: Color(0xFF3B82F6)),
+                              );
+                            }
+                            if (_allWorkers.isEmpty) {
+                              return ListView(
+                                children: const [
+                                  Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(32.0),
+                                      child: Text(
+                                        "No workers registered yet.",
+                                        style: TextStyle(color: Colors.white60),
                                       ),
                                     ),
-                                  ],
-                                );
-                              }
+                                  ),
+                                ],
+                              );
+                            }
 
-                              return ListView.builder(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24.0,
-                                  vertical: 8.0,
-                                ),
-                                itemCount: _allWorkers.length,
-                                itemBuilder: (context, index) {
-                                  var data = _allWorkers[index];
-                                  data['id'] = data['id']?.toString() ?? '';
+                            return ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24.0,
+                                vertical: 8.0,
+                              ),
+                              itemCount: _allWorkers.length,
+                              itemBuilder: (context, index) {
+                                var data = _allWorkers[index];
+                                data['id'] = data['id']?.toString() ?? '';
 
                                 return GestureDetector(
                                   onTap: () => _showWorkerDetailsModal(data),
@@ -3467,369 +3810,378 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge> with SingleTickerProvid
                           },
                         ),
                       ),
-                        // Removed local addWorker FAB as it is now in the global SpeedDial
-                      ],
-                    ),
+                      // Removed local addWorker FAB as it is now in the global SpeedDial
+                    ],
+                  ),
 
-                    // --- PESTAÑA 2: INBOX DE MENSAJES (CHATS) ---
-                    Stack(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24.0,
-                                vertical: 8.0,
-                              ),
-                              child: Row(
-                                children: [
-                                  ChoiceChip(
-                                    label: const Text('All'),
-                                    selected: _chatFilter == 'All',
-                                    selectedColor: const Color(0xFF3B82F6),
-                                    backgroundColor: const Color(0xFF1E293B),
-                                    labelStyle: TextStyle(
-                                      color: _chatFilter == 'All'
-                                          ? Colors.white
-                                          : Colors.white60,
-                                    ),
-                                    onSelected: (val) {
-                                      if (val) {
-                                        setState(() => _chatFilter = 'All');
-                                      }
-                                    },
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ChoiceChip(
-                                    label: const Text('Workers'),
-                                    selected: _chatFilter == 'Workers',
-                                    selectedColor: const Color(0xFF3B82F6),
-                                    backgroundColor: const Color(0xFF1E293B),
-                                    labelStyle: TextStyle(
-                                      color: _chatFilter == 'Workers'
-                                          ? Colors.white
-                                          : Colors.white60,
-                                    ),
-                                    onSelected: (val) {
-                                      if (val) {
-                                        setState(() => _chatFilter = 'Workers');
-                                      }
-                                    },
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ChoiceChip(
-                                    label: const Text('Jobs'),
-                                    selected: _chatFilter == 'Jobs',
-                                    selectedColor: const Color(0xFF3B82F6),
-                                    backgroundColor: const Color(0xFF1E293B),
-                                    labelStyle: TextStyle(
-                                      color: _chatFilter == 'Jobs'
-                                          ? Colors.white
-                                          : Colors.white60,
-                                    ),
-                                    onSelected: (val) {
-                                      if (val) {
-                                        setState(() => _chatFilter = 'Jobs');
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
+                  // --- PESTAÑA 2: INBOX DE MENSAJES (CHATS) ---
+                  Stack(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24.0,
+                              vertical: 8.0,
                             ),
-                            Expanded(
-                              child: Builder(
-                                builder: (context) {
-                                  if (_isLoadingChats) {
-                                    return const Center(
-                                      child: CircularProgressIndicator(
-                                          color: Color(0xFF3B82F6)),
-                                    );
-                                  }
-                                  if (_allChats.isEmpty) {
-                                    return Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: const [
-                                          Icon(
-                                            Icons.chat_bubble_outline,
-                                            color: Colors.white24,
-                                            size: 64,
-                                          ),
-                                          SizedBox(height: 16),
-                                          Text(
-                                            "No messages yet.",
-                                            style: TextStyle(
-                                              color: Colors.white60,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            "Tap the button to start a chat.",
-                                            style: TextStyle(
-                                              color: Colors.white38,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }
-
-                                  var docs = _allChats.where((data) {
-                                    bool isGrp = data['type'] == 'group';
-                                    if (_chatFilter == 'Workers') return !isGrp;
-                                    if (_chatFilter == 'Jobs') return isGrp;
-                                    return true;
-                                  }).toList();
-
-                                  if (docs.isEmpty) {
-                                    return const Center(
-                                      child: Text(
-                                        "No chats in this category.",
-                                        style: TextStyle(color: Colors.white38),
-                                      ),
-                                    );
-                                  }
-
-                                  return ListView.builder(
-                                    padding: const EdgeInsets.only(
-                                      left: 24.0,
-                                      right: 24.0,
-                                      bottom: 100,
-                                    ),
-                                    itemCount: docs.length,
-                                    itemBuilder: (context, index) {
-                                      var data = docs[index];
-
-                                      bool isGroup = data['type'] == 'group';
-                                      List parts = data['participants'] ?? [];
-
-                                      String chatName = data['display_name'] ??
-                                          ('${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim().isEmpty ? 'Chat' : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim());
-                                          data['customer_name'] ??
-                                          data['job_name'] ??
-                                          (isGroup
-                                              ? 'Group Chat'
-                                              : 'Direct Chat');
-                                      chatName = chatName.replaceAll('Chat with ', '');
-                                      String lastMessage =
-                                          data['last_message'] ??
-                                              'No messages yet';
-                                      String? updatedAtStr = data['last_message_at'];
-
-                                      bool isUnread = (data['unread_count'] ?? 0) > 0;
-
-                                      FontWeight titleWeight = isUnread
-                                          ? FontWeight.w900
-                                          : FontWeight.bold;
-                                      FontWeight msgWeight = isUnread
-                                          ? FontWeight.bold
-                                          : FontWeight.normal;
-                                      Color msgColor = isUnread
-                                          ? Colors.white
-                                          : Colors.white60;
-
-                                      return Dismissible(
-                                        key: Key(data['id'].toString()),
-                                        direction: DismissDirection.endToStart,
-                                        background: Container(
-                                          margin:
-                                              const EdgeInsets.only(bottom: 16),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 20),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEF4444),
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                          ),
-                                          alignment: Alignment.centerRight,
-                                          child: const Icon(
-                                            Icons.delete_outline,
-                                            color: Colors.white,
-                                            size: 28,
+                            child: Row(
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('All'),
+                                  selected: _chatFilter == 'All',
+                                  selectedColor: const Color(0xFF3B82F6),
+                                  backgroundColor: const Color(0xFF1E293B),
+                                  labelStyle: TextStyle(
+                                    color: _chatFilter == 'All'
+                                        ? Colors.white
+                                        : Colors.white60,
+                                  ),
+                                  onSelected: (val) {
+                                    if (val) {
+                                      setState(() => _chatFilter = 'All');
+                                    }
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                ChoiceChip(
+                                  label: const Text('Workers'),
+                                  selected: _chatFilter == 'Workers',
+                                  selectedColor: const Color(0xFF3B82F6),
+                                  backgroundColor: const Color(0xFF1E293B),
+                                  labelStyle: TextStyle(
+                                    color: _chatFilter == 'Workers'
+                                        ? Colors.white
+                                        : Colors.white60,
+                                  ),
+                                  onSelected: (val) {
+                                    if (val) {
+                                      setState(() => _chatFilter = 'Workers');
+                                    }
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                ChoiceChip(
+                                  label: const Text('Jobs'),
+                                  selected: _chatFilter == 'Jobs',
+                                  selectedColor: const Color(0xFF3B82F6),
+                                  backgroundColor: const Color(0xFF1E293B),
+                                  labelStyle: TextStyle(
+                                    color: _chatFilter == 'Jobs'
+                                        ? Colors.white
+                                        : Colors.white60,
+                                  ),
+                                  onSelected: (val) {
+                                    if (val) {
+                                      setState(() => _chatFilter = 'Jobs');
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Builder(
+                              builder: (context) {
+                                if (_isLoadingChats) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(
+                                        color: Color(0xFF3B82F6)),
+                                  );
+                                }
+                                if (_allChats.isEmpty) {
+                                  return Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: const [
+                                        Icon(
+                                          Icons.chat_bubble_outline,
+                                          color: Colors.white24,
+                                          size: 64,
+                                        ),
+                                        SizedBox(height: 16),
+                                        Text(
+                                          "No messages yet.",
+                                          style: TextStyle(
+                                            color: Colors.white60,
+                                            fontSize: 18,
                                           ),
                                         ),
-                                        onDismissed: (direction) async {
-                                          try {
-                                            await ApiService.instance.delete('/conversations/${data['id']}');
-                                            _fetchChats();
-                                          } catch (e) {}
+                                        SizedBox(height: 8),
+                                        Text(
+                                          "Tap the button to start a chat.",
+                                          style: TextStyle(
+                                            color: Colors.white38,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                var docs = _allChats.where((data) {
+                                  bool isGrp = data['type'] == 'group';
+                                  if (_chatFilter == 'Workers') return !isGrp;
+                                  if (_chatFilter == 'Jobs') return isGrp;
+                                  return true;
+                                }).toList();
+
+                                if (docs.isEmpty) {
+                                  return const Center(
+                                    child: Text(
+                                      "No chats in this category.",
+                                      style: TextStyle(color: Colors.white38),
+                                    ),
+                                  );
+                                }
+
+                                return ListView.builder(
+                                  padding: const EdgeInsets.only(
+                                    left: 24.0,
+                                    right: 24.0,
+                                    bottom: 100,
+                                  ),
+                                  itemCount: docs.length,
+                                  itemBuilder: (context, index) {
+                                    var data = docs[index];
+
+                                    bool isGroup = data['type'] == 'group';
+                                    List parts = data['participants'] ?? [];
+
+                                    String chatName = data['display_name'] ??
+                                        ('${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'
+                                                .trim()
+                                                .isEmpty
+                                            ? 'Chat'
+                                            : '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'
+                                                .trim());
+                                    data['customer_name'] ??
+                                        data['job_name'] ??
+                                        (isGroup
+                                            ? 'Group Chat'
+                                            : 'Direct Chat');
+                                    chatName =
+                                        chatName.replaceAll('Chat with ', '');
+                                    String lastMessage = data['last_message'] ??
+                                        'No messages yet';
+                                    String? updatedAtStr =
+                                        data['last_message_at'];
+
+                                    bool isUnread =
+                                        (data['unread_count'] ?? 0) > 0;
+
+                                    FontWeight titleWeight = isUnread
+                                        ? FontWeight.w900
+                                        : FontWeight.bold;
+                                    FontWeight msgWeight = isUnread
+                                        ? FontWeight.bold
+                                        : FontWeight.normal;
+                                    Color msgColor = isUnread
+                                        ? Colors.white
+                                        : Colors.white60;
+
+                                    return Dismissible(
+                                      key: Key(data['id'].toString()),
+                                      direction: DismissDirection.endToStart,
+                                      background: Container(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 16),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 20),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEF4444),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        alignment: Alignment.centerRight,
+                                        child: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.white,
+                                          size: 28,
+                                        ),
+                                      ),
+                                      onDismissed: (direction) async {
+                                        try {
+                                          await ApiService.instance.delete(
+                                              '/conversations/${data['id']}');
+                                          _fetchChats();
+                                        } catch (e) {}
+                                      },
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          if (_currentUserId != null) {
+                                            GlobalChatModal.show(
+                                              context,
+                                              chatId: data['id'].toString(),
+                                              title: chatName,
+                                              subtitle: isGroup
+                                                  ? 'Group Chat'
+                                                  : 'Direct Message',
+                                              isGroup: isGroup,
+                                              currentUserId: _currentUserId!,
+                                              onClose: () => _fetchChats(),
+                                            );
+                                          } else {
+                                            ToastService.info(context,
+                                                'User profile not loaded yet.');
+                                          }
                                         },
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            if (_currentUserId != null) {
-                                              GlobalChatModal.show(
-                                                context,
-                                                chatId: data['id'].toString(),
-                                                title: chatName,
-                                                subtitle: isGroup ? 'Group Chat' : 'Direct Message',
-                                                isGroup: isGroup,
-                                                currentUserId: _currentUserId!,
-                                                onClose: () => _fetchChats(),
-                                              );
-                                            } else {
-                                              ToastService.info(context, 'User profile not loaded yet.');
-                                            }
-                                          },
-                                          child: Container(
-                                            margin: const EdgeInsets.only(
-                                                bottom: 16),
-                                            padding: const EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF1E293B),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                              border: Border.all(
-                                                  color: Colors.white10),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Container(
-                                                  width: 50,
-                                                  height: 50,
-                                                  decoration: BoxDecoration(
+                                        child: Container(
+                                          margin:
+                                              const EdgeInsets.only(bottom: 16),
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1E293B),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                                color: Colors.white10),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 50,
+                                                height: 50,
+                                                decoration: BoxDecoration(
+                                                  color: isGroup
+                                                      ? const Color(0xFF10B981)
+                                                          .withOpacity(0.2)
+                                                      : const Color(0xFF3B82F6)
+                                                          .withOpacity(0.2),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Center(
+                                                  child: Icon(
+                                                    isGroup
+                                                        ? Icons.groups
+                                                        : Icons.person,
                                                     color: isGroup
                                                         ? const Color(
-                                                                0xFF10B981)
-                                                            .withOpacity(0.2)
+                                                            0xFF10B981)
                                                         : const Color(
-                                                                0xFF3B82F6)
-                                                            .withOpacity(0.2),
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: Center(
-                                                    child: Icon(
-                                                      isGroup
-                                                          ? Icons.groups
-                                                          : Icons.person,
-                                                      color: isGroup
-                                                          ? const Color(
-                                                              0xFF10B981)
-                                                          : const Color(
-                                                              0xFF3B82F6),
-                                                      size: 24,
-                                                    ),
+                                                            0xFF3B82F6),
+                                                    size: 24,
                                                   ),
                                                 ),
-                                                const SizedBox(width: 16),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Row(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .spaceBetween,
-                                                        children: [
-                                                          Expanded(
-                                                            child: Text(
-                                                              chatName,
-                                                              style: TextStyle(
-                                                                color: Colors
-                                                                    .white,
-                                                                fontSize: 16,
-                                                                fontWeight:
-                                                                    titleWeight,
-                                                              ),
-                                                              maxLines: 1,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
-                                                          Text(
-                                                            _formatDateString(
-                                                                updatedAtStr),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .spaceBetween,
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            chatName,
                                                             style: TextStyle(
-                                                              color: isUnread
-                                                                  ? const Color(
-                                                                      0xFF3B82F6)
-                                                                  : Colors
-                                                                      .white38,
-                                                              fontSize: 12,
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  titleWeight,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          _formatDateString(
+                                                              updatedAtStr),
+                                                          style: TextStyle(
+                                                            color: isUnread
+                                                                ? const Color(
+                                                                    0xFF3B82F6)
+                                                                : Colors
+                                                                    .white38,
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                                msgWeight,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .spaceBetween,
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            lastMessage,
+                                                            style: TextStyle(
+                                                              color: msgColor,
+                                                              fontSize: 14,
                                                               fontWeight:
                                                                   msgWeight,
                                                             ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
                                                           ),
-                                                        ],
-                                                      ),
-                                                      const SizedBox(height: 6),
-                                                      Row(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .spaceBetween,
-                                                        children: [
-                                                          Expanded(
-                                                            child: Text(
-                                                              lastMessage,
-                                                              style: TextStyle(
-                                                                color: msgColor,
-                                                                fontSize: 14,
-                                                                fontWeight:
-                                                                    msgWeight,
-                                                              ),
-                                                              maxLines: 1,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
+                                                        ),
+                                                        if (isUnread)
+                                                          Container(
+                                                            width: 10,
+                                                            height: 10,
+                                                            decoration:
+                                                                const BoxDecoration(
+                                                              color: Color(
+                                                                  0xFF3B82F6),
+                                                              shape: BoxShape
+                                                                  .circle,
                                                             ),
-                                                          ),
-                                                          if (isUnread)
-                                                            Container(
-                                                              width: 10,
-                                                              height: 10,
-                                                              decoration:
-                                                                  const BoxDecoration(
-                                                                color: Color(
-                                                                    0xFF3B82F6),
-                                                                shape: BoxShape
-                                                                    .circle,
-                                                              ),
-                                                            )
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ),
+                                                          )
+                                                      ],
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
-                                            ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        Positioned(
-                          bottom: 90, // Moved up to avoid overlap with global SpeedDial
-                          right: 24,
-                          child: FloatingActionButton(
-                            heroTag: 'newChat',
-                            onPressed: _showNewChatOptions,
-                            backgroundColor: const Color(0xFF10B981),
-                            child: const Icon(
-                              Icons.chat,
-                              color: Colors.white,
-                              size: 24,
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
                             ),
                           ),
-                        )
-                      ],
-                    ),
-                  ],
-                ),
+                        ],
+                      ),
+                      Positioned(
+                        bottom:
+                            90, // Moved up to avoid overlap with global SpeedDial
+                        right: 24,
+                        child: FloatingActionButton(
+                          heroTag: 'newChat',
+                          onPressed: _showNewChatOptions,
+                          backgroundColor: const Color(0xFF10B981),
+                          child: const Icon(
+                            Icons.chat,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      )
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }

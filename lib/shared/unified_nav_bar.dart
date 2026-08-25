@@ -64,7 +64,8 @@ class UnifiedNavBar extends StatelessWidget {
     );
   }
 
-  Widget _adminNavItem(BuildContext context, IconData icon, String label, int index) {
+  Widget _adminNavItem(
+      BuildContext context, IconData icon, String label, int index) {
     final bool isSelected = currentIndex == index;
     return GestureDetector(
       onTap: () => onTabSelected(index),
@@ -75,7 +76,8 @@ class UnifiedNavBar extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isSelected ? accentBlue.withOpacity(0.15) : Colors.transparent,
+            color:
+                isSelected ? accentBlue.withOpacity(0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
@@ -126,7 +128,8 @@ class UnifiedNavBar extends StatelessWidget {
                 Row(
                   children: [
                     _workerNavItem(context, Icons.chat_bubble, 2, itemWidth),
-                    _workerNavItem(context, Icons.account_balance_wallet, 3, itemWidth),
+                    _workerNavItem(
+                        context, Icons.account_balance_wallet, 3, itemWidth),
                   ],
                 ),
               ],
@@ -165,7 +168,8 @@ class UnifiedNavBar extends StatelessWidget {
     );
   }
 
-  Widget _workerNavItem(BuildContext context, IconData icon, int index, double itemWidth) {
+  Widget _workerNavItem(
+      BuildContext context, IconData icon, int index, double itemWidth) {
     final bool isSelected = currentIndex == index;
     return GestureDetector(
       onTap: () => onTabSelected(index),
@@ -177,7 +181,8 @@ class UnifiedNavBar extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: isSelected ? accentBlue.withOpacity(0.1) : Colors.transparent,
+            color:
+                isSelected ? accentBlue.withOpacity(0.1) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Icon(

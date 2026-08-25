@@ -118,12 +118,13 @@ class _CustomWalletState extends State<CustomWallet> {
         grid[weekdayIndex]['hrs'] += hours;
         grid[weekdayIndex]['pay'] += earned;
         grid[weekdayIndex]['in'] = DateFormat('hh:mm a').format(clockIn);
-        
+
         if (log['end_date'] != null && log['end_time'] != null) {
           String endDatePart = log['end_date'].toString().split('T')[0];
           String endStr = "$endDatePart ${log['end_time']}";
           try {
-            grid[weekdayIndex]['out'] = DateFormat('hh:mm a').format(DateTime.parse(endStr));
+            grid[weekdayIndex]['out'] =
+                DateFormat('hh:mm a').format(DateTime.parse(endStr));
           } catch (e) {
             grid[weekdayIndex]['out'] = '--:--';
           }
@@ -251,7 +252,8 @@ class _CustomWalletState extends State<CustomWallet> {
                       fontSize: 40,
                       fontWeight: FontWeight.bold))),
           const SizedBox(height: 24),
-          _row('Status', tx['status'] ?? 'Completed', true, valColor: Colors.green),
+          _row('Status', tx['status'] ?? 'Completed', true,
+              valColor: Colors.green),
           _row('Date Processed', tx['date'], false),
           _row('Transaction ID', tx['id'], false),
           _row('Destination', tx['bank'] ?? 'Bank Account', false),
@@ -333,12 +335,12 @@ class _CustomWalletState extends State<CustomWallet> {
                               Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _row('Base Rate',
-                                        '\$${_hourlyRate.toStringAsFixed(2)}/hr', true),
                                     _row(
-                                        'Est. Withholding Tax',
-                                        '${(_taxRate * 100).toInt()}%',
-                                        false,
+                                        'Base Rate',
+                                        '\$${_hourlyRate.toStringAsFixed(2)}/hr',
+                                        true),
+                                    _row('Est. Withholding Tax',
+                                        '${(_taxRate * 100).toInt()}%', false,
                                         valColor: Colors.redAccent),
                                     const Divider(color: Colors.white10),
                                     Text(
@@ -376,7 +378,8 @@ class _CustomWalletState extends State<CustomWallet> {
                           const SizedBox(height: 12),
                           Expanded(
                               child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: _thisWeekGrid.map((d) {
                                     double factor =
@@ -485,7 +488,6 @@ class _CustomWalletState extends State<CustomWallet> {
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.2)),
                 const SizedBox(height: 16),
-                
                 if (_recentTransactions.isEmpty)
                   Container(
                       width: double.infinity,
@@ -494,8 +496,8 @@ class _CustomWalletState extends State<CustomWallet> {
                       decoration: BoxDecoration(
                           color: card,
                           borderRadius: BorderRadius.circular(24),
-                          border:
-                              Border.all(color: Colors.white.withOpacity(0.05))),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.05))),
                       child: Column(children: [
                         Container(
                             padding: const EdgeInsets.all(20),
@@ -519,8 +521,7 @@ class _CustomWalletState extends State<CustomWallet> {
                   Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                          color: card,
-                          borderRadius: BorderRadius.circular(24)),
+                          color: card, borderRadius: BorderRadius.circular(24)),
                       child: Column(
                           children: _recentTransactions.map((tx) {
                         Map<String, dynamic> txDataForModal = {

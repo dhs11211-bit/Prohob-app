@@ -15,7 +15,8 @@ import 'dart:typed_data';
 import '../backend/api_service.dart';
 
 class CustomEvidenceModal extends StatefulWidget {
-  const CustomEvidenceModal({Key? key, this.width, this.height, this.jobId, this.jobTitle})
+  const CustomEvidenceModal(
+      {Key? key, this.width, this.height, this.jobId, this.jobTitle})
       : super(key: key);
   final double? width;
   final double? height;
@@ -55,7 +56,13 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
     if (widget.jobId != null) {
       _todayJobId = widget.jobId;
       _todayJobName = widget.jobTitle ?? 'Job Evidence';
-      _todayJobs = [{'id': widget.jobId, 'title': widget.jobTitle ?? 'Job', 'job_number': '#${widget.jobId}'}];
+      _todayJobs = [
+        {
+          'id': widget.jobId,
+          'title': widget.jobTitle ?? 'Job',
+          'job_number': '#${widget.jobId}'
+        }
+      ];
       _isLoadingTasks = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _takePhoto();
@@ -76,7 +83,7 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
       final jobs = await ApiService.instance.getTodayJobs();
       if (jobs.isNotEmpty) {
         _todayJobs = jobs;
-        
+
         // Find if there is an active job to auto-select
         dynamic targetJob = jobs.first;
         for (var j in jobs) {
@@ -86,20 +93,23 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
             break;
           }
         }
-        
+
         _todayJobId = targetJob['id'];
         _todayJobName = targetJob['title'] ?? 'Job Evidence';
-        
+
         // Set default photoType based on job status
-        String status = targetJob['job_status']?.toString().toLowerCase() ?? 'pending';
+        String status =
+            targetJob['job_status']?.toString().toLowerCase() ?? 'pending';
         if (status == 'pending' || status == 'scheduled') {
           _photoType = 'before';
-        } else if (status == 'active' || status == 'in progress' || status == 'in_progress') {
+        } else if (status == 'active' ||
+            status == 'in progress' ||
+            status == 'in_progress') {
           _photoType = 'during';
         } else if (status == 'completed') {
           _photoType = 'after';
         }
-        
+
         if (mounted) {
           _takePhoto();
         }
@@ -154,7 +164,8 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
 
       List<String> fileNames = [];
       for (int i = 0; i < _imageBytesList.length; i++) {
-        fileNames.add('evidence_${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+        fileNames
+            .add('evidence_${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
       }
 
       await ApiService.instance.uploadJobEvidence(
@@ -182,8 +193,10 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.90, // We keep the fixed container but make inner scrollable
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      height: MediaQuery.of(context).size.height *
+          0.90, // We keep the fixed container but make inner scrollable
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       decoration: const BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
@@ -208,7 +221,6 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                   onPressed: () => Navigator.pop(context))
             ]),
             const SizedBox(height: 16),
-            
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -217,7 +229,9 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                   children: [
                     const Text('Evidence Photos',
                         style: TextStyle(
-                            color: muted, fontSize: 13, fontWeight: FontWeight.bold)),
+                            color: muted,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 100,
@@ -242,7 +256,8 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                                 child: const Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.camera_alt, color: accentBlue, size: 28),
+                                    Icon(Icons.camera_alt,
+                                        color: accentBlue, size: 28),
                                     SizedBox(height: 4),
                                     Text('Add More',
                                         style: TextStyle(
@@ -271,8 +286,8 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                                   top: 4,
                                   right: 16,
                                   child: GestureDetector(
-                                    onTap: () =>
-                                        setState(() => _imageBytesList.removeAt(index)),
+                                    onTap: () => setState(
+                                        () => _imageBytesList.removeAt(index)),
                                     child: Container(
                                         padding: const EdgeInsets.all(4),
                                         decoration: const BoxDecoration(
@@ -289,26 +304,39 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                     const SizedBox(height: 24),
 
                     if (_todayJobs.length > 1) ...[
-                      const Text('Target Job', style: TextStyle(color: muted, fontSize: 13, fontWeight: FontWeight.bold)),
+                      const Text('Target Job',
+                          style: TextStyle(
+                              color: muted,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
+                        decoration: BoxDecoration(
+                            color: card,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white10)),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<int>(
                             value: _todayJobId,
                             dropdownColor: card,
                             isExpanded: true,
-                            style: const TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.bold),
-                            icon: const Icon(Icons.work_outline, color: accentBlue),
+                            style: const TextStyle(
+                                color: text,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold),
+                            icon: const Icon(Icons.work_outline,
+                                color: accentBlue),
                             items: _todayJobs.map((j) {
                               return DropdownMenuItem<int>(
                                 value: j['id'] as int,
-                                child: Text("${j['job_number'] ?? '#${j['id']}'} - ${j['title'] ?? 'Job'}"),
+                                child: Text(
+                                    "${j['job_number'] ?? '#${j['id']}'} - ${j['title'] ?? 'Job'}"),
                               );
                             }).toList(),
                             onChanged: (val) {
-                              if (val != null) setState(() => _todayJobId = val);
+                              if (val != null)
+                                setState(() => _todayJobId = val);
                             },
                           ),
                         ),
@@ -319,39 +347,48 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                     // 🟢 PHOTO TYPE SELECTOR (Moved here, above button)
                     const Text('Photo Type',
                         style: TextStyle(
-                            color: muted, fontSize: 13, fontWeight: FontWeight.bold)),
+                            color: muted,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                          color: card,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white10)),
-                      child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                        value: _photoType,
-                        dropdownColor: card,
-                        isExpanded: true,
-                        style: const TextStyle(
-                            color: text,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold),
-                        icon: const Icon(Icons.photo_camera, color: accentBlue),
-                        items: const [
-                          DropdownMenuItem(value: 'before', child: Text('Before Job Photo')),
-                          DropdownMenuItem(value: 'during', child: Text('During Job Photo')),
-                          DropdownMenuItem(value: 'after', child: Text('After Job Photo')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) setState(() => _photoType = val);
-                        },
-                      ))),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                            color: card,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white10)),
+                        child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                          value: _photoType,
+                          dropdownColor: card,
+                          isExpanded: true,
+                          style: const TextStyle(
+                              color: text,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                          icon:
+                              const Icon(Icons.photo_camera, color: accentBlue),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'before',
+                                child: Text('Before Job Photo')),
+                            DropdownMenuItem(
+                                value: 'during',
+                                child: Text('During Job Photo')),
+                            DropdownMenuItem(
+                                value: 'after', child: Text('After Job Photo')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _photoType = val);
+                          },
+                        ))),
                     const SizedBox(height: 24),
 
-                    const Text(
-                        'Image Note',
+                    const Text('Image Note',
                         style: TextStyle(
-                            color: muted, fontSize: 13, fontWeight: FontWeight.bold)),
+                            color: muted,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 60, // Fixed height reduced to half
@@ -381,15 +418,15 @@ class _CustomEvidenceModalState extends State<CustomEvidenceModal> {
                             backgroundColor: accentBlue,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16))),
-                        onPressed: _isUploading ||
-                                _imageBytesList.isEmpty
+                        onPressed: _isUploading || _imageBytesList.isEmpty
                             ? null
                             : _submitEvidence,
                         icon: _isUploading
                             ? const SizedBox.shrink()
                             : const Icon(Icons.upload, color: Colors.white),
                         label: _isUploading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : const Text('UPLOAD IMAGE',
                                 style: TextStyle(
                                     color: Colors.white,

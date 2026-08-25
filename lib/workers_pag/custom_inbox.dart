@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../components/global_chat_modal.dart';
 import '/backend/api_service.dart';
-import '/backend/reverb_service.dart';
+
 import '/shared/toast_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +21,8 @@ class CustomInbox extends StatefulWidget {
   State<CustomInbox> createState() => _CustomInboxState();
 }
 
-class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClientMixin {
+class _CustomInboxState extends State<CustomInbox>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -63,25 +64,17 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
     super.initState();
     _loadPinnedChats();
     _fetchConversations();
-    
-    // Initialize Reverb
-    ReverbService.instance.init().then((_) {
-      // Subscribe to real-time updates for the inbox list
-      ReverbService.instance.onConversationUpdated = (data) {
-        _fetchConversations();
-      };
-      
-      // Fetch user details to subscribe to their specific channel
-      ApiService.instance.getMe().then((user) {
-        if (mounted && user != null) {
-          setState(() {
-            _currentUserId = user['id'];
-          });
-        }
-        if (user != null && user['cl_id'] != null) {
-          ReverbService.instance.subscribeToConversations(user['cl_id']);
-        }
-      }).catchError((e) { debugPrint('Error getting user: $e'); return null; });
+
+    // Fetch user details
+    ApiService.instance.getMe().then((user) {
+      if (mounted && user != null) {
+        setState(() {
+          _currentUserId = user['id'];
+        });
+      }
+    }).catchError((e) {
+      debugPrint('Error getting user: $e');
+      return null;
     });
   }
 
@@ -125,7 +118,7 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(24))),
             child: SingleChildScrollView(
-              child: Column(
+                child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
@@ -158,33 +151,42 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                  title: const Text('Delete Chat', style: TextStyle(color: Colors.redAccent)),
+                  leading:
+                      const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: const Text('Delete Chat',
+                      style: TextStyle(color: Colors.redAccent)),
                   onTap: () {
                     Navigator.pop(context); // close bottom sheet
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
                         backgroundColor: card,
-                        title: const Text('Delete Chat', style: TextStyle(color: Colors.white)),
-                        content: const Text('Are you sure you want to permanently delete this chat?', style: TextStyle(color: Colors.white70)),
+                        title: const Text('Delete Chat',
+                            style: TextStyle(color: Colors.white)),
+                        content: const Text(
+                            'Are you sure you want to permanently delete this chat?',
+                            style: TextStyle(color: Colors.white70)),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                            child: const Text('Cancel',
+                                style: TextStyle(color: Colors.white70)),
                           ),
                           TextButton(
                             onPressed: () async {
                               Navigator.pop(ctx);
                               try {
-                                await ApiService.instance.deleteConversation(int.parse(chatId));
+                                await ApiService.instance
+                                    .deleteConversation(int.parse(chatId));
                                 _fetchConversations();
                                 ToastService.success(context, 'Chat deleted');
                               } catch (e) {
-                                ToastService.error(context, 'Error deleting chat: $e');
+                                ToastService.error(
+                                    context, 'Error deleting chat: $e');
                               }
                             },
-                            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                            child: const Text('Delete',
+                                style: TextStyle(color: Colors.redAccent)),
                           ),
                         ],
                       ),
@@ -195,8 +197,6 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
               ],
             ))));
   }
-
-
 
   Widget _buildChatTile(
       String chatId,
@@ -360,9 +360,13 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
     }
 
     var docs = _conversations.where((conv) {
-      String title = conv['display_name'] ?? conv['name'] ?? conv['customer_name'] ?? 'Chat';
+      String title = conv['display_name'] ??
+          conv['name'] ??
+          conv['customer_name'] ??
+          'Chat';
       title = title.replaceAll('Chat with ', '');
-      if (_searchQuery.isNotEmpty && !title.toLowerCase().contains(_searchQuery.toLowerCase())) {
+      if (_searchQuery.isNotEmpty &&
+          !title.toLowerCase().contains(_searchQuery.toLowerCase())) {
         return false;
       }
       return true;
@@ -370,31 +374,23 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
 
     if (docs.isEmpty) {
       return Center(
-          child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-            Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                    color: card, shape: BoxShape.circle),
-                child: Icon(Icons.forum_outlined,
-                    color: accentBlue.withOpacity(0.5), size: 50)),
-            const SizedBox(height: 16),
-            Text(
-                _searchQuery.isEmpty
-                    ? 'No active chats'
-                    : 'No chats found',
-                style: TextStyle(
-                    color: text,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-                _searchQuery.isEmpty
-                    ? 'Connect with your company admins.'
-                    : 'Try a different search.',
-                style: TextStyle(color: muted)),
-          ]));
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: card, shape: BoxShape.circle),
+            child: Icon(Icons.forum_outlined,
+                color: accentBlue.withOpacity(0.5), size: 50)),
+        const SizedBox(height: 16),
+        Text(_searchQuery.isEmpty ? 'No active chats' : 'No chats found',
+            style: TextStyle(
+                color: text, fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(
+            _searchQuery.isEmpty
+                ? 'Connect with your company admins.'
+                : 'Try a different search.',
+            style: TextStyle(color: muted)),
+      ]));
     }
 
     return ListView.builder(
@@ -404,26 +400,30 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
         itemBuilder: (context, index) {
           var conv = docs[index];
           String chatId = conv['id'].toString();
-          String title = conv['display_name'] ?? conv['name'] ?? conv['customer_name'] ?? 'Chat';
+          String title = conv['display_name'] ??
+              conv['name'] ??
+              conv['customer_name'] ??
+              'Chat';
           title = title.replaceAll('Chat with ', '');
-          String subtitle = conv['type'] == 'internal' ? 'Staff Chat' : 'Customer Chat';
-          
+          String subtitle =
+              conv['type'] == 'internal' ? 'Staff Chat' : 'Customer Chat';
+
           String lastMsg = conv['last_message']?.toString() ?? '';
-          
+
           String timeStr = '';
           if (conv['last_message_at'] != null) {
             try {
               DateTime dt = DateTime.parse(conv['last_message_at']);
               timeStr = DateFormat('hh:mm a').format(dt.toLocal());
-            } catch(e){}
+            } catch (e) {}
           }
-          
+
           bool hasUnread = (conv['unread_count'] ?? 0) > 0;
           bool isPinned = _pinnedChats.contains(chatId);
           bool isGroup = conv['type'] == 'internal' || conv['type'] == 'group';
 
-          return _buildChatTile(chatId, title, subtitle, lastMsg,
-              timeStr, hasUnread, isPinned, isGroup);
+          return _buildChatTile(chatId, title, subtitle, lastMsg, timeStr,
+              hasUnread, isPinned, isGroup);
         });
   }
 
@@ -538,9 +538,9 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
     );
   }
 
-
   // ─── Start (or reuse) a 1-on-1 internal conversation ─────────────────
-  Future<void> _startDirectMessageWith(String memberId, String memberName) async {
+  Future<void> _startDirectMessageWith(
+      String memberId, String memberName) async {
     if (_currentUserId == null) return;
 
     // Show a brief loading dialog while we look up / create the conversation
@@ -618,7 +618,6 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -630,7 +629,6 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 12),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
@@ -674,7 +672,6 @@ class _CustomInboxState extends State<CustomInbox> with AutomaticKeepAliveClient
             ),
           ),
           const SizedBox(height: 20),
-
           Expanded(
             child: _buildUnifiedInboxView(),
           ),
@@ -778,97 +775,105 @@ class _StaffPickerSheetState extends State<_StaffPickerSheet> {
           const SizedBox(height: 16),
           Expanded(
             child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _staff.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.people_outline, color: Colors.white30, size: 48),
-                        SizedBox(height: 12),
-                        Text(
-                          'No staff members found',
-                          style: TextStyle(color: Colors.white54),
+                ? const Center(child: CircularProgressIndicator())
+                : _staff.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.people_outline,
+                                color: Colors.white30, size: 48),
+                            SizedBox(height: 12),
+                            Text(
+                              'No staff members found',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: _staff.length,
-                    itemBuilder: (_, i) {
-                      final data = _staff[i] as Map<String, dynamic>;
-                      final memberId   = data['id']?.toString() ?? '';
-                      final firstName  = data['first_name'] ?? '';
-                      final lastName   = data['last_name']  ?? '';
-                      final memberName = (data['display_name'] as String?)?.trim().isNotEmpty == true
-                          ? data['display_name'] as String
-                          : '$firstName $lastName'.trim().isNotEmpty
-                              ? '$firstName $lastName'.trim()
-                              : 'Staff Member';
-                      final role    = data['role'] ?? data['job_title'] ?? '';
-                      final initial = memberName.isNotEmpty ? memberName[0].toUpperCase() : '?';
+                      )
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: _staff.length,
+                        itemBuilder: (_, i) {
+                          final data = _staff[i] as Map<String, dynamic>;
+                          final memberId = data['id']?.toString() ?? '';
+                          final firstName = data['first_name'] ?? '';
+                          final lastName = data['last_name'] ?? '';
+                          final memberName = (data['display_name'] as String?)
+                                      ?.trim()
+                                      .isNotEmpty ==
+                                  true
+                              ? data['display_name'] as String
+                              : '$firstName $lastName'.trim().isNotEmpty
+                                  ? '$firstName $lastName'.trim()
+                                  : 'Staff Member';
+                          final role = data['role'] ?? data['job_title'] ?? '';
+                          final initial = memberName.isNotEmpty
+                              ? memberName[0].toUpperCase()
+                              : '?';
 
-                      return GestureDetector(
-                        onTap: () => widget.onSelected(memberId, memberName),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E293B),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Colors.white10),
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 22,
-                                backgroundColor:
-                                    const Color(0xFF3B82F6).withOpacity(0.2),
-                                child: Text(
-                                  initial,
-                                  style: const TextStyle(
-                                    color: Color(0xFF3B82F6),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
+                          return GestureDetector(
+                            onTap: () =>
+                                widget.onSelected(memberId, memberName),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: Colors.white10),
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      memberName,
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 22,
+                                    backgroundColor: const Color(0xFF3B82F6)
+                                        .withOpacity(0.2),
+                                    child: Text(
+                                      initial,
                                       style: const TextStyle(
-                                        color: Colors.white,
+                                        color: Color(0xFF3B82F6),
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 15,
+                                        fontSize: 16,
                                       ),
                                     ),
-                                    if (role.toString().isNotEmpty)
-                                      Text(
-                                        role.toString(),
-                                        style: const TextStyle(
-                                          color: Colors.white38,
-                                          fontSize: 12,
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          memberName,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                          ),
                                         ),
-                                      ),
-                                  ],
-                                ),
+                                        if (role.toString().isNotEmpty)
+                                          Text(
+                                            role.toString(),
+                                            style: const TextStyle(
+                                              color: Colors.white38,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: Colors.white24,
+                                    size: 16,
+                                  ),
+                                ],
                               ),
-                              const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: Colors.white24,
-                                size: 16,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),

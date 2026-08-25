@@ -14,7 +14,6 @@ class SignInModel extends FlutterFlowModel<SignInWidget> {
 
   // Stores action output result for [Backend Call - Read Document] action in LoginWorkerWidget widget.
 
-
   @override
   void initState(BuildContext context) {}
 

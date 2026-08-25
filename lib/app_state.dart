@@ -3,7 +3,8 @@ import '/backend/backend.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 
-final GlobalKey<ScaffoldMessengerState> globalMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<ScaffoldMessengerState> globalMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 final GlobalKey<OverlayState> globalOverlayKey = GlobalKey<OverlayState>();
 
 class FFAppState extends ChangeNotifier {

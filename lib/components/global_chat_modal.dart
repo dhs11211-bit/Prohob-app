@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../backend/api_service.dart';
-import '../backend/reverb_service.dart';
 import '/shared/toast_service.dart';
 
 class GlobalChatModal {
@@ -66,8 +65,7 @@ class GlobalChatModal {
           payload['participants'] = [int.parse(targetUserId)];
         }
 
-        var createRes =
-            await ApiService.instance.createConversation(payload);
+        var createRes = await ApiService.instance.createConversation(payload);
         foundChatId = createRes['id'].toString();
       }
 
@@ -206,231 +204,233 @@ class GlobalChatModal {
             });
           }
 
-          ReverbService.instance.subscribeToChat(int.parse(chatId));
-          ReverbService.instance.onMessageReceived = (data) {
-            if (isModalOpen && data['conversation_id']?.toString() == chatId) {
-              setModalState(() {
-                int existingIndex =
-                    _messages.indexWhere((m) => m['id'] == data['id']);
-                if (existingIndex == -1) {
-                  int tempIndex = _messages.indexWhere((m) =>
-                      m['id'] != null &&
-                      m['id'].toString().startsWith('temp_') &&
-                      m['content'] == data['content']);
-                  if (tempIndex != -1) {
-                    _messages[tempIndex] = data;
-                  } else {
-                    _messages.insert(0, data);
-                  }
-                }
-              });
-            }
-          };
+          // Task 10.12: Live Socket replaced with Firebase FCM
+          // Polling can be added here if needed, but for now we rely on the backend.
 
           return Container(
             height: MediaQuery.of(context).size.height * 0.95,
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom),
             decoration: const BoxDecoration(
                 color: bg,
-                borderRadius:
-                    BorderRadius.vertical(top: Radius.circular(32))),
-              child: Column(
-                children: [
-                  Center(
-                      child: Container(
-                          margin: const EdgeInsets.only(top: 12),
-                          width: 50,
-                          height: 5,
-                          decoration: BoxDecoration(
-                              color: muted.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(10)))),
-                  Container(
-                      padding: const EdgeInsets.only(
-                          top: 8, bottom: 16, left: 24, right: 16),
-                      decoration: BoxDecoration(
-                          border: Border(
-                              bottom: BorderSide(
-                                  color: Colors.white.withOpacity(0.05)))),
-                      child: Row(children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: isGroup
-                                  ? neonAction.withOpacity(0.2)
-                                  : accentBlue.withOpacity(0.2),
-                              child: Text(
-                                  title.isNotEmpty
-                                      ? title[0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                      color: isGroup ? neonAction : accentBlue,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold)),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: const BoxDecoration(
-                                    color: bg, shape: BoxShape.circle),
-                                child: Icon(
-                                    isGroup
-                                        ? Icons.groups
-                                        : Icons.support_agent,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+            child: Column(
+              children: [
+                Center(
+                    child: Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 50,
+                        height: 5,
+                        decoration: BoxDecoration(
+                            color: muted.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(10)))),
+                Container(
+                    padding: const EdgeInsets.only(
+                        top: 8, bottom: 16, left: 24, right: 16),
+                    decoration: BoxDecoration(
+                        border: Border(
+                            bottom: BorderSide(
+                                color: Colors.white.withOpacity(0.05)))),
+                    child: Row(children: [
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: isGroup
+                                ? neonAction.withOpacity(0.2)
+                                : accentBlue.withOpacity(0.2),
+                            child: Text(
+                                title.isNotEmpty ? title[0].toUpperCase() : '?',
+                                style: TextStyle(
                                     color: isGroup ? neonAction : accentBlue,
-                                    size: 10),
-                              ),
-                            )
-                          ],
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                            child: isSearchingChat
-                                ? TextField(
-                                    autofocus: true,
-                                    style: const TextStyle(
-                                        color: text, fontSize: 16),
-                                    decoration: const InputDecoration(
-                                        hintText: "Search in this chat...",
-                                        hintStyle: TextStyle(
-                                            color: muted, fontSize: 14),
-                                        border: InputBorder.none),
-                                    onChanged: (v) => setModalState(
-                                        () => inChatSearchQuery = v),
-                                  )
-                                : Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                        Text(title,
-                                            style: const TextStyle(
-                                                color: text,
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.bold)),
-                                        Text(subtitle,
-                                            style: const TextStyle(
-                                                color: muted, fontSize: 12))
-                                      ])),
-                        IconButton(
-                            icon: Icon(
-                                isSearchingChat ? Icons.close : Icons.search,
-                                color: isSearchingChat ? accentRed : muted),
-                            onPressed: () {
-                              setModalState(() {
-                                isSearchingChat = !isSearchingChat;
-                                inChatSearchQuery = "";
-                              });
-                            })
-                      ])),
-                  Expanded(
-                      child: _isLoadingMessages
-                          ? const Center(child: CircularProgressIndicator())
-                          : Builder(builder: (context) {
-                              var filteredDocs = _messages.where((m) {
-                                if (inChatSearchQuery.isEmpty) return true;
-                                String textMsg = m['content'] ?? '';
-                                return textMsg
-                                    .toLowerCase()
-                                    .contains(inChatSearchQuery.toLowerCase());
-                              }).toList();
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                  color: bg, shape: BoxShape.circle),
+                              child: Icon(
+                                  isGroup ? Icons.groups : Icons.support_agent,
+                                  color: isGroup ? neonAction : accentBlue,
+                                  size: 10),
+                            ),
+                          )
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                          child: isSearchingChat
+                              ? TextField(
+                                  autofocus: true,
+                                  style: const TextStyle(
+                                      color: text, fontSize: 16),
+                                  decoration: const InputDecoration(
+                                      hintText: "Search in this chat...",
+                                      hintStyle:
+                                          TextStyle(color: muted, fontSize: 14),
+                                      border: InputBorder.none),
+                                  onChanged: (v) => setModalState(
+                                      () => inChatSearchQuery = v),
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                      Text(title,
+                                          style: const TextStyle(
+                                              color: text,
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.bold)),
+                                      Text(subtitle,
+                                          style: const TextStyle(
+                                              color: muted, fontSize: 12))
+                                    ])),
+                      IconButton(
+                          icon: Icon(
+                              isSearchingChat ? Icons.close : Icons.search,
+                              color: isSearchingChat ? accentRed : muted),
+                          onPressed: () {
+                            setModalState(() {
+                              isSearchingChat = !isSearchingChat;
+                              inChatSearchQuery = "";
+                            });
+                          })
+                    ])),
+                Expanded(
+                    child: _isLoadingMessages
+                        ? const Center(child: CircularProgressIndicator())
+                        : Builder(builder: (context) {
+                            var filteredDocs = _messages.where((m) {
+                              if (inChatSearchQuery.isEmpty) return true;
+                              String textMsg = m['content'] ?? '';
+                              return textMsg
+                                  .toLowerCase()
+                                  .contains(inChatSearchQuery.toLowerCase());
+                            }).toList();
 
-                              if (filteredDocs.isEmpty) {
-                                return Center(
-                                    child: Text(
-                                        inChatSearchQuery.isNotEmpty
-                                            ? 'No messages found.'
-                                            : 'Start the conversation!',
-                                        style: const TextStyle(color: muted)));
-                              }
+                            if (filteredDocs.isEmpty) {
+                              return Center(
+                                  child: Text(
+                                      inChatSearchQuery.isNotEmpty
+                                          ? 'No messages found.'
+                                          : 'Start the conversation!',
+                                      style: const TextStyle(color: muted)));
+                            }
 
-                              return ListView.builder(
-                                  reverse: true,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 20),
-                                  physics: const BouncingScrollPhysics(),
-                                  itemCount: filteredDocs.length,
-                                  itemBuilder: (context, index) {
-                                    var data = filteredDocs[index];
-                                    bool isMe =
-                                        data['sender_id'] == currentUserId;
+                            return ListView.builder(
+                                reverse: true,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 20),
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: filteredDocs.length,
+                                itemBuilder: (context, index) {
+                                  var data = filteredDocs[index];
+                                  bool isMe =
+                                      data['sender_id'] == currentUserId;
 
-                                    DateTime? time;
-                                    try {
-                                      time = DateTime.parse(data['created_at'])
-                                          .toLocal();
-                                    } catch (e) {}
+                                  DateTime? time;
+                                  try {
+                                    time = DateTime.parse(data['created_at'])
+                                        .toLocal();
+                                  } catch (e) {}
 
-                                    String timeStr = time != null
-                                        ? DateFormat('hh:mm a').format(time)
-                                        : '';
+                                  String timeStr = time != null
+                                      ? DateFormat('hh:mm a').format(time)
+                                      : '';
 
-                                    return Container(
-                                        margin:
-                                            const EdgeInsets.only(bottom: 16),
-                                        child: Row(
-                                            mainAxisAlignment: isMe
-                                                ? MainAxisAlignment.end
-                                                : MainAxisAlignment.start,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                            children: [
-                                              Flexible(
-                                                  child: Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              16),
-                                                      decoration: BoxDecoration(
-                                                          color: isMe
-                                                              ? accentBlue
-                                                              : card,
-                                                          borderRadius: BorderRadius.only(
-                                                              topLeft: const Radius
-                                                                  .circular(20),
-                                                              topRight:
-                                                                  const Radius.circular(
-                                                                      20),
-                                                              bottomLeft: isMe
-                                                                  ? const Radius.circular(
-                                                                      20)
-                                                                  : const Radius
-                                                                      .circular(
-                                                                      4),
-                                                              bottomRight: isMe
-                                                                  ? const Radius.circular(4)
-                                                                  : const Radius.circular(20))),
-                                                      child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-                                                        if (isGroup &&
-                                                            !isMe) ...[
-                                                          Text(
-                                                              data['sender_name'] ??
-                                                                  "Team Member",
-                                                              style: const TextStyle(
-                                                                  color:
-                                                                      neonAction,
-                                                                  fontSize: 10,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold)),
-                                                          const SizedBox(
-                                                              height: 4),
-                                                        ],
-                                                        if (data['attachments'] != null && (data['attachments'] as List).isNotEmpty) ...[
-                                                          Builder(
-                                                            builder: (context) {
-                                                              var attachment = data['attachments'][0];
-                                                              bool isImage = attachment['type'] == 'image';
+                                  return Container(
+                                      margin: const EdgeInsets.only(bottom: 16),
+                                      child: Row(
+                                          mainAxisAlignment: isMe
+                                              ? MainAxisAlignment.end
+                                              : MainAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Flexible(
+                                                child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            16),
+                                                    decoration: BoxDecoration(
+                                                        color: isMe
+                                                            ? accentBlue
+                                                            : card,
+                                                        borderRadius: BorderRadius.only(
+                                                            topLeft:
+                                                                const Radius.circular(
+                                                                    20),
+                                                            topRight:
+                                                                const Radius.circular(
+                                                                    20),
+                                                            bottomLeft: isMe
+                                                                ? const Radius.circular(
+                                                                    20)
+                                                                : const Radius.circular(
+                                                                    4),
+                                                            bottomRight: isMe
+                                                                ? const Radius.circular(
+                                                                    4)
+                                                                : const Radius.circular(
+                                                                    20))),
+                                                    child: Column(
+                                                        crossAxisAlignment: isMe
+                                                            ? CrossAxisAlignment
+                                                                .end
+                                                            : CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          if (isGroup &&
+                                                              !isMe) ...[
+                                                            Text(
+                                                                data['sender_name'] ??
+                                                                    "Team Member",
+                                                                style: const TextStyle(
+                                                                    color:
+                                                                        neonAction,
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold)),
+                                                            const SizedBox(
+                                                                height: 4),
+                                                          ],
+                                                          if (data['attachments'] !=
+                                                                  null &&
+                                                              (data['attachments']
+                                                                      as List)
+                                                                  .isNotEmpty) ...[
+                                                            Builder(builder:
+                                                                (context) {
+                                                              var attachment =
+                                                                  data['attachments']
+                                                                      [0];
+                                                              bool isImage =
+                                                                  attachment[
+                                                                          'type'] ==
+                                                                      'image';
                                                               return GestureDetector(
-                                                                onTap: () async {
+                                                                onTap:
+                                                                    () async {
                                                                   if (isImage) {
                                                                     showDialog(
-                                                                      context: context,
-                                                                      builder: (context) => Dialog(
-                                                                        backgroundColor: Colors.transparent,
-                                                                        insetPadding: EdgeInsets.zero,
-                                                                        child: Stack(
-                                                                          fit: StackFit.expand,
+                                                                      context:
+                                                                          context,
+                                                                      builder:
+                                                                          (context) =>
+                                                                              Dialog(
+                                                                        backgroundColor:
+                                                                            Colors.transparent,
+                                                                        insetPadding:
+                                                                            EdgeInsets.zero,
+                                                                        child:
+                                                                            Stack(
+                                                                          fit: StackFit
+                                                                              .expand,
                                                                           children: [
                                                                             GestureDetector(
                                                                               onTap: () => Navigator.of(context).pop(),
@@ -454,217 +454,303 @@ class GlobalChatModal {
                                                                       ),
                                                                     );
                                                                   } else {
-                                                                    Uri url = Uri.parse(attachment['url']);
-                                                                    if (await canLaunchUrl(url)) {
-                                                                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                                                                    Uri url = Uri.parse(
+                                                                        attachment[
+                                                                            'url']);
+                                                                    if (await canLaunchUrl(
+                                                                        url)) {
+                                                                      await launchUrl(
+                                                                          url,
+                                                                          mode:
+                                                                              LaunchMode.externalApplication);
                                                                     }
                                                                   }
                                                                 },
                                                                 child: Container(
-                                                                  margin: const EdgeInsets.only(bottom: 8),
-                                                                  constraints: isImage 
-                                                                    ? BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.5, maxHeight: 150)
-                                                                    : const BoxConstraints(maxHeight: 200),
-                                                                  decoration: BoxDecoration(
-                                                                    borderRadius: BorderRadius.circular(8),
-                                                                  ),
-                                                                  clipBehavior: Clip.hardEdge,
-                                                                  child: isImage 
-                                                                    ? Image.network(attachment['url'], fit: BoxFit.cover, width: double.infinity, height: double.infinity)
-                                                                    : Container(
-                                                                        padding: const EdgeInsets.all(12),
-                                                                        decoration: BoxDecoration(
-                                                                          color: Colors.white.withOpacity(isMe ? 0.2 : 1),
-                                                                          borderRadius: BorderRadius.circular(8),
-                                                                          border: Border.all(color: Colors.grey.withOpacity(0.3))
-                                                                        ),
-                                                                        child: Row(
-                                                                          mainAxisSize: MainAxisSize.min,
-                                                                          children: [
-                                                                            Icon(Icons.insert_drive_file, color: isMe ? Colors.white : Colors.black54),
-                                                                            const SizedBox(width: 8),
-                                                                            Flexible(
-                                                                              child: Text(
-                                                                                attachment['filename'] ?? 'Attachment',
-                                                                                style: TextStyle(color: isMe ? Colors.white : text),
-                                                                                overflow: TextOverflow.ellipsis,
-                                                                              ),
-                                                                            )
-                                                                          ],
-                                                                        )
-                                                                      )
-                                                                ),
+                                                                    margin: const EdgeInsets.only(bottom: 8),
+                                                                    constraints: isImage ? BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.5, maxHeight: 150) : const BoxConstraints(maxHeight: 200),
+                                                                    decoration: BoxDecoration(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                              8),
+                                                                    ),
+                                                                    clipBehavior: Clip.hardEdge,
+                                                                    child: isImage
+                                                                        ? Image.network(attachment['url'], fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+                                                                        : Container(
+                                                                            padding: const EdgeInsets.all(12),
+                                                                            decoration: BoxDecoration(color: Colors.white.withOpacity(isMe ? 0.2 : 1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.withOpacity(0.3))),
+                                                                            child: Row(
+                                                                              mainAxisSize: MainAxisSize.min,
+                                                                              children: [
+                                                                                Icon(Icons.insert_drive_file, color: isMe ? Colors.white : Colors.black54),
+                                                                                const SizedBox(width: 8),
+                                                                                Flexible(
+                                                                                  child: Text(
+                                                                                    attachment['filename'] ?? 'Attachment',
+                                                                                    style: TextStyle(color: isMe ? Colors.white : text),
+                                                                                    overflow: TextOverflow.ellipsis,
+                                                                                  ),
+                                                                                )
+                                                                              ],
+                                                                            ))),
                                                               );
-                                                            }
-                                                          )
-                                                        ],
-                                                        if (data['content'] != null && data['content'].toString().trim().isNotEmpty && (data['attachments'] == null || (data['attachments'] as List).isEmpty || data['content'] != data['attachments'][0]['filename']))
-                                                          LinkifiedText(
-                                                              text: data['content'] ?? '',
-                                                              style: TextStyle(
-                                                                  color: isMe ? Colors.white : text,
-                                                                  fontSize: 15)),
-                                                        Padding(
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .only(
-                                                                    top: 6),
-                                                            child: Text(timeStr,
+                                                            })
+                                                          ],
+                                                          if (data['content'] !=
+                                                                  null &&
+                                                              data['content']
+                                                                  .toString()
+                                                                  .trim()
+                                                                  .isNotEmpty &&
+                                                              (data['attachments'] ==
+                                                                      null ||
+                                                                  (data['attachments']
+                                                                          as List)
+                                                                      .isEmpty ||
+                                                                  data['content'] !=
+                                                                      data['attachments']
+                                                                              [0]
+                                                                          [
+                                                                          'filename']))
+                                                            LinkifiedText(
+                                                                text:
+                                                                    data['content'] ??
+                                                                        '',
                                                                 style: TextStyle(
                                                                     color: isMe
                                                                         ? Colors
-                                                                            .white70
-                                                                        : muted,
+                                                                            .white
+                                                                        : text,
                                                                     fontSize:
-                                                                        10)))
-                                                      ])))
-                                            ]));
-                                  });
-                            })),
-                  Container(
-                    padding: const EdgeInsets.only(
-                        left: 4, right: 8, top: 12, bottom: 20),
-                    decoration: BoxDecoration(
-                        color: bg,
-                        border: Border(
-                            top: BorderSide(
-                                color: Colors.white.withOpacity(0.05)))),
-                    child: Column(
-                      children: [
-                        if (_pickedAttachment != null)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
+                                                                        15)),
+                                                          Padding(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .only(
+                                                                      top: 6),
+                                                              child: Text(
+                                                                  timeStr,
+                                                                  style: TextStyle(
+                                                                      color: isMe
+                                                                          ? Colors
+                                                                              .white70
+                                                                          : muted,
+                                                                      fontSize:
+                                                                          10)))
+                                                        ])))
+                                          ]));
+                                });
+                          })),
+                Container(
+                  padding: const EdgeInsets.only(
+                      left: 4, right: 8, top: 12, bottom: 20),
+                  decoration: BoxDecoration(
+                      color: bg,
+                      border: Border(
+                          top: BorderSide(
+                              color: Colors.white.withOpacity(0.05)))),
+                  child: Column(
+                    children: [
+                      if (_pickedAttachment != null)
+                        Container(
+                            margin: const EdgeInsets.only(
+                                bottom: 8, left: 16, right: 16),
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: card,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white.withOpacity(0.1))
-                            ),
+                                color: card,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.1))),
                             child: Row(
                               children: [
-                                Icon(_attachmentType == 'image' ? Icons.image : Icons.insert_drive_file, color: accentBlue),
+                                Icon(
+                                    _attachmentType == 'image'
+                                        ? Icons.image
+                                        : Icons.insert_drive_file,
+                                    color: accentBlue),
                                 const SizedBox(width: 8),
-                                Expanded(child: Text(_pickedAttachment!.files.first.name, style: const TextStyle(color: text), overflow: TextOverflow.ellipsis)),
+                                Expanded(
+                                    child: Text(
+                                        _pickedAttachment!.files.first.name,
+                                        style: const TextStyle(color: text),
+                                        overflow: TextOverflow.ellipsis)),
                                 IconButton(
-                                  icon: const Icon(Icons.close, color: accentRed, size: 18),
-                                  onPressed: () => setModalState(() { _pickedAttachment = null; })
-                                )
+                                    icon: const Icon(Icons.close,
+                                        color: accentRed, size: 18),
+                                    onPressed: () => setModalState(() {
+                                          _pickedAttachment = null;
+                                        }))
                               ],
-                            )
-                          ),
-                        Row(
-                          children: [
-                            IconButton(
+                            )),
+                      Row(
+                        children: [
+                          IconButton(
                               icon: const Icon(Icons.attach_file, color: muted),
                               onPressed: () async {
-                                FilePickerResult? result = await FilePicker.platform.pickFiles(
+                                FilePickerResult? result =
+                                    await FilePicker.platform.pickFiles(
                                   type: FileType.custom,
-                                  allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt'],
+                                  allowedExtensions: [
+                                    'jpg',
+                                    'jpeg',
+                                    'png',
+                                    'gif',
+                                    'pdf',
+                                    'doc',
+                                    'docx',
+                                    'xls',
+                                    'xlsx',
+                                    'csv',
+                                    'txt'
+                                  ],
                                   allowCompression: true,
                                   withData: true,
                                 );
                                 if (result != null) {
                                   setModalState(() {
                                     _pickedAttachment = result;
-                                    String ext = result.files.first.extension?.toLowerCase() ?? '';
-                                    _attachmentType = ['jpg', 'jpeg', 'png', 'gif'].contains(ext) ? 'image' : 'file';
+                                    String ext = result.files.first.extension
+                                            ?.toLowerCase() ??
+                                        '';
+                                    _attachmentType = [
+                                      'jpg',
+                                      'jpeg',
+                                      'png',
+                                      'gif'
+                                    ].contains(ext)
+                                        ? 'image'
+                                        : 'file';
                                   });
                                 }
-                              }
-                            ),
-                            Expanded(
-                                child: Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(horizontal: 16),
-                                    decoration: BoxDecoration(
-                                        color: card,
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(
-                                            color: Colors.white.withOpacity(0.1))),
-                                    child: TextField(
-                                        controller: _msgController,
-                                        style: const TextStyle(color: text),
-                                        maxLines: null,
-                                        keyboardType: TextInputType.multiline,
-                                        decoration: const InputDecoration(
-                                            hintText: 'Message...',
-                                            hintStyle: TextStyle(
-                                                color: muted, fontSize: 14),
-                                            border: InputBorder.none)))),
-                            _isUploadingAttachment 
-                                ? const Padding(padding: EdgeInsets.all(12.0), child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: accentBlue)))
-                                : IconButton(
-                                icon: const Icon(Icons.send,
-                                    color: accentBlue, size: 24),
-                                onPressed: () async {
-                                  if (_msgController.text.trim().isEmpty && _pickedAttachment == null) return;
-                                  var textMsg = _msgController.text.trim();
-                                  
-                                  List<Map<String, dynamic>>? attachmentsPayload;
+                              }),
+                          Expanded(
+                              child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  decoration: BoxDecoration(
+                                      color: card,
+                                      borderRadius: BorderRadius.circular(24),
+                                      border: Border.all(
+                                          color:
+                                              Colors.white.withOpacity(0.1))),
+                                  child: TextField(
+                                      controller: _msgController,
+                                      style: const TextStyle(color: text),
+                                      maxLines: null,
+                                      keyboardType: TextInputType.multiline,
+                                      decoration: const InputDecoration(
+                                          hintText: 'Message...',
+                                          hintStyle: TextStyle(
+                                              color: muted, fontSize: 14),
+                                          border: InputBorder.none)))),
+                          _isUploadingAttachment
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: accentBlue)))
+                              : IconButton(
+                                  icon: const Icon(Icons.send,
+                                      color: accentBlue, size: 24),
+                                  onPressed: () async {
+                                    if (_msgController.text.trim().isEmpty &&
+                                        _pickedAttachment == null) return;
+                                    var textMsg = _msgController.text.trim();
 
-                                  if (_pickedAttachment != null) {
-                                    setModalState(() { _isUploadingAttachment = true; });
-                                    try {
-                                      List<int> bytes = _pickedAttachment!.files.first.bytes ?? await File(_pickedAttachment!.files.first.path!).readAsBytes();
-                                      String fileName = _pickedAttachment!.files.first.name;
-                                      
-                                      var uploadedData = await ApiService.instance.uploadChatMedia(int.parse(chatId), bytes, fileName);
-                                      attachmentsPayload = [{
-                                        'id': uploadedData['id'],
-                                        'url': uploadedData['url'],
-                                        'filename': uploadedData['filename'],
-                                        'type': uploadedData['type'] ?? _attachmentType,
-                                      }];
-                                      
-                                      _pickedAttachment = null;
-                                    } catch (e) {
-                                      ToastService.error(context, 'Failed to upload attachment');
-                                      setModalState(() { _isUploadingAttachment = false; });
-                                      return;
+                                    List<Map<String, dynamic>>?
+                                        attachmentsPayload;
+
+                                    if (_pickedAttachment != null) {
+                                      setModalState(() {
+                                        _isUploadingAttachment = true;
+                                      });
+                                      try {
+                                        List<int> bytes = _pickedAttachment!
+                                                .files.first.bytes ??
+                                            await File(_pickedAttachment!
+                                                    .files.first.path!)
+                                                .readAsBytes();
+                                        String fileName =
+                                            _pickedAttachment!.files.first.name;
+
+                                        var uploadedData = await ApiService
+                                            .instance
+                                            .uploadChatMedia(int.parse(chatId),
+                                                bytes, fileName);
+                                        attachmentsPayload = [
+                                          {
+                                            'id': uploadedData['id'],
+                                            'url': uploadedData['url'],
+                                            'filename':
+                                                uploadedData['filename'],
+                                            'type': uploadedData['type'] ??
+                                                _attachmentType,
+                                          }
+                                        ];
+
+                                        _pickedAttachment = null;
+                                      } catch (e) {
+                                        ToastService.error(context,
+                                            'Failed to upload attachment');
+                                        setModalState(() {
+                                          _isUploadingAttachment = false;
+                                        });
+                                        return;
+                                      }
                                     }
-                                  }
 
-                                  if (textMsg.isEmpty && attachmentsPayload != null && attachmentsPayload.isNotEmpty) {
-                                    textMsg = attachmentsPayload[0]['filename'] ?? 'Attachment';
-                                  }
+                                    if (textMsg.isEmpty &&
+                                        attachmentsPayload != null &&
+                                        attachmentsPayload.isNotEmpty) {
+                                      textMsg = attachmentsPayload[0]
+                                              ['filename'] ??
+                                          'Attachment';
+                                    }
 
-                                  _msgController.clear();
-                                  setModalState(() { _isUploadingAttachment = false; });
-
-                                  // Optimistic update
-                                  setModalState(() {
-                                    _messages.insert(0, {
-                                      'id':
-                                          'temp_${DateTime.now().millisecondsSinceEpoch}',
-                                      'content': textMsg,
-                                      'sender_id': currentUserId,
-                                      'direction': 'inbound',
-                                      'created_at':
-                                          DateTime.now().toUtc().toIso8601String(),
-                                      'attachments': attachmentsPayload,
+                                    _msgController.clear();
+                                    setModalState(() {
+                                      _isUploadingAttachment = false;
                                     });
-                                  });
 
-                                  ApiService.instance
-                                      .sendMessage(int.parse(chatId), textMsg, attachments: attachmentsPayload)
-                                      .catchError((e) {
-                                    ToastService.error(context, 'Failed to send: $e');
-                                  });
-                                }), // IconButton
-                          ], // Row children
-                        ),
-                      ],
-                    ), // Column
-                  ), // Container
-                ], // Column children
-              ), // Column
-            ); // Container
+                                    // Optimistic update
+                                    setModalState(() {
+                                      _messages.insert(0, {
+                                        'id':
+                                            'temp_${DateTime.now().millisecondsSinceEpoch}',
+                                        'content': textMsg,
+                                        'sender_id': currentUserId,
+                                        'direction': 'inbound',
+                                        'created_at': DateTime.now()
+                                            .toUtc()
+                                            .toIso8601String(),
+                                        'attachments': attachmentsPayload,
+                                      });
+                                    });
+
+                                    ApiService.instance
+                                        .sendMessage(int.parse(chatId), textMsg,
+                                            attachments: attachmentsPayload)
+                                        .catchError((e) {
+                                      ToastService.error(
+                                          context, 'Failed to send: $e');
+                                    });
+                                  }), // IconButton
+                        ], // Row children
+                      ),
+                    ],
+                  ), // Column
+                ), // Container
+              ], // Column children
+            ), // Column
+          ); // Container
         });
       },
     ).whenComplete(() {
       isModalOpen = false;
-      ReverbService.instance.unsubscribeFromChat(int.parse(chatId));
-      ReverbService.instance.onMessageReceived = null;
+
       if (onClose != null) {
         onClose();
       }
@@ -676,7 +762,8 @@ class LinkifiedText extends StatelessWidget {
   final String text;
   final TextStyle style;
 
-  const LinkifiedText({Key? key, required this.text, required this.style}) : super(key: key);
+  const LinkifiedText({Key? key, required this.text, required this.style})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -704,10 +791,13 @@ class LinkifiedText extends StatelessWidget {
               ..onTap = () async {
                 Uri url;
                 if (isUrl) {
-                  final urlStr = matched.toLowerCase().startsWith('http') ? matched : 'https://$matched';
+                  final urlStr = matched.toLowerCase().startsWith('http')
+                      ? matched
+                      : 'https://$matched';
                   url = Uri.parse(urlStr);
                 } else {
-                  url = Uri.parse('tel:${matched.replaceAll(RegExp(r'[^\d+]'), '')}');
+                  url = Uri.parse(
+                      'tel:${matched.replaceAll(RegExp(r'[^\d+]'), '')}');
                 }
                 if (await canLaunchUrl(url)) {
                   await launchUrl(url, mode: LaunchMode.externalApplication);

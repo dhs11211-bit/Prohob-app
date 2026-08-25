@@ -1,6 +1,8 @@
 export '/custom_code/widgets/login_worker_widget.dart' show LoginWorkerWidget;
-export '/custom_code/widgets/landing_pricing_widget.dart' show LandingPricingWidget;
-export '/custom_code/widgets/admin_dashboard_widge.dart' show AdminDashboardWidge;
+export '/custom_code/widgets/landing_pricing_widget.dart'
+    show LandingPricingWidget;
+export '/custom_code/widgets/admin_dashboard_widge.dart'
+    show AdminDashboardWidge;
 export '/custom_code/widgets/admin_team_widge.dart' show AdminTeamWidge;
 export '/workers_pag/clock_in_tracker.dart' show ClockInTracker;
 export '/custom_code/widgets/admin_finances_widge.dart' show AdminFinancesWidge;

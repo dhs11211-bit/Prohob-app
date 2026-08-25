@@ -54,12 +54,12 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-      
+
       if (result != null && result['requires_selection'] == true) {
         final List<dynamic> companies = result['companies'];
         if (mounted) setState(() => _isLoading = false);
         final selectedClId = await _showCompanySelectionDialog(companies);
-        
+
         if (selectedClId != null) {
           setState(() {
             _isLoading = true;
@@ -100,7 +100,8 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A), // Slate 900
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+              border:
+                  Border.all(color: Colors.white.withOpacity(0.1), width: 1),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.5),
@@ -122,35 +123,46 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                         color: const Color(0xFF3B82F6).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.business_rounded, color: Color(0xFF3B82F6), size: 24),
+                      child: const Icon(Icons.business_rounded,
+                          color: Color(0xFF3B82F6), size: 24),
                     ),
                     const SizedBox(width: 16),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Select Company", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                          Text("Select Company",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold)),
                           SizedBox(height: 4),
-                          Text("Choose a workspace to continue", style: TextStyle(color: Colors.white54, fontSize: 13)),
+                          Text("Choose a workspace to continue",
+                              style: TextStyle(
+                                  color: Colors.white54, fontSize: 13)),
                         ],
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
-                
+
                 // List of Companies
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 350),
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: companies.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
                     itemBuilder: (BuildContext context, int index) {
                       final company = companies[index];
-                      final String companyName = company['company_name'] ?? 'Unknown Company';
-                      final String initial = companyName.isNotEmpty ? companyName.substring(0, 1).toUpperCase() : 'U';
-                      
+                      final String companyName =
+                          company['company_name'] ?? 'Unknown Company';
+                      final String initial = companyName.isNotEmpty
+                          ? companyName.substring(0, 1).toUpperCase()
+                          : 'U';
+
                       return InkWell(
                         onTap: () {
                           Navigator.of(context).pop(company['cl_id'] as int);
@@ -161,7 +173,8 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF1E293B),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.05)),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.05)),
                           ),
                           child: Row(
                             children: [
@@ -175,7 +188,10 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                                 child: Center(
                                   child: Text(
                                     initial,
-                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ),
@@ -183,10 +199,14 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                               Expanded(
                                 child: Text(
                                   companyName,
-                                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600),
                                 ),
                               ),
-                              const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 24),
+                              const Icon(Icons.chevron_right_rounded,
+                                  color: Colors.white38, size: 24),
                             ],
                           ),
                         ),
@@ -195,7 +215,7 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Cancel Button
                 SizedBox(
                   width: double.infinity,
@@ -203,9 +223,14 @@ class _LoginWorkerWidgetState extends State<LoginWorkerWidget> {
                     onPressed: () => Navigator.of(context).pop(),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text("Cancel", style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: const Text("Cancel",
+                        style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],

@@ -4,7 +4,8 @@ import 'global_chat_modal.dart';
 
 class ContactListModal extends StatefulWidget {
   final BuildContext parentContext;
-  const ContactListModal({Key? key, required this.parentContext}) : super(key: key);
+  const ContactListModal({Key? key, required this.parentContext})
+      : super(key: key);
 
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet(
@@ -115,7 +116,8 @@ class _ContactListModalState extends State<ContactListModal> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                Icon(Icons.contact_support_outlined, color: accentBlue, size: 24),
+                Icon(Icons.contact_support_outlined,
+                    color: accentBlue, size: 24),
                 const SizedBox(width: 10),
                 Text(
                   'Contact Staff & Support',
@@ -146,7 +148,8 @@ class _ContactListModalState extends State<ContactListModal> {
                           children: [
                             Icon(Icons.people_outline, color: muted, size: 48),
                             const SizedBox(height: 12),
-                            Text('No contacts found', style: TextStyle(color: muted)),
+                            Text('No contacts found',
+                                style: TextStyle(color: muted)),
                           ],
                         ),
                       )
@@ -154,17 +157,25 @@ class _ContactListModalState extends State<ContactListModal> {
                         physics: const BouncingScrollPhysics(),
                         itemCount: _staffList.length,
                         itemBuilder: (context, index) {
-                          final data = _staffList[index] as Map<String, dynamic>;
+                          final data =
+                              _staffList[index] as Map<String, dynamic>;
                           final memberId = data['id']?.toString() ?? '';
                           final firstName = data['first_name'] ?? '';
                           final lastName = data['last_name'] ?? '';
-                          final memberName = (data['display_name'] as String?)?.trim().isNotEmpty == true
+                          final memberName = (data['display_name'] as String?)
+                                      ?.trim()
+                                      .isNotEmpty ==
+                                  true
                               ? data['display_name'] as String
                               : '$firstName $lastName'.trim().isNotEmpty
                                   ? '$firstName $lastName'.trim()
                                   : (data['name'] ?? 'Staff Member');
-                          final role = data['role'] is Map ? (data['role']['name'] ?? '') : (data['role'] ?? data['job_title'] ?? '');
-                          final initial = memberName.isNotEmpty ? memberName[0].toUpperCase() : '?';
+                          final role = data['role'] is Map
+                              ? (data['role']['name'] ?? '')
+                              : (data['role'] ?? data['job_title'] ?? '');
+                          final initial = memberName.isNotEmpty
+                              ? memberName[0].toUpperCase()
+                              : '?';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 10),
@@ -177,7 +188,8 @@ class _ContactListModalState extends State<ContactListModal> {
                               color: Colors.transparent,
                               borderRadius: BorderRadius.circular(16),
                               child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 4),
                                 leading: CircleAvatar(
                                   radius: 22,
                                   backgroundColor: accentBlue.withOpacity(0.2),
@@ -201,11 +213,18 @@ class _ContactListModalState extends State<ContactListModal> {
                                 subtitle: role.toString().isNotEmpty
                                     ? Text(
                                         role.toString().toUpperCase(),
-                                        style: TextStyle(color: muted, fontSize: 11, fontWeight: FontWeight.w600),
+                                        style: TextStyle(
+                                            color: muted,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600),
                                       )
                                     : null,
-                                trailing: Icon(Icons.chat_bubble_outline_rounded, color: accentBlue, size: 20),
-                                onTap: () => _openChatWith(memberId, memberName),
+                                trailing: Icon(
+                                    Icons.chat_bubble_outline_rounded,
+                                    color: accentBlue,
+                                    size: 20),
+                                onTap: () =>
+                                    _openChatWith(memberId, memberName),
                               ),
                             ),
                           );

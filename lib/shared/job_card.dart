@@ -42,13 +42,17 @@ class SharedJobCard extends StatelessWidget {
 
     final displayNo = jobData['job_number'] ?? "#${jobData['id']}";
     final title = jobData['title'] ?? 'Job Title';
-    final customerName = jobData['customer_name'] ?? jobData['job_type'] ?? 'Scheduled Job';
+    final customerName =
+        jobData['customer_name'] ?? jobData['job_type'] ?? 'Scheduled Job';
     final address = jobData['address'] ?? 'No address provided';
 
-    final status = (jobData['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
+    final status =
+        (jobData['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
     Color statusColor = accentBlue;
-    if (status == 'ACTIVE' || status == 'IN PROGRESS') statusColor = const Color(0xFF10B981);
-    if (status == 'PENDING' || status == 'DRAFT') statusColor = const Color(0xFFF59E0B);
+    if (status == 'ACTIVE' || status == 'IN PROGRESS')
+      statusColor = const Color(0xFF10B981);
+    if (status == 'PENDING' || status == 'DRAFT')
+      statusColor = const Color(0xFFF59E0B);
     if (status == 'COMPLETED') statusColor = seriesPurple;
 
     String timeStr = "Time not set";
@@ -56,9 +60,11 @@ class SharedJobCard extends StatelessWidget {
     if (jobDate != null) {
       String startStr = DateFormat.jm().format(jobDate);
       timeStr = startStr;
-      if (jobData['end_time'] != null && jobData['end_time'].toString().trim().isNotEmpty) {
+      if (jobData['end_time'] != null &&
+          jobData['end_time'].toString().trim().isNotEmpty) {
         try {
-          DateTime endParsed = DateTime.parse("1970-01-01 " + jobData['end_time'].toString().trim());
+          DateTime endParsed = DateTime.parse(
+              "1970-01-01 " + jobData['end_time'].toString().trim());
           String endStr = DateFormat.jm().format(endParsed);
           timeStr = "$startStr - $endStr";
         } catch (_) {}
@@ -69,11 +75,30 @@ class SharedJobCard extends StatelessWidget {
     final badgeColor = isRecurring ? seriesPurple : accentBlue;
     final badgeLabel = isRecurring ? 'Recurring Job' : 'Single Job';
 
+    // Task 9.7/9.17: Multi-employee split colors / Employee colors banner
+    List<Color> bannerColors = [];
+    if (jobData['assignments'] != null && (jobData['assignments'] as List).isNotEmpty) {
+      for (var assignment in (jobData['assignments'] as List)) {
+        if (assignment['user'] != null && assignment['user']['color'] != null) {
+          final hex = assignment['user']['color'].toString().replaceAll('#', '');
+          if (hex.length == 6) {
+             bannerColors.add(Color(int.parse('0xFF$hex')));
+          }
+        }
+      }
+    }
+    
+    if (bannerColors.isEmpty) {
+      bannerColors = [statusColor];
+    } else if (bannerColors.length == 1) {
+      bannerColors = [bannerColors[0], bannerColors[0]];
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        padding: const EdgeInsets.all(16),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(16),
@@ -87,18 +112,32 @@ class SharedJobCard extends StatelessWidget {
           ],
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Left color banner (Split Colors)
+            Container(
+              width: 8,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: bannerColors,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   // Row 1: Amber Job Number + Title + Recurring Icon
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: goldPill.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
@@ -106,14 +145,20 @@ class SharedJobCard extends StatelessWidget {
                         ),
                         child: Text(
                           displayNo,
-                          style: const TextStyle(color: goldPill, fontWeight: FontWeight.bold, fontSize: 12),
+                          style: const TextStyle(
+                              color: goldPill,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           title,
-                          style: const TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              color: textWhite,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -121,13 +166,28 @@ class SharedJobCard extends StatelessWidget {
                       if (isRecurring) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: seriesPurple.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: seriesPurple.withOpacity(0.3)),
+                            border: Border.all(
+                                color: seriesPurple.withOpacity(0.3)),
                           ),
-                          child: const Icon(Icons.autorenew, color: seriesPurple, size: 12),
+                          child: const Icon(Icons.autorenew,
+                              color: seriesPurple, size: 12),
+                        ),
+                      ],
+                      if (data['is_unpaid'] == true) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.red.withOpacity(0.3)),
+                          ),
+                          child: const Text('\$', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ],
@@ -137,16 +197,23 @@ class SharedJobCard extends StatelessWidget {
                   // Row 2: Customer Name & Time
                   Row(
                     children: [
-                      const Icon(Icons.person_outline, size: 14, color: Colors.white54),
+                      const Icon(Icons.person_outline,
+                          size: 14, color: Colors.white54),
                       const SizedBox(width: 4),
-                      Text(customerName, style: const TextStyle(color: textWhite, fontSize: 14)),
+                      Text(customerName,
+                          style:
+                              const TextStyle(color: textWhite, fontSize: 14)),
                       const SizedBox(width: 12),
-                      const Icon(Icons.access_time, size: 14, color: Colors.white54),
+                      const Icon(Icons.access_time,
+                          size: 14, color: Colors.white54),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           timeStr,
-                          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -162,31 +229,43 @@ class SharedJobCard extends StatelessWidget {
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: badgeColor.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: badgeColor.withOpacity(0.3)),
+                                border: Border.all(
+                                    color: badgeColor.withOpacity(0.3)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(isRecurring ? Icons.autorenew : Icons.looks_one, color: badgeColor, size: 10),
+                                  Icon(
+                                      isRecurring
+                                          ? Icons.autorenew
+                                          : Icons.looks_one,
+                                      color: badgeColor,
+                                      size: 10),
                                   const SizedBox(width: 4),
                                   Text(
                                     badgeLabel,
-                                    style: TextStyle(color: badgeColor, fontSize: 8, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                        color: badgeColor,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Icon(Icons.location_on, color: muted, size: 12),
+                            const Icon(Icons.location_on,
+                                color: muted, size: 12),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 address,
-                                style: const TextStyle(color: muted, fontSize: 12),
+                                style:
+                                    const TextStyle(color: muted, fontSize: 12),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -195,15 +274,21 @@ class SharedJobCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: statusColor.withOpacity(0.3)),
+                          border:
+                              Border.all(color: statusColor.withOpacity(0.3)),
                         ),
                         child: Text(
                           status,
-                          style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                          style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -212,12 +297,29 @@ class SharedJobCard extends StatelessWidget {
                         onTap: () => _showQuickMap(context),
                         child: Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(color: goldPill.withOpacity(0.15), shape: BoxShape.circle),
-                          child: const Icon(Icons.map_outlined, color: goldPill, size: 16),
+                          decoration: BoxDecoration(
+                              color: goldPill.withOpacity(0.15),
+                              shape: BoxShape.circle),
+                          child: const Icon(Icons.map_outlined,
+                              color: goldPill, size: 16),
                         ),
                       ),
                     ],
                   ),
+                  if (data['progress_percentage'] != null && data['progress_percentage'] > 0) ...[
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: (data['progress_percentage'] as num).toDouble() / 100,
+                        backgroundColor: Colors.white10,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          data['progress_percentage'] == 100 ? Colors.green : Colors.blue,
+                        ),
+                        minHeight: 4,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -225,7 +327,8 @@ class SharedJobCard extends StatelessWidget {
             // Right Chevron Circle Button
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(color: circleBg, shape: BoxShape.circle),
+              decoration:
+                  const BoxDecoration(color: circleBg, shape: BoxShape.circle),
               child: const Icon(Icons.chevron_right, color: muted, size: 20),
             ),
           ],

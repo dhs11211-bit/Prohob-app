@@ -38,7 +38,6 @@ String uploadedFileToString(FFUploadedFile uploadedFile) =>
 const _kDocIdDelimeter = '|';
 String _serializedynamic(dynamic ref) {
   return '';
-
 }
 
 String? serializeParam(

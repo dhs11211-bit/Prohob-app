@@ -25,25 +25,28 @@ enum ToastType { success, error, warning, info }
 class ToastService {
   // ─── Private colour constants ─────────────────────────────────────────────
   static const Color _successColor = Color(0xFF10B981); // emerald-500
-  static const Color _errorColor   = Color(0xFFEF4444); // red-500
+  static const Color _errorColor = Color(0xFFEF4444); // red-500
   static const Color _warningColor = Color(0xFFF59E0B); // amber-500
-  static const Color _infoColor    = Color(0xFF3B82F6); // blue-500
+  static const Color _infoColor = Color(0xFF3B82F6); // blue-500
 
   // ─── Private icon constants ───────────────────────────────────────────────
   static const IconData _successIcon = Icons.check_circle_outline_rounded;
-  static const IconData _errorIcon   = Icons.error_outline_rounded;
+  static const IconData _errorIcon = Icons.error_outline_rounded;
   static const IconData _warningIcon = Icons.warning_amber_rounded;
-  static const IconData _infoIcon    = Icons.info_outline_rounded;
+  static const IconData _infoIcon = Icons.info_outline_rounded;
 
   // ─── Public API ───────────────────────────────────────────────────────────
 
-  static void success(BuildContext context, dynamic message, {int duration = 4}) =>
+  static void success(BuildContext context, dynamic message,
+          {int duration = 4}) =>
       show(context, message, type: ToastType.success, duration: duration);
 
-  static void error(BuildContext context, dynamic message, {int duration = 5}) =>
+  static void error(BuildContext context, dynamic message,
+          {int duration = 5}) =>
       show(context, message, type: ToastType.error, duration: duration);
 
-  static void warning(BuildContext context, dynamic message, {int duration = 4}) =>
+  static void warning(BuildContext context, dynamic message,
+          {int duration = 4}) =>
       show(context, message, type: ToastType.warning, duration: duration);
 
   static void info(BuildContext context, dynamic message, {int duration = 4}) =>
@@ -58,9 +61,9 @@ class ToastService {
     int duration = 4,
     VoidCallback? onTap,
   }) {
-    final text  = _extractMessage(message);
+    final text = _extractMessage(message);
     final color = _colorForType(type);
-    final icon  = _iconForType(type);
+    final icon = _iconForType(type);
     _showRaw(messenger, text, color, icon, duration, onTap);
   }
 
@@ -75,7 +78,7 @@ class ToastService {
   }) {
     final text = _extractMessage(message);
     final color = _colorForType(type);
-    final icon  = _iconForType(type);
+    final icon = _iconForType(type);
 
     // Use the global messenger key so the toast is rendered in the root overlay
     // (above all Navigator routes, modals, dialogs, and bottom sheets).
@@ -83,7 +86,8 @@ class ToastService {
     if (messengerState == null) {
       // Fallback: use context directly if global key is not yet attached.
       try {
-        _showRaw(ScaffoldMessenger.of(context), text, color, icon, duration, onTap);
+        _showRaw(
+            ScaffoldMessenger.of(context), text, color, icon, duration, onTap);
       } catch (_) {}
       return;
     }
@@ -104,56 +108,64 @@ class ToastService {
           .join('\n');
     }
     if (message is Map) {
-      final v = message['message'] ?? message['error'] ?? message['msg'] ?? message.values.firstOrNull;
+      final v = message['message'] ??
+          message['error'] ??
+          message['msg'] ??
+          message.values.firstOrNull;
       return _extractMessage(v ?? message.toString());
     }
-    return message?.toString().replaceAll('Exception: ', '').trim() ?? 'Something went wrong';
+    return message?.toString().replaceAll('Exception: ', '').trim() ??
+        'Something went wrong';
   }
 
   static Color _colorForType(ToastType type) {
     switch (type) {
-      case ToastType.success: return _successColor;
-      case ToastType.error:   return _errorColor;
-      case ToastType.warning: return _warningColor;
-      case ToastType.info:    return _infoColor;
+      case ToastType.success:
+        return _successColor;
+      case ToastType.error:
+        return _errorColor;
+      case ToastType.warning:
+        return _warningColor;
+      case ToastType.info:
+        return _infoColor;
     }
   }
 
   static IconData _iconForType(ToastType type) {
     switch (type) {
-      case ToastType.success: return _successIcon;
-      case ToastType.error:   return _errorIcon;
-      case ToastType.warning: return _warningIcon;
-      case ToastType.info:    return _infoIcon;
+      case ToastType.success:
+        return _successIcon;
+      case ToastType.error:
+        return _errorIcon;
+      case ToastType.warning:
+        return _warningIcon;
+      case ToastType.info:
+        return _infoIcon;
     }
   }
 
   static OverlayEntry? _currentOverlay;
 
-  static void _showRaw(
-    ScaffoldMessengerState messenger,
-    String text,
-    Color color,
-    IconData icon,
-    int duration,
-    [VoidCallback? onTap]
-  ) {
+  static void _showRaw(ScaffoldMessengerState messenger, String text,
+      Color color, IconData icon, int duration,
+      [VoidCallback? onTap]) {
     final context = messenger.context;
     // Get the root overlay from the global key we created in main.dart
     final overlayState = globalOverlayKey.currentState;
     if (overlayState == null) return;
-    
+
     _currentOverlay?.remove();
     _currentOverlay = null;
 
     late OverlayEntry overlayEntry;
     bool isRemoved = false;
-    
+
     overlayEntry = OverlayEntry(
       builder: (context) {
         // padding.top handles the physical device notch/status bar (it is 0 on the web)
         // Accessing MediaQuery on inactive web tabs can cause engine assertions, so we bypass it.
-        final double topPadding = kIsWeb ? 0 : MediaQuery.of(context).padding.top;
+        final double topPadding =
+            kIsWeb ? 0 : MediaQuery.of(context).padding.top;
         return Positioned(
           top: topPadding + 15,
           left: 20,
@@ -183,7 +195,8 @@ class ToastService {
               child: Material(
                 color: Colors.transparent,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: BorderRadius.circular(12),
@@ -221,13 +234,13 @@ class ToastService {
     );
 
     _currentOverlay = overlayEntry;
-    
+
     // Use Future.microtask to defer the insertion safely outside of any active synchronous pipeline.
     // This avoids Flutter Web engine assertions while ensuring it runs before the next frame,
     // so the toast is guaranteed to show up.
     Future.microtask(() {
       overlayState.insert(overlayEntry);
-      
+
       Future.delayed(Duration(seconds: duration), () {
         if (!isRemoved && _currentOverlay == overlayEntry) {
           isRemoved = true;

@@ -108,7 +108,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
           settings['data'] is Map &&
           settings['data'].containsKey('google_maps_api_key') &&
           settings['data']['google_maps_api_key'] != null &&
-          settings['data']['google_maps_api_key'].toString().trim().isNotEmpty) {
+          settings['data']['google_maps_api_key']
+              .toString()
+              .trim()
+              .isNotEmpty) {
         _googleMapsApiKey = settings['data']['google_maps_api_key'];
       }
     } catch (e) {
@@ -171,17 +174,24 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   }
 
   Widget _buildSimpleTextField(TextEditingController ctrl, String hint,
-      {bool isAddress = false, Function(String)? onChanged, IconData? icon, int maxLines = 1, String? errorText, List<TextInputFormatter>? inputFormatters}) {
+      {bool isAddress = false,
+      Function(String)? onChanged,
+      IconData? icon,
+      int maxLines = 1,
+      String? errorText,
+      List<TextInputFormatter>? inputFormatters}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           height: maxLines > 1 ? null : 41,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 0),
+          padding: EdgeInsets.symmetric(
+              horizontal: 16, vertical: maxLines > 1 ? 12 : 0),
           decoration: BoxDecoration(
               color: const Color(0xFF1E293B),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: errorText != null ? Colors.red : Colors.white10)),
+              border: Border.all(
+                  color: errorText != null ? Colors.red : Colors.white10)),
           alignment: maxLines > 1 ? Alignment.topLeft : Alignment.center,
           child: TextField(
             controller: ctrl,
@@ -189,29 +199,37 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
             inputFormatters: inputFormatters,
             maxLines: maxLines,
             minLines: maxLines > 1 ? 3 : 1,
-            textAlignVertical: maxLines > 1 ? TextAlignVertical.top : TextAlignVertical.center,
+            textAlignVertical:
+                maxLines > 1 ? TextAlignVertical.top : TextAlignVertical.center,
             style: const TextStyle(color: Colors.white, fontSize: 13),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
               prefixIconConstraints: (isAddress || icon != null)
-                  ? BoxConstraints(minWidth: 36, minHeight: maxLines > 1 ? 24 : 0)
+                  ? BoxConstraints(
+                      minWidth: 36, minHeight: maxLines > 1 ? 24 : 0)
                   : null,
               prefixIcon: isAddress
-                  ? const Icon(Icons.location_on, color: Color(0xFF3B82F6), size: 20)
+                  ? const Icon(Icons.location_on,
+                      color: Color(0xFF3B82F6), size: 20)
                   : (icon != null
                       ? Container(
-                          alignment: maxLines > 1 ? Alignment.topCenter : Alignment.center,
+                          alignment: maxLines > 1
+                              ? Alignment.topCenter
+                              : Alignment.center,
                           width: 36,
                           child: Padding(
                             padding: EdgeInsets.only(top: maxLines > 1 ? 0 : 0),
-                            child: Icon(icon, color: const Color(0xFF3B82F6), size: 20),
+                            child: Icon(icon,
+                                color: const Color(0xFF3B82F6), size: 20),
                           ),
                         )
                       : null),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: maxLines > 1 ? const EdgeInsets.only(top: 2) : EdgeInsets.zero,
+              contentPadding: maxLines > 1
+                  ? const EdgeInsets.only(top: 2)
+                  : EdgeInsets.zero,
             ),
           ),
         ),
@@ -226,8 +244,6 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       ],
     );
   }
-
-
 
   // =====================================================================
   // 🚀 MENÚ DE PERFIL UNIFICADO (IGUAL AL TEAM Y AL MAPA)
@@ -370,9 +386,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                               setState(() => _adminName =
                                                   '${firstNameCtrl.text.trim()} ${lastNameCtrl.text.trim()}');
                                             Navigator.pop(ctx);
-                                            ToastService.success(context, 'Profile updated successfully!');
+                                            ToastService.success(context,
+                                                'Profile updated successfully!');
                                           } catch (e) {
-                                            ToastService.error(context, 'Error: $e');
+                                            ToastService.error(
+                                                context, 'Error: $e');
                                           } finally {
                                             setModalState(
                                                 () => isSaving = false);
@@ -493,7 +511,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   // 🚀 CREAR, EDITAR Y BORRAR CLIENTES (SOFT DELETE INCORPORADO)
   // =====================================================================
   void _showAddCustomerModal(
-      {Function(String customerId, String name, double lat, double lng, Map<String, dynamic> newDoc)?
+      {Function(String customerId, String name, double lat, double lng,
+              Map<String, dynamic> newDoc)?
           onCustomerCreated}) {
     TextEditingController firstNameCtrl = TextEditingController();
     TextEditingController lastNameCtrl = TextEditingController();
@@ -537,7 +556,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                     return;
                   }
                   try {
-                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                      return;
                     final uri = Uri.parse(
                         "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
                     final response = await http.get(uri);
@@ -555,7 +575,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
                 Future<void> getPlaceDetails(String placeId) async {
                   try {
-                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                      return;
                     final uri = Uri.parse(
                         "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
                     final response = await http.get(uri);
@@ -563,28 +584,37 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                       final data = jsonDecode(response.body);
                       if (data['status'] == 'OK') {
                         var location = data['result']['geometry']['location'];
-                        var components = data['result']['address_components'] as List<dynamic>?;
-                        
+                        var components = data['result']['address_components']
+                            as List<dynamic>?;
+
                         String pStreetNumber = '';
                         String pRoute = '';
                         String pCity = '';
                         String pState = '';
                         String pPostal = '';
                         String pCountry = '';
-                        
+
                         if (components != null) {
                           for (var c in components) {
                             List<dynamic> types = c['types'] ?? [];
-                            if (types.contains('street_number')) pStreetNumber = c['long_name'];
-                            if (types.contains('route')) pRoute = c['long_name'];
-                            if (types.contains('locality')) pCity = c['long_name'];
-                            if (types.contains('administrative_area_level_1')) pState = c['short_name'];
-                            if (types.contains('postal_code')) pPostal = c['long_name'];
-                            if (types.contains('country')) pCountry = c['long_name'];
+                            if (types.contains('street_number'))
+                              pStreetNumber = c['long_name'];
+                            if (types.contains('route'))
+                              pRoute = c['long_name'];
+                            if (types.contains('locality'))
+                              pCity = c['long_name'];
+                            if (types.contains('administrative_area_level_1'))
+                              pState = c['short_name'];
+                            if (types.contains('postal_code'))
+                              pPostal = c['long_name'];
+                            if (types.contains('country'))
+                              pCountry = c['long_name'];
                           }
                         }
 
-                        String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+                        String pAddress1 = pStreetNumber.isNotEmpty
+                            ? "$pStreetNumber $pRoute".trim()
+                            : pRoute;
 
                         setModalState(() {
                           lat = location['lat'];
@@ -655,7 +685,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(firstNameCtrl, "First Name", errorText: firstNameError, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
+                              _buildSimpleTextField(firstNameCtrl, "First Name",
+                                  errorText: firstNameError,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[a-zA-Z0-9 ]'))
+                                  ]),
                               const SizedBox(height: 16),
                               const Text("Last Name",
                                   style: TextStyle(
@@ -663,7 +698,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(lastNameCtrl, "Last Name", errorText: lastNameError, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
+                              _buildSimpleTextField(lastNameCtrl, "Last Name",
+                                  errorText: lastNameError,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[a-zA-Z0-9 ]'))
+                                  ]),
                               const SizedBox(height: 16),
                               const Text("Phone Number",
                                   style: TextStyle(
@@ -671,7 +711,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(phoneCtrl, "Phone Number", inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
+                              _buildSimpleTextField(phoneCtrl, "Phone Number",
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly
+                                  ]),
                               const SizedBox(height: 16),
                               const Text("Email Address",
                                   style: TextStyle(
@@ -679,7 +722,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(emailCtrl, "Email Address", errorText: emailError),
+                              _buildSimpleTextField(emailCtrl, "Email Address",
+                                  errorText: emailError),
                               const SizedBox(height: 16),
                               const Text("Service Address",
                                   style: TextStyle(
@@ -708,14 +752,16 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     children: placePredictions
                                         .map<Widget>((p) => ListTile(
                                               title: Text(
-                                                  p['description']?.toString() ??
+                                                  p['description']
+                                                          ?.toString() ??
                                                       '',
                                                   style: const TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 13)),
                                               onTap: () async {
                                                 String pId =
-                                                    p['place_id']?.toString() ?? '';
+                                                    p['place_id']?.toString() ??
+                                                        '';
                                                 setModalState(() {
                                                   addressCtrl.text =
                                                       p['description']
@@ -747,7 +793,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text("Unit / Apartment #",
                                             style: TextStyle(
@@ -766,7 +813,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text("Gate / Door / Lock Code",
                                             style: TextStyle(
@@ -837,26 +885,36 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     'first_name': firstNameCtrl.text.trim(),
                                     'last_name': lastNameCtrl.text.trim(),
                                   };
-                                  if (phoneCtrl.text.trim().isNotEmpty) payload['phone'] = phoneCtrl.text.trim();
-                                  if (emailCtrl.text.trim().isNotEmpty) payload['email'] = emailCtrl.text.trim();
+                                  if (phoneCtrl.text.trim().isNotEmpty)
+                                    payload['phone'] = phoneCtrl.text.trim();
+                                  if (emailCtrl.text.trim().isNotEmpty)
+                                    payload['email'] = emailCtrl.text.trim();
                                   if (addressCtrl.text.trim().isNotEmpty) {
-                                    payload['address'] = addressCtrl.text.trim();
-                                    payload['address1'] = address1.isNotEmpty ? address1 : addressCtrl.text.trim();
+                                    payload['address'] =
+                                        addressCtrl.text.trim();
+                                    payload['address1'] = address1.isNotEmpty
+                                        ? address1
+                                        : addressCtrl.text.trim();
                                     if (city.isNotEmpty) payload['city'] = city;
-                                    if (state.isNotEmpty) payload['state'] = state;
-                                    if (zipCode.isNotEmpty) payload['zip_code'] = zipCode;
-                                    if (country.isNotEmpty) payload['country'] = country;
+                                    if (state.isNotEmpty)
+                                      payload['state'] = state;
+                                    if (zipCode.isNotEmpty)
+                                      payload['zip_code'] = zipCode;
+                                    if (country.isNotEmpty)
+                                      payload['country'] = country;
                                   }
                                   payload['address2'] = unitCtrl.text.trim();
                                   payload['gate_code'] = gateCtrl.text.trim();
-                                  payload['address_notes'] = notesCtrl.text.trim();
+                                  payload['address_notes'] =
+                                      notesCtrl.text.trim();
                                   payload['notes'] = notesCtrl.text.trim();
                                   if (lat != 0.0) payload['lat'] = lat;
                                   if (lng != 0.0) payload['lng'] = lng;
 
                                   var rawResponse = await ApiService.instance
                                       .post('/customers', payload);
-                                  var newDoc = rawResponse['data'] ?? rawResponse;
+                                  var newDoc =
+                                      rawResponse['data'] ?? rawResponse;
                                   if (onCustomerCreated != null) {
                                     onCustomerCreated(
                                         newDoc['id'].toString(),
@@ -868,21 +926,34 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     _fetchCustomers();
                                   }
                                   Navigator.pop(context);
-                                  ToastService.success(context, "Customer created successfully!");
+                                  ToastService.success(context,
+                                      "Customer created successfully!");
                                 } catch (e) {
                                   if (e is ValidationException) {
                                     setModalState(() {
-                                      emailError = (e.errors['email'] as List?)?.first?.toString();
-                                      firstNameError = (e.errors['first_name'] as List?)?.first?.toString();
-                                      lastNameError = (e.errors['last_name'] as List?)?.first?.toString();
+                                      emailError = (e.errors['email'] as List?)
+                                          ?.first
+                                          ?.toString();
+                                      firstNameError =
+                                          (e.errors['first_name'] as List?)
+                                              ?.first
+                                              ?.toString();
+                                      lastNameError =
+                                          (e.errors['last_name'] as List?)
+                                              ?.first
+                                              ?.toString();
                                     });
                                     if (mounted) {
-                                      ToastService.error(context, "Failed to create customer: Validation Failed");
+                                      ToastService.error(context,
+                                          "Failed to create customer: Validation Failed");
                                     }
                                   } else {
-                                    String errorMsg = e.toString().replaceAll('Exception: ', '');
+                                    String errorMsg = e
+                                        .toString()
+                                        .replaceAll('Exception: ', '');
                                     if (mounted) {
-                                      ToastService.error(context, "Failed to create customer: $errorMsg");
+                                      ToastService.error(context,
+                                          "Failed to create customer: $errorMsg");
                                     }
                                   }
                                 }
@@ -911,7 +982,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   }
 
   void _showEditCustomerDialog(dynamic arg1, [Map<String, dynamic>? arg2]) {
-    Map<String, dynamic> customerData = (arg2 != null) ? arg2 : (arg1 is Map<String, dynamic> ? arg1 : {});
+    Map<String, dynamic> customerData =
+        (arg2 != null) ? arg2 : (arg1 is Map<String, dynamic> ? arg1 : {});
     String customerId = (customerData['id'] ?? arg1).toString();
     TextEditingController firstNameCtrl = TextEditingController(
         text: customerData['first_name'] ??
@@ -942,9 +1014,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                 ? customerData['primary_address']['gate_code']
                 : ''));
     TextEditingController notesCtrl = TextEditingController(
-        text: customerData['address_notes'] ?? customerData['notes'] ??
+        text: customerData['address_notes'] ??
+            customerData['notes'] ??
             (customerData['primary_address'] != null
-                ? (customerData['primary_address']['address_notes'] ?? customerData['primary_address']['notes'])
+                ? (customerData['primary_address']['address_notes'] ??
+                    customerData['primary_address']['notes'])
                 : ''));
 
     List<dynamic> placePredictions = [];
@@ -980,7 +1054,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                     return;
                   }
                   try {
-                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                      return;
                     final uri = Uri.parse(
                         "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googleMapsApiKey");
                     final response = await http.get(uri);
@@ -998,7 +1073,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
                 Future<void> getPlaceDetails(String placeId) async {
                   try {
-                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty) return;
+                    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty)
+                      return;
                     final uri = Uri.parse(
                         "https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$_googleMapsApiKey");
                     final response = await http.get(uri);
@@ -1006,28 +1082,37 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                       final data = jsonDecode(response.body);
                       if (data['status'] == 'OK') {
                         var location = data['result']['geometry']['location'];
-                        var components = data['result']['address_components'] as List<dynamic>?;
-                        
+                        var components = data['result']['address_components']
+                            as List<dynamic>?;
+
                         String pStreetNumber = '';
                         String pRoute = '';
                         String pCity = '';
                         String pState = '';
                         String pPostal = '';
                         String pCountry = '';
-                        
+
                         if (components != null) {
                           for (var c in components) {
                             List<dynamic> types = c['types'] ?? [];
-                            if (types.contains('street_number')) pStreetNumber = c['long_name'];
-                            if (types.contains('route')) pRoute = c['long_name'];
-                            if (types.contains('locality')) pCity = c['long_name'];
-                            if (types.contains('administrative_area_level_1')) pState = c['short_name'];
-                            if (types.contains('postal_code')) pPostal = c['long_name'];
-                            if (types.contains('country')) pCountry = c['long_name'];
+                            if (types.contains('street_number'))
+                              pStreetNumber = c['long_name'];
+                            if (types.contains('route'))
+                              pRoute = c['long_name'];
+                            if (types.contains('locality'))
+                              pCity = c['long_name'];
+                            if (types.contains('administrative_area_level_1'))
+                              pState = c['short_name'];
+                            if (types.contains('postal_code'))
+                              pPostal = c['long_name'];
+                            if (types.contains('country'))
+                              pCountry = c['long_name'];
                           }
                         }
 
-                        String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+                        String pAddress1 = pStreetNumber.isNotEmpty
+                            ? "$pStreetNumber $pRoute".trim()
+                            : pRoute;
 
                         setModalState(() {
                           lat = location['lat'];
@@ -1098,7 +1183,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(firstNameCtrl, "First Name", inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
+                              _buildSimpleTextField(firstNameCtrl, "First Name",
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[a-zA-Z0-9 ]'))
+                                  ]),
                               const SizedBox(height: 16),
                               const Text("Last Name",
                                   style: TextStyle(
@@ -1106,7 +1195,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(lastNameCtrl, "Last Name", inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))]),
+                              _buildSimpleTextField(lastNameCtrl, "Last Name",
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[a-zA-Z0-9 ]'))
+                                  ]),
                               const SizedBox(height: 16),
                               const Text("Phone Number",
                                   style: TextStyle(
@@ -1114,7 +1207,10 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              _buildSimpleTextField(phoneCtrl, "Phone Number", inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
+                              _buildSimpleTextField(phoneCtrl, "Phone Number",
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly
+                                  ]),
                               const SizedBox(height: 16),
                               const Text("Email Address",
                                   style: TextStyle(
@@ -1151,14 +1247,16 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     children: placePredictions
                                         .map<Widget>((p) => ListTile(
                                               title: Text(
-                                                  p['description']?.toString() ??
+                                                  p['description']
+                                                          ?.toString() ??
                                                       '',
                                                   style: const TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 13)),
                                               onTap: () async {
                                                 String pId =
-                                                    p['place_id']?.toString() ?? '';
+                                                    p['place_id']?.toString() ??
+                                                        '';
                                                 setModalState(() {
                                                   addressCtrl.text =
                                                       p['description']
@@ -1177,7 +1275,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text("Unit / Apartment #",
                                             style: TextStyle(
@@ -1196,7 +1295,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text("Gate / Door / Lock Code",
                                             style: TextStyle(
@@ -1258,19 +1358,28 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     'first_name': firstNameCtrl.text.trim(),
                                     'last_name': lastNameCtrl.text.trim(),
                                   };
-                                  if (phoneCtrl.text.trim().isNotEmpty) payload['phone'] = phoneCtrl.text.trim();
-                                  if (emailCtrl.text.trim().isNotEmpty) payload['email'] = emailCtrl.text.trim();
+                                  if (phoneCtrl.text.trim().isNotEmpty)
+                                    payload['phone'] = phoneCtrl.text.trim();
+                                  if (emailCtrl.text.trim().isNotEmpty)
+                                    payload['email'] = emailCtrl.text.trim();
                                   if (addressCtrl.text.trim().isNotEmpty) {
-                                    payload['address'] = addressCtrl.text.trim();
-                                    payload['address1'] = address1.isNotEmpty ? address1 : addressCtrl.text.trim();
+                                    payload['address'] =
+                                        addressCtrl.text.trim();
+                                    payload['address1'] = address1.isNotEmpty
+                                        ? address1
+                                        : addressCtrl.text.trim();
                                     if (city.isNotEmpty) payload['city'] = city;
-                                    if (state.isNotEmpty) payload['state'] = state;
-                                    if (zipCode.isNotEmpty) payload['zip_code'] = zipCode;
-                                    if (country.isNotEmpty) payload['country'] = country;
+                                    if (state.isNotEmpty)
+                                      payload['state'] = state;
+                                    if (zipCode.isNotEmpty)
+                                      payload['zip_code'] = zipCode;
+                                    if (country.isNotEmpty)
+                                      payload['country'] = country;
                                   }
                                   payload['address2'] = unitCtrl.text.trim();
                                   payload['gate_code'] = gateCtrl.text.trim();
-                                  payload['address_notes'] = notesCtrl.text.trim();
+                                  payload['address_notes'] =
+                                      notesCtrl.text.trim();
                                   payload['notes'] = notesCtrl.text.trim();
                                   if (lat != 0.0) payload['lat'] = lat;
                                   if (lng != 0.0) payload['lng'] = lng;
@@ -1279,11 +1388,15 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       .put('/customers/$customerId', payload);
                                   Navigator.pop(context);
                                   _fetchCustomers();
-                                  ToastService.success(context, "Customer updated successfully!");
+                                  ToastService.success(context,
+                                      "Customer updated successfully!");
                                 } catch (e) {
-                                  String errorMsg = e.toString().replaceAll('Exception: ', '');
+                                  String errorMsg = e
+                                      .toString()
+                                      .replaceAll('Exception: ', '');
                                   if (mounted) {
-                                    ToastService.error(context, "Failed to update customer: $errorMsg");
+                                    ToastService.error(context,
+                                        "Failed to update customer: $errorMsg");
                                   }
                                 }
                               }
@@ -1376,7 +1489,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 if (mounted) {
                                   Navigator.pop(
                                       ctx); // Cierra modal de confirmación
-                                  ToastService.success(context, "Customer deleted from directory.");
+                                  ToastService.success(context,
+                                      "Customer deleted from directory.");
                                 }
                               } catch (e) {
                                 setDialogState(() => isDeleting = false);
@@ -1443,9 +1557,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                         if (snapshot.data is List) {
                           jobsList = snapshot.data as List<dynamic>;
                         } else if (snapshot.data is Map) {
-                          jobsList = (snapshot.data['data'] as List<dynamic>?) ?? (snapshot.data['jobs'] as List<dynamic>?) ?? [];
+                          jobsList =
+                              (snapshot.data['data'] as List<dynamic>?) ??
+                                  (snapshot.data['jobs'] as List<dynamic>?) ??
+                                  [];
                         }
-                        
+
                         if (jobsList.isEmpty) {
                           return const Center(
                               child: Text("No jobs found for this customer.",
@@ -1456,7 +1573,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                           itemCount: jobsList.length,
                           itemBuilder: (context, index) {
                             var job = jobsList[index] as Map<String, dynamic>;
-                            DateTime date = JobParser.getStartDate(job) ?? DateTime.now();
+                            DateTime date =
+                                JobParser.getStartDate(job) ?? DateTime.now();
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(16),
@@ -1503,11 +1621,20 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
   void _showCustomerDetailsModal(String id, Map<String, dynamic> customerData) {
     String unitNumber = customerData['address2']?.toString() ??
-        (customerData['primary_address'] != null ? customerData['primary_address']['address2']?.toString() ?? '' : '');
+        (customerData['primary_address'] != null
+            ? customerData['primary_address']['address2']?.toString() ?? ''
+            : '');
     String gateCode = customerData['gate_code']?.toString() ??
-        (customerData['primary_address'] != null ? customerData['primary_address']['gate_code']?.toString() ?? '' : '');
-    String notes = customerData['address_notes']?.toString() ?? customerData['notes']?.toString() ??
-        (customerData['primary_address'] != null ? (customerData['primary_address']['address_notes']?.toString() ?? customerData['primary_address']['notes']?.toString() ?? '') : '');
+        (customerData['primary_address'] != null
+            ? customerData['primary_address']['gate_code']?.toString() ?? ''
+            : '');
+    String notes = customerData['address_notes']?.toString() ??
+        customerData['notes']?.toString() ??
+        (customerData['primary_address'] != null
+            ? (customerData['primary_address']['address_notes']?.toString() ??
+                customerData['primary_address']['notes']?.toString() ??
+                '')
+            : '');
 
     showModalBottomSheet(
       context: context,
@@ -1580,7 +1707,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
     String? selectedCustomerId;
     String? selectedCustomerName;
-    
+
     List<dynamic> customerAddressesList = [];
     String? selectedAddressId;
     bool showNewAddressForm = false;
@@ -1635,14 +1762,20 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                       setModalState(() => placePredictions =
                           List<dynamic>.from(data['predictions'] ?? []));
                     } else {
-                      setModalState(() => placePredictions = [{'description': 'API Error: ${data['status']}'}]);
+                      setModalState(() => placePredictions = [
+                            {'description': 'API Error: ${data['status']}'}
+                          ]);
                     }
                   } else {
-                    setModalState(() => placePredictions = [{'description': 'HTTP Error: ${response.statusCode}'}]);
+                    setModalState(() => placePredictions = [
+                          {'description': 'HTTP Error: ${response.statusCode}'}
+                        ]);
                   }
                 } catch (e) {
                   debugPrint("Cloud Function Error (Autocomplete): $e");
-                  setModalState(() => placePredictions = [{'description': 'Exception: $e'}]);
+                  setModalState(() => placePredictions = [
+                        {'description': 'Exception: $e'}
+                      ]);
                 }
               }
 
@@ -1657,28 +1790,36 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                     final data = jsonDecode(response.body);
                     if (data['status'] == 'OK') {
                       var location = data['result']['geometry']['location'];
-                      var components = data['result']['address_components'] as List<dynamic>?;
-                      
+                      var components = data['result']['address_components']
+                          as List<dynamic>?;
+
                       String pStreetNumber = '';
                       String pRoute = '';
                       String pCity = '';
                       String pState = '';
                       String pPostal = '';
                       String pCountry = '';
-                      
+
                       if (components != null) {
                         for (var c in components) {
                           List<dynamic> types = c['types'] ?? [];
-                          if (types.contains('street_number')) pStreetNumber = c['long_name'];
+                          if (types.contains('street_number'))
+                            pStreetNumber = c['long_name'];
                           if (types.contains('route')) pRoute = c['long_name'];
-                          if (types.contains('locality')) pCity = c['long_name'];
-                          if (types.contains('administrative_area_level_1')) pState = c['short_name'];
-                          if (types.contains('postal_code')) pPostal = c['long_name'];
-                          if (types.contains('country')) pCountry = c['long_name'];
+                          if (types.contains('locality'))
+                            pCity = c['long_name'];
+                          if (types.contains('administrative_area_level_1'))
+                            pState = c['short_name'];
+                          if (types.contains('postal_code'))
+                            pPostal = c['long_name'];
+                          if (types.contains('country'))
+                            pCountry = c['long_name'];
                         }
                       }
 
-                      String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+                      String pAddress1 = pStreetNumber.isNotEmpty
+                          ? "$pStreetNumber $pRoute".trim()
+                          : pRoute;
 
                       setModalState(() {
                         latitude = location['lat'];
@@ -1695,11 +1836,15 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                   debugPrint("Cloud Function Error (Details): $e");
                 }
               }
+
               void _showEditJobItemModal(int index) {
                 var item = selectedItems[index];
-                TextEditingController nameCtrl = TextEditingController(text: item['description']?.toString() ?? '');
-                TextEditingController priceCtrl = TextEditingController(text: item['price']?.toString() ?? '0');
-                TextEditingController qtyCtrl = TextEditingController(text: item['quantity']?.toString() ?? '1');
+                TextEditingController nameCtrl = TextEditingController(
+                    text: item['description']?.toString() ?? '');
+                TextEditingController priceCtrl = TextEditingController(
+                    text: item['price']?.toString() ?? '0');
+                TextEditingController qtyCtrl = TextEditingController(
+                    text: item['quantity']?.toString() ?? '1');
                 bool saveOnlyToJob = item['update_catalog_item'] != true;
                 bool isFromCatalog = item['item_id'] != null;
 
@@ -1711,34 +1856,50 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                   builder: (ctx) => StatefulBuilder(
                     builder: (ctx, setEditState) {
                       return Padding(
-                        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+                        padding: EdgeInsets.only(
+                            bottom: MediaQuery.of(ctx).viewInsets.bottom),
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: const BoxDecoration(
                             color: Color(0xFF0D1B2A),
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(24)),
                           ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Edit Item", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                              const Text("Edit Item",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold)),
                               const SizedBox(height: 16),
                               _buildSimpleTextField(nameCtrl, "Item Name"),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                  Expanded(child: _buildSimpleTextField(priceCtrl, "Price", isAddress: false)),
+                                  Expanded(
+                                      child: _buildSimpleTextField(
+                                          priceCtrl, "Price",
+                                          isAddress: false)),
                                   const SizedBox(width: 12),
-                                  Expanded(child: _buildSimpleTextField(qtyCtrl, "Quantity", isAddress: false)),
+                                  Expanded(
+                                      child: _buildSimpleTextField(
+                                          qtyCtrl, "Quantity",
+                                          isAddress: false)),
                                 ],
                               ),
                               if (isFromCatalog) ...[
                                 const SizedBox(height: 16),
                                 CheckboxListTile(
                                   contentPadding: EdgeInsets.zero,
-                                  controlAffinity: ListTileControlAffinity.leading,
-                                  title: const Text("Save these changes only to this job", style: TextStyle(color: Colors.white, fontSize: 13)),
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  title: const Text(
+                                      "Save these changes only to this job",
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 13)),
                                   value: saveOnlyToJob,
                                   activeColor: const Color(0xFF3B82F6),
                                   onChanged: (val) {
@@ -1754,23 +1915,34 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 children: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx),
-                                    child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+                                    child: const Text("Cancel",
+                                        style:
+                                            TextStyle(color: Colors.white60)),
                                   ),
                                   const SizedBox(width: 8),
                                   ElevatedButton(
-                                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6)),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF3B82F6)),
                                     onPressed: () {
                                       setModalState(() {
-                                        selectedItems[index]['description'] = nameCtrl.text.trim();
-                                        selectedItems[index]['price'] = double.tryParse(priceCtrl.text) ?? 0.0;
-                                        selectedItems[index]['quantity'] = int.tryParse(qtyCtrl.text) ?? 1;
+                                        selectedItems[index]['description'] =
+                                            nameCtrl.text.trim();
+                                        selectedItems[index]['price'] =
+                                            double.tryParse(priceCtrl.text) ??
+                                                0.0;
+                                        selectedItems[index]['quantity'] =
+                                            int.tryParse(qtyCtrl.text) ?? 1;
                                         if (isFromCatalog) {
-                                          selectedItems[index]['update_catalog_item'] = !saveOnlyToJob;
+                                          selectedItems[index]
+                                                  ['update_catalog_item'] =
+                                              !saveOnlyToJob;
                                         }
                                       });
                                       Navigator.pop(ctx);
                                     },
-                                    child: const Text("Save", style: TextStyle(color: Colors.white)),
+                                    child: const Text("Save",
+                                        style: TextStyle(color: Colors.white)),
                                   ),
                                 ],
                               ),
@@ -1966,27 +2138,43 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 GestureDetector(
                                   onTap: () {
                                     _showAddCustomerModal(
-                                      onCustomerCreated: (customerId, name, lat, lng, newDoc) {
+                                      onCustomerCreated:
+                                          (customerId, name, lat, lng, newDoc) {
                                         setModalState(() {
                                           if (newDoc != null) {
                                             cachedCustomersList.add(newDoc);
                                           }
-                                          customersFuture = ApiService.instance.get('/customers?limit=all');
+                                          customersFuture = ApiService.instance
+                                              .get('/customers?limit=all');
                                           selectedCustomerId = customerId;
                                           selectedCustomerName = name;
-                                          
-                                          if (newDoc != null && newDoc['addresses'] != null) {
-                                            customerAddressesList = List.from(newDoc['addresses']);
+
+                                          if (newDoc != null &&
+                                              newDoc['addresses'] != null) {
+                                            customerAddressesList =
+                                                List.from(newDoc['addresses']);
                                           } else {
                                             customerAddressesList = [];
                                           }
 
-                                          if (newDoc != null && newDoc['addresses'] != null && newDoc['addresses'].isNotEmpty) {
+                                          if (newDoc != null &&
+                                              newDoc['addresses'] != null &&
+                                              newDoc['addresses'].isNotEmpty) {
                                             var addr = newDoc['addresses'][0];
-                                            selectedAddressId = addr['id'].toString();
-                                            addressCtrl.text = addr['address1'] ?? '';
-                                            latitude = double.tryParse(addr['latitude']?.toString() ?? '0') ?? 0.0;
-                                            longitude = double.tryParse(addr['longitude']?.toString() ?? '0') ?? 0.0;
+                                            selectedAddressId =
+                                                addr['id'].toString();
+                                            addressCtrl.text =
+                                                addr['address1'] ?? '';
+                                            latitude = double.tryParse(
+                                                    addr['latitude']
+                                                            ?.toString() ??
+                                                        '0') ??
+                                                0.0;
+                                            longitude = double.tryParse(
+                                                    addr['longitude']
+                                                            ?.toString() ??
+                                                        '0') ??
+                                                0.0;
                                             showNewAddressForm = false;
                                           } else {
                                             selectedAddressId = null;
@@ -2022,12 +2210,14 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   );
                                 }
 
-                                dynamic dataObj = snapshot.data is Map && snapshot.data.containsKey('data')
+                                dynamic dataObj = snapshot.data is Map &&
+                                        snapshot.data.containsKey('data')
                                     ? snapshot.data['data']
                                     : snapshot.data;
-                                    
+
                                 List<dynamic> customersList = [];
-                                if (dataObj is Map && dataObj.containsKey('data')) {
+                                if (dataObj is Map &&
+                                    dataObj.containsKey('data')) {
                                   customersList = List.from(dataObj['data']);
                                 } else if (dataObj is List) {
                                   customersList = List.from(dataObj);
@@ -2035,39 +2225,54 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                 cachedCustomersList = customersList;
 
                                 Set<String> seenIds = {};
-                                List<DropdownMenuEntry<String>> menuEntries = [];
-                                
+                                List<DropdownMenuEntry<String>> menuEntries =
+                                    [];
+
                                 for (var customer in customersList) {
                                   String idStr = customer['id'].toString();
                                   if (!seenIds.contains(idStr)) {
                                     seenIds.add(idStr);
-                                    String label = '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'.trim();
+                                    String label =
+                                        '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'
+                                            .trim();
                                     if (label.isEmpty) label = 'Unknown';
                                     menuEntries.add(DropdownMenuEntry<String>(
-                                        value: idStr,
-                                        label: label,
+                                      value: idStr,
+                                      label: label,
                                     ));
                                   }
                                 }
 
-                                if (selectedCustomerId != null && !seenIds.contains(selectedCustomerId)) {
+                                if (selectedCustomerId != null &&
+                                    !seenIds.contains(selectedCustomerId)) {
                                   menuEntries.add(DropdownMenuEntry<String>(
-                                      value: selectedCustomerId!,
-                                      label: selectedCustomerName ?? 'Loading...',
+                                    value: selectedCustomerId!,
+                                    label: selectedCustomerName ?? 'Loading...',
                                   ));
                                 }
 
                                 return SearchableDropdown(
                                   value: selectedCustomerId,
                                   hint: "Choose a customer...",
-                                  items: menuEntries.map((e) => {'value': e.value, 'label': e.label}).toList(),
+                                  items: menuEntries
+                                      .map((e) =>
+                                          {'value': e.value, 'label': e.label})
+                                      .toList(),
                                   onChanged: (val) {
                                     if (val != null) {
-                                      var selectedDoc = cachedCustomersList.firstWhere((d) => d['id'].toString() == val);
+                                      var selectedDoc =
+                                          cachedCustomersList.firstWhere(
+                                              (d) => d['id'].toString() == val);
                                       setModalState(() {
                                         selectedCustomerId = val;
-                                        selectedCustomerName = '${selectedDoc['first_name'] ?? ''} ${selectedDoc['last_name'] ?? ''}'.trim();
-                                        customerAddressesList = selectedDoc['addresses'] != null ? List.from(selectedDoc['addresses']) : [];
+                                        selectedCustomerName =
+                                            '${selectedDoc['first_name'] ?? ''} ${selectedDoc['last_name'] ?? ''}'
+                                                .trim();
+                                        customerAddressesList =
+                                            selectedDoc['addresses'] != null
+                                                ? List.from(
+                                                    selectedDoc['addresses'])
+                                                : [];
                                         selectedAddressId = null;
                                         showNewAddressForm = false;
                                         newAddressData = null;
@@ -2090,7 +2295,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                         color: Colors.white60,
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold)),
-                                if (selectedCustomerId != null && !showNewAddressForm)
+                                if (selectedCustomerId != null &&
+                                    !showNewAddressForm)
                                   TextButton.icon(
                                     onPressed: () {
                                       setModalState(() {
@@ -2102,9 +2308,13 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                         longitude = 0.0;
                                       });
                                     },
-                                    icon: const Icon(Icons.add, size: 16, color: Color(0xFF3B82F6)),
+                                    icon: const Icon(Icons.add,
+                                        size: 16, color: Color(0xFF3B82F6)),
                                     label: const Text("Quick Add Location",
-                                        style: TextStyle(color: Color(0xFF3B82F6), fontSize: 13, fontWeight: FontWeight.bold)),
+                                        style: TextStyle(
+                                            color: Color(0xFF3B82F6),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold)),
                                   ),
                               ],
                             ),
@@ -2113,30 +2323,59 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                             // Addresses List
                             if (selectedCustomerId == null)
                               Container(
-                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 20),
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: Colors.white10),
                                 ),
-                                child: const Text("Please select a customer first.", style: TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic)),
+                                child: const Text(
+                                    "Please select a customer first.",
+                                    style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                        fontStyle: FontStyle.italic)),
                               )
                             else if (!showNewAddressForm)
                               Builder(
                                 builder: (context) {
                                   List<dynamic> activeAddresses = [];
                                   if (selectedCustomerId != null) {
-                                    var doc = cachedCustomersList.firstWhere((c) => c['id'].toString() == selectedCustomerId, orElse: () => null);
-                                    if (doc != null && doc['addresses'] != null) {
-                                      activeAddresses = List.from(doc['addresses']);
-                                      if (selectedAddressId == null && activeAddresses.isNotEmpty && !showNewAddressForm) {
-                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    var doc = cachedCustomersList.firstWhere(
+                                        (c) =>
+                                            c['id'].toString() ==
+                                            selectedCustomerId,
+                                        orElse: () => null);
+                                    if (doc != null &&
+                                        doc['addresses'] != null) {
+                                      activeAddresses =
+                                          List.from(doc['addresses']);
+                                      if (selectedAddressId == null &&
+                                          activeAddresses.isNotEmpty &&
+                                          !showNewAddressForm) {
+                                        WidgetsBinding.instance
+                                            .addPostFrameCallback((_) {
                                           setModalState(() {
-                                            selectedAddressId = activeAddresses.first['id'].toString();
-                                            addressCtrl.text = activeAddresses.first['address1'] ?? '';
-                                            latitude = double.tryParse(activeAddresses.first['latitude']?.toString() ?? '0') ?? 0.0;
-                                            longitude = double.tryParse(activeAddresses.first['longitude']?.toString() ?? '0') ?? 0.0;
+                                            selectedAddressId = activeAddresses
+                                                .first['id']
+                                                .toString();
+                                            addressCtrl.text = activeAddresses
+                                                    .first['address1'] ??
+                                                '';
+                                            latitude = double.tryParse(
+                                                    activeAddresses
+                                                            .first['latitude']
+                                                            ?.toString() ??
+                                                        '0') ??
+                                                0.0;
+                                            longitude = double.tryParse(
+                                                    activeAddresses
+                                                            .first['longitude']
+                                                            ?.toString() ??
+                                                        '0') ??
+                                                0.0;
                                           });
                                         });
                                       }
@@ -2145,51 +2384,87 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
 
                                   if (activeAddresses.isEmpty) {
                                     return Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 20),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 20),
                                       alignment: Alignment.center,
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF1E293B),
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: Colors.white10),
+                                        border:
+                                            Border.all(color: Colors.white10),
                                       ),
-                                      child: const Text("No stored addresses found.", style: TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic)),
+                                      child: const Text(
+                                          "No stored addresses found.",
+                                          style: TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 12,
+                                              fontStyle: FontStyle.italic)),
                                     );
                                   } else {
                                     return Column(
                                       children: activeAddresses.map((addr) {
-                                        bool isSelected = selectedAddressId == addr['id'].toString();
+                                        bool isSelected = selectedAddressId ==
+                                            addr['id'].toString();
                                         return GestureDetector(
                                           onTap: () {
                                             setModalState(() {
-                                              selectedAddressId = addr['id'].toString();
+                                              selectedAddressId =
+                                                  addr['id'].toString();
                                               showNewAddressForm = false;
                                               newAddressData = null;
-                                              addressCtrl.text = addr['address1'] ?? '';
-                                              latitude = double.tryParse(addr['latitude']?.toString() ?? '0') ?? 0.0;
-                                              longitude = double.tryParse(addr['longitude']?.toString() ?? '0') ?? 0.0;
+                                              addressCtrl.text =
+                                                  addr['address1'] ?? '';
+                                              latitude = double.tryParse(
+                                                      addr['latitude']
+                                                              ?.toString() ??
+                                                          '0') ??
+                                                  0.0;
+                                              longitude = double.tryParse(
+                                                      addr['longitude']
+                                                              ?.toString() ??
+                                                          '0') ??
+                                                  0.0;
                                             });
                                           },
                                           child: Container(
-                                            margin: const EdgeInsets.only(bottom: 8),
+                                            margin: const EdgeInsets.only(
+                                                bottom: 8),
                                             padding: const EdgeInsets.all(12),
                                             decoration: BoxDecoration(
-                                              color: isSelected ? const Color(0xFF3B82F6).withOpacity(0.2) : const Color(0xFF1E293B),
-                                              border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : Colors.white10),
-                                              borderRadius: BorderRadius.circular(12),
+                                              color: isSelected
+                                                  ? const Color(0xFF3B82F6)
+                                                      .withOpacity(0.2)
+                                                  : const Color(0xFF1E293B),
+                                              border: Border.all(
+                                                  color: isSelected
+                                                      ? const Color(0xFF3B82F6)
+                                                      : Colors.white10),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
                                             ),
                                             child: Row(
                                               children: [
                                                 Icon(
-                                                  isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                                                  color: isSelected ? const Color(0xFF3B82F6) : Colors.white60,
+                                                  isSelected
+                                                      ? Icons
+                                                          .radio_button_checked
+                                                      : Icons
+                                                          .radio_button_unchecked,
+                                                  color: isSelected
+                                                      ? const Color(0xFF3B82F6)
+                                                      : Colors.white60,
                                                   size: 20,
                                                 ),
                                                 const SizedBox(width: 12),
                                                 Expanded(
                                                   child: Text(
-                                                    addr['address1'] ?? 'Unknown Address',
+                                                    addr['address1'] ??
+                                                        'Unknown Address',
                                                     style: TextStyle(
-                                                      color: isSelected ? const Color(0xFF3B82F6) : Colors.white,
+                                                      color: isSelected
+                                                          ? const Color(
+                                                              0xFF3B82F6)
+                                                          : Colors.white,
                                                       fontSize: 14,
                                                     ),
                                                   ),
@@ -2205,7 +2480,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                               ),
 
                             // New Address Form
-                            if (selectedCustomerId != null && showNewAddressForm) ...[
+                            if (selectedCustomerId != null &&
+                                showNewAddressForm) ...[
                               Container(
                                 decoration: BoxDecoration(
                                     color: const Color(0xFF1E293B),
@@ -2216,7 +2492,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     SizedBox(
                                       height: 41,
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16),
                                         child: Center(
                                           child: TextField(
                                             controller: addressCtrl,
@@ -2224,19 +2501,33 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                               if (val.length > 3) {
                                                 searchPlaces(val);
                                               } else {
-                                                setModalState(() => placePredictions = []);
+                                                setModalState(() =>
+                                                    placePredictions = []);
                                               }
                                             },
-                                            textAlignVertical: TextAlignVertical.center,
-                                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                                            textAlignVertical:
+                                                TextAlignVertical.center,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13),
                                             decoration: const InputDecoration(
-                                                hintText: "Start typing address...",
-                                                hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
-                                                prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 0),
-                                                prefixIcon: Icon(Icons.location_on, color: Color(0xFF3B82F6), size: 20),
+                                                hintText:
+                                                    "Start typing address...",
+                                                hintStyle: TextStyle(
+                                                    color: Colors.white38,
+                                                    fontSize: 13),
+                                                prefixIconConstraints:
+                                                    BoxConstraints(
+                                                        minWidth: 36,
+                                                        minHeight: 0),
+                                                prefixIcon: Icon(
+                                                    Icons.location_on,
+                                                    color: Color(0xFF3B82F6),
+                                                    size: 20),
                                                 border: InputBorder.none,
                                                 isDense: true,
-                                                contentPadding: EdgeInsets.zero),
+                                                contentPadding:
+                                                    EdgeInsets.zero),
                                           ),
                                         ),
                                       ),
@@ -2244,32 +2535,52 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                     if (placePredictions.isNotEmpty)
                                       Material(
                                         color: const Color(0xFF0D1B2A),
-                                        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+                                        borderRadius: const BorderRadius.only(
+                                            bottomLeft: Radius.circular(12),
+                                            bottomRight: Radius.circular(12)),
                                         clipBehavior: Clip.hardEdge,
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: placePredictions
                                               .map<Widget>((p) => ListTile(
-                                                    title: Text(p['description']?.toString() ?? '',
-                                                        style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                                    title: Text(
+                                                        p['description']
+                                                                ?.toString() ??
+                                                            '',
+                                                        style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 13)),
                                                     onTap: () async {
-                                                      String pId = p['place_id']?.toString() ?? '';
+                                                      String pId = p['place_id']
+                                                              ?.toString() ??
+                                                          '';
                                                       setModalState(() {
-                                                        addressCtrl.text = p['description']?.toString() ?? '';
-                                                        placePredictions.clear();
+                                                        addressCtrl.text = p[
+                                                                    'description']
+                                                                ?.toString() ??
+                                                            '';
+                                                        placePredictions
+                                                            .clear();
                                                       });
-                                                      await getPlaceDetails(pId);
-                                                      
+                                                      await getPlaceDetails(
+                                                          pId);
+
                                                       setModalState(() {
-                                                          newAddressData = {
-                                                            'address1': address1.isNotEmpty ? address1 : addressCtrl.text,
-                                                            'city': city,
-                                                            'state': state,
-                                                            'zip_code': postalCode,
-                                                            'country': country,
-                                                            'latitude': latitude,
-                                                            'longitude': longitude,
-                                                          };
+                                                        newAddressData = {
+                                                          'address1': address1
+                                                                  .isNotEmpty
+                                                              ? address1
+                                                              : addressCtrl
+                                                                  .text,
+                                                          'city': city,
+                                                          'state': state,
+                                                          'zip_code':
+                                                              postalCode,
+                                                          'country': country,
+                                                          'latitude': latitude,
+                                                          'longitude':
+                                                              longitude,
+                                                        };
                                                       });
                                                     },
                                                   ))
@@ -2282,10 +2593,14 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                               if (latitude != 0.0) ...[
                                 const SizedBox(height: 8),
                                 const Row(children: [
-                                  Icon(Icons.gps_fixed, color: Color(0xFF10B981), size: 14),
+                                  Icon(Icons.gps_fixed,
+                                      color: Color(0xFF10B981), size: 14),
                                   SizedBox(width: 6),
                                   Text("Address Confirmed",
-                                      style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
+                                      style: TextStyle(
+                                          color: Color(0xFF10B981),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold)),
                                 ]),
                                 if (selectedCustomerId != null)
                                   Row(
@@ -2294,12 +2609,18 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                         value: saveToCustomerProfile,
                                         activeColor: const Color(0xFF3B82F6),
                                         checkColor: Colors.white,
-                                        side: const BorderSide(color: Colors.white60),
+                                        side: const BorderSide(
+                                            color: Colors.white60),
                                         onChanged: (val) {
-                                          setModalState(() => saveToCustomerProfile = val ?? true);
+                                          setModalState(() =>
+                                              saveToCustomerProfile =
+                                                  val ?? true);
                                         },
                                       ),
-                                      const Text("Save to customer profile", style: TextStyle(color: Colors.white60, fontSize: 13)),
+                                      const Text("Save to customer profile",
+                                          style: TextStyle(
+                                              color: Colors.white60,
+                                              fontSize: 13)),
                                     ],
                                   ),
                               ],
@@ -2316,7 +2637,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                       longitude = 0.0;
                                     });
                                   },
-                                  child: const Text("Cancel & Back to List", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                  child: const Text("Cancel & Back to List",
+                                      style: TextStyle(
+                                          color: Colors.white54, fontSize: 12)),
                                 ),
                               ),
                             ],
@@ -2330,11 +2653,12 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                             SearchableDropdown(
                               value: selectedJobType,
                               hint: "Select or add new...",
-                              items: _jobTypes.map((type) => {'value': type, 'label': type}).toList(),
+                              items: _jobTypes
+                                  .map((type) => {'value': type, 'label': type})
+                                  .toList(),
                               onChanged: (val) {
                                 if (val != null) {
-                                  setModalState(
-                                      () => selectedJobType = val);
+                                  setModalState(() => selectedJobType = val);
                                 }
                               },
                             ),
@@ -2451,31 +2775,42 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                   itemsList = snapshot.data;
                                 }
                                 return SearchableDropdown(
-                                    value: null,
-                                    hint: "Select item...",
-                                    items: itemsList.isEmpty 
-                                        ? [{'value': 'no_items', 'label': 'No items available'}]
-                                        : itemsList.map<Map<String, String>>((item) {
-                                            double price = double.tryParse(item['price']?.toString() ?? "0") ?? 0.0;
-                                            return {
-                                              'value': item['id'].toString(),
-                                              'label': "${item['name'] ?? ''} - \$${price.toStringAsFixed(2)}"
-                                            };
-                                          }).toList(),
-                                    onChanged: (val) {
-                                      if (val != null && val != 'no_items') {
-                                        var selected = itemsList.firstWhere((i) => i['id'].toString() == val);
-                                        setModalState(() {
-                                          selectedItems.add({
-                                            'item_id': selected['id'],
-                                            'description': selected['name'],
-                                            'price': selected['price'] ?? 0.0,
-                                            'quantity': 1,
-                                          });
+                                  value: null,
+                                  hint: "Select item...",
+                                  items: itemsList.isEmpty
+                                      ? [
+                                          {
+                                            'value': 'no_items',
+                                            'label': 'No items available'
+                                          }
+                                        ]
+                                      : itemsList
+                                          .map<Map<String, String>>((item) {
+                                          double price = double.tryParse(
+                                                  item['price']?.toString() ??
+                                                      "0") ??
+                                              0.0;
+                                          return {
+                                            'value': item['id'].toString(),
+                                            'label':
+                                                "${item['name'] ?? ''} - \$${price.toStringAsFixed(2)}"
+                                          };
+                                        }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null && val != 'no_items') {
+                                      var selected = itemsList.firstWhere(
+                                          (i) => i['id'].toString() == val);
+                                      setModalState(() {
+                                        selectedItems.add({
+                                          'item_id': selected['id'],
+                                          'description': selected['name'],
+                                          'price': selected['price'] ?? 0.0,
+                                          'quantity': 1,
                                         });
-                                      }
-                                    },
-                                  );
+                                      });
+                                    }
+                                  },
+                                );
                               },
                             ),
                             if (selectedItems.isNotEmpty)
@@ -2511,7 +2846,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                                   fontSize: 13)),
                                           const SizedBox(width: 12),
                                           GestureDetector(
-                                            onTap: () => _showEditJobItemModal(idx),
+                                            onTap: () =>
+                                                _showEditJobItemModal(idx),
                                             child: const Icon(Icons.edit,
                                                 color: Colors.white70,
                                                 size: 18),
@@ -3418,63 +3754,92 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                                           Map<String, dynamic> payload = {
                                             'title': jobTitleCtrl.text.trim(),
                                             'customer_id': selectedCustomerId,
-                                            'customer_name': selectedCustomerName,
+                                            'customer_name':
+                                                selectedCustomerName,
                                             'address': addressCtrl.text.trim(),
                                             'latitude': latitude,
                                             'longitude': longitude,
-                                            'job_type': selectedJobType ?? 'Standard',
+                                            'job_type':
+                                                selectedJobType ?? 'Standard',
                                             'items': selectedItems,
                                             'is_recurring': isRecurring,
                                             'recurring_pattern': isRecurring
                                                 ? {
                                                     'frequency': recFrequency,
-                                                    'interval': int.tryParse(recIntervalCtrl.text) ?? 1,
-                                                    'days_of_week': recFrequency == 'weekly' ? recDaysOfWeek : [],
-                                                    'end_type': recEndType == 'occurrences'
+                                                    'interval': int.tryParse(
+                                                            recIntervalCtrl
+                                                                .text) ??
+                                                        1,
+                                                    'days_of_week':
+                                                        recFrequency == 'weekly'
+                                                            ? recDaysOfWeek
+                                                            : [],
+                                                    'end_type': recEndType ==
+                                                            'occurrences'
                                                         ? 'after'
-                                                        : (recEndType == 'date' ? 'on_date' : recEndType),
-                                                    'end_date': recEndType == 'date' && recEndDate != null
+                                                        : (recEndType == 'date'
+                                                            ? 'on_date'
+                                                            : recEndType),
+                                                    'end_date': recEndType ==
+                                                                'date' &&
+                                                            recEndDate != null
                                                         ? "${recEndDate!.year.toString().padLeft(4, '0')}-${recEndDate!.month.toString().padLeft(2, '0')}-${recEndDate!.day.toString().padLeft(2, '0')}"
                                                         : null,
-                                                    'end_after_occurrences': recEndType == 'occurrences'
-                                                        ? int.tryParse(recOccurrencesCtrl.text)
-                                                        : null,
-                                                    'skip_weekends': recSkipWeekends,
-                                                    'auto_notify': recAutoNotify,
+                                                    'end_after_occurrences':
+                                                        recEndType ==
+                                                                'occurrences'
+                                                            ? int.tryParse(
+                                                                recOccurrencesCtrl
+                                                                    .text)
+                                                            : null,
+                                                    'skip_weekends':
+                                                        recSkipWeekends,
+                                                    'auto_notify':
+                                                        recAutoNotify,
                                                   }
                                                 : null,
                                             'start_date': startDateStr,
                                             'start_time': startTimeStr,
                                             'end_date': endDateStr,
                                             'end_time': endTimeStr,
-                                            'assigned_workers': selectedWorkerIds,
+                                            'assigned_workers':
+                                                selectedWorkerIds,
                                             'assigned_teams': selectedTeamIds,
-                                            'team_leader_id': selectedWorkerIds.length == 1
-                                                ? selectedWorkerIds[0]
-                                                : selectedTeamLeaderId,
+                                            'team_leader_id':
+                                                selectedWorkerIds.length == 1
+                                                    ? selectedWorkerIds[0]
+                                                    : selectedTeamLeaderId,
                                             'notes': notesCtrl.text.trim(),
                                             'status': 'assigned',
-                                            'created_at': DateTime.now().toIso8601String(),
+                                            'created_at': DateTime.now()
+                                                .toIso8601String(),
                                           };
 
                                           if (selectedAddressId != null) {
-                                            payload['address_id'] = selectedAddressId;
+                                            payload['address_id'] =
+                                                selectedAddressId;
                                           } else if (newAddressData != null) {
-                                            payload['new_address'] = newAddressData;
-                                            payload['save_to_customer'] = saveToCustomerProfile;
+                                            payload['new_address'] =
+                                                newAddressData;
+                                            payload['save_to_customer'] =
+                                                saveToCustomerProfile;
                                           }
 
-                                          await ApiService.instance.post('/admin/jobs', payload);
+                                          await ApiService.instance
+                                              .post('/admin/jobs', payload);
 
-                                          final messenger = ScaffoldMessenger.of(context);
+                                          final messenger =
+                                              ScaffoldMessenger.of(context);
                                           Navigator.pop(context);
                                           if (widget.onJobCreated != null) {
                                             widget.onJobCreated!();
                                           }
-                                          ToastService.success(context, "Success! Job assigned.");
+                                          ToastService.success(context,
+                                              "Success! Job assigned.");
                                         } catch (e) {
                                           setModalState(() => isSaving = false);
-                                          ToastService.error(context, "Error: $e");
+                                          ToastService.error(
+                                              context, "Error: $e");
                                         }
                                       },
                                 style: ElevatedButton.styleFrom(
@@ -3515,7 +3880,8 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         child: Column(
           children: [
             Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
                 child: Row(children: const [
                   Text("Customers",
                       style: TextStyle(
@@ -3624,7 +3990,6 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   }
 }
 
-
 class CustomerProfileModalWidget extends StatefulWidget {
   final String customerId;
   final Map<String, dynamic> customerData;
@@ -3642,17 +4007,19 @@ class CustomerProfileModalWidget extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _CustomerProfileModalWidgetState createState() => _CustomerProfileModalWidgetState();
+  _CustomerProfileModalWidgetState createState() =>
+      _CustomerProfileModalWidgetState();
 }
 
-class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget> with SingleTickerProviderStateMixin {
+class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late Map<String, dynamic> _customerData;
   List<dynamic> _addresses = [];
 
   bool _isAddingAddress = false;
   Map<String, dynamic>? _editingAddress;
-  
+
   final _titleCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _countryCtrl = TextEditingController();
@@ -3662,7 +4029,7 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
   final _unitCtrl = TextEditingController();
   final _gateCodeCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
-  
+
   bool _isPrimary = false;
 
   List<dynamic> _placePredictions = [];
@@ -3679,7 +4046,9 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _customerData = widget.customerData;
-    _addresses = _customerData['addresses'] != null ? List.from(_customerData['addresses']) : [];
+    _addresses = _customerData['addresses'] != null
+        ? List.from(_customerData['addresses'])
+        : [];
   }
 
   void _resetAddressForm() {
@@ -3701,7 +4070,8 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
 
   Future<void> _saveAddress() async {
     if (_addressCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Address is required')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Address is required')));
       return;
     }
 
@@ -3722,18 +4092,22 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
 
     try {
       if (_editingAddress != null) {
-        await ApiService.instance.put('/addresses/${_editingAddress!['id']}', payload);
+        await ApiService.instance
+            .put('/addresses/${_editingAddress!['id']}', payload);
       } else {
         await ApiService.instance.post('/addresses', payload);
       }
-      
+
       // Refresh customer data to get new addresses
-      final updatedCustomer = await ApiService.instance.get('/customers/${widget.customerId}');
+      final updatedCustomer =
+          await ApiService.instance.get('/customers/${widget.customerId}');
       if (mounted) {
         setState(() {
           if (updatedCustomer != null && updatedCustomer['data'] != null) {
             _customerData = updatedCustomer['data'];
-            _addresses = _customerData['addresses'] != null ? List.from(_customerData['addresses']) : [];
+            _addresses = _customerData['addresses'] != null
+                ? List.from(_customerData['addresses'])
+                : [];
           }
           _resetAddressForm();
         });
@@ -3745,9 +4119,11 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
         if (e is ValidationException) {
           String errorMessage = "Validation Failed";
           if (e.errors.containsKey('title')) {
-            errorMessage = (e.errors['title'] as List?)?.first?.toString() ?? errorMessage;
+            errorMessage =
+                (e.errors['title'] as List?)?.first?.toString() ?? errorMessage;
           } else if (e.errors.containsKey('address1')) {
-            errorMessage = (e.errors['address1'] as List?)?.first?.toString() ?? errorMessage;
+            errorMessage = (e.errors['address1'] as List?)?.first?.toString() ??
+                errorMessage;
           }
           ToastService.error(context, errorMessage);
         } else {
@@ -3761,11 +4137,20 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
   @override
   Widget build(BuildContext context) {
     String unitNumber = _customerData['address2']?.toString() ??
-        (_customerData['primary_address'] != null ? _customerData['primary_address']['address2']?.toString() ?? '' : '');
+        (_customerData['primary_address'] != null
+            ? _customerData['primary_address']['address2']?.toString() ?? ''
+            : '');
     String gateCode = _customerData['gate_code']?.toString() ??
-        (_customerData['primary_address'] != null ? _customerData['primary_address']['gate_code']?.toString() ?? '' : '');
-    String notes = _customerData['address_notes']?.toString() ?? _customerData['notes']?.toString() ??
-        (_customerData['primary_address'] != null ? (_customerData['primary_address']['address_notes']?.toString() ?? _customerData['primary_address']['notes']?.toString() ?? '') : '');
+        (_customerData['primary_address'] != null
+            ? _customerData['primary_address']['gate_code']?.toString() ?? ''
+            : '');
+    String notes = _customerData['address_notes']?.toString() ??
+        _customerData['notes']?.toString() ??
+        (_customerData['primary_address'] != null
+            ? (_customerData['primary_address']['address_notes']?.toString() ??
+                _customerData['primary_address']['notes']?.toString() ??
+                '')
+            : '');
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -3784,7 +4169,8 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                     alignment: Alignment.centerLeft,
                     child: GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, color: Colors.white70, size: 24),
+                      child: const Icon(Icons.close,
+                          color: Colors.white70, size: 24),
                     ),
                   ),
                   GestureDetector(
@@ -3800,7 +4186,8 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                       alignment: Alignment.centerRight,
                       child: GestureDetector(
                         onTap: widget.onDelete,
-                        child: const Icon(Icons.person_remove, color: Colors.redAccent),
+                        child: const Icon(Icons.person_remove,
+                            color: Colors.redAccent),
                       ))
                 ],
               ),
@@ -3812,18 +4199,27 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                   CircleAvatar(
                       radius: 30,
                       backgroundColor: const Color(0xFF3B82F6).withOpacity(0.2),
-                      child: const Icon(Icons.business, color: Color(0xFF3B82F6), size: 28)),
+                      child: const Icon(Icons.business,
+                          color: Color(0xFF3B82F6), size: 28)),
                   const SizedBox(width: 16),
                   Expanded(
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                         Text(
-                            '${_customerData['first_name'] ?? ''} ${_customerData['last_name'] ?? ''}'.trim().isEmpty
+                            '${_customerData['first_name'] ?? ''} ${_customerData['last_name'] ?? ''}'
+                                    .trim()
+                                    .isEmpty
                                 ? 'No Name'
-                                : '${_customerData['first_name'] ?? ''} ${_customerData['last_name'] ?? ''}'.trim(),
-                            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                        const Text("Customer Profile", style: TextStyle(color: Colors.white60, fontSize: 14))
+                                : '${_customerData['first_name'] ?? ''} ${_customerData['last_name'] ?? ''}'
+                                    .trim(),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold)),
+                        const Text("Customer Profile",
+                            style:
+                                TextStyle(color: Colors.white60, fontSize: 14))
                       ])),
                 ],
               ),
@@ -3850,18 +4246,38 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildInfoField("Phone Number", _customerData['phone']?.isNotEmpty == true ? _customerData['phone'] : '-'),
+                        _buildInfoField(
+                            "Phone Number",
+                            _customerData['phone']?.isNotEmpty == true
+                                ? _customerData['phone']
+                                : '-'),
                         const SizedBox(height: 12),
-                        _buildInfoField("Email Address", _customerData['email']?.isNotEmpty == true ? _customerData['email'] : '-'),
+                        _buildInfoField(
+                            "Email Address",
+                            _customerData['email']?.isNotEmpty == true
+                                ? _customerData['email']
+                                : '-'),
                         const SizedBox(height: 12),
-                        _buildInfoField("Primary Address", _customerData['address']?.isNotEmpty == true ? _customerData['address'] : '-'),
+                        _buildInfoField(
+                            "Primary Address",
+                            _customerData['address']?.isNotEmpty == true
+                                ? _customerData['address']
+                                : '-'),
                         if (unitNumber.isNotEmpty || gateCode.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              Expanded(child: _buildInfoField("Unit / Apartment #", unitNumber.isNotEmpty ? unitNumber : '-')),
+                              Expanded(
+                                  child: _buildInfoField(
+                                      "Unit / Apartment #",
+                                      unitNumber.isNotEmpty
+                                          ? unitNumber
+                                          : '-')),
                               const SizedBox(width: 12),
-                              Expanded(child: _buildInfoField("Gate / Door / Lock Code", gateCode.isNotEmpty ? gateCode : '-')),
+                              Expanded(
+                                  child: _buildInfoField(
+                                      "Gate / Door / Lock Code",
+                                      gateCode.isNotEmpty ? gateCode : '-')),
                             ],
                           ),
                         ],
@@ -3874,9 +4290,14 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: widget.onEdit,
-                            icon: const Icon(Icons.edit, color: Colors.white, size: 16),
-                            label: const Text("Edit Info", style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), padding: const EdgeInsets.symmetric(vertical: 16)),
+                            icon: const Icon(Icons.edit,
+                                color: Colors.white, size: 16),
+                            label: const Text("Edit Info",
+                                style: TextStyle(color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1E293B),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16)),
                           ),
                         ),
                       ],
@@ -3927,14 +4348,19 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 });
               },
               icon: const Icon(Icons.add_location, color: Colors.white),
-              label: const Text("Add New Address", style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), padding: const EdgeInsets.symmetric(vertical: 16)),
+              label: const Text("Add New Address",
+                  style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
           ),
         ),
         Expanded(
           child: _addresses.isEmpty
-              ? const Center(child: Text("No addresses found.", style: TextStyle(color: Colors.white38)))
+              ? const Center(
+                  child: Text("No addresses found.",
+                      style: TextStyle(color: Colors.white38)))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   itemCount: _addresses.length,
@@ -3943,7 +4369,9 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(16)),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(16)),
                       child: Row(
                         children: [
                           const Icon(Icons.location_on, color: Colors.white60),
@@ -3952,33 +4380,61 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if ((addr['title'] != null && addr['title'].isNotEmpty) || (addr['is_primary'] == true || addr['is_primary'] == 1))
+                                if ((addr['title'] != null &&
+                                        addr['title'].isNotEmpty) ||
+                                    (addr['is_primary'] == true ||
+                                        addr['is_primary'] == 1))
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 4.0),
                                     child: Row(
                                       children: [
-                                        if (addr['title'] != null && addr['title'].isNotEmpty)
+                                        if (addr['title'] != null &&
+                                            addr['title'].isNotEmpty)
                                           Expanded(
-                                            child: Text(addr['title'], style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 14)),
+                                            child: Text(addr['title'],
+                                                style: const TextStyle(
+                                                    color: Colors.white70,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14)),
                                           ),
-                                        if (addr['is_primary'] == true || addr['is_primary'] == 1)
+                                        if (addr['is_primary'] == true ||
+                                            addr['is_primary'] == 1)
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFF10B981).withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5)),
+                                              color: const Color(0xFF10B981)
+                                                  .withOpacity(0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                  color: const Color(0xFF10B981)
+                                                      .withOpacity(0.5)),
                                             ),
-                                            child: const Text("PRIMARY", style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
+                                            child: const Text("PRIMARY",
+                                                style: TextStyle(
+                                                    color: Color(0xFF10B981),
+                                                    fontSize: 10,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
                                           ),
                                       ],
                                     ),
                                   ),
-                                Text(addr['address1'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                if (addr['address2'] != null && addr['address2'].isNotEmpty)
-                                  Text('Unit: ${addr['address2']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                                if (addr['gate_code'] != null && addr['gate_code'].isNotEmpty)
-                                  Text('Gate Code: ${addr['gate_code']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                Text(addr['address1'] ?? '',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold)),
+                                if (addr['address2'] != null &&
+                                    addr['address2'].isNotEmpty)
+                                  Text('Unit: ${addr['address2']}',
+                                      style: const TextStyle(
+                                          color: Colors.white70, fontSize: 12)),
+                                if (addr['gate_code'] != null &&
+                                    addr['gate_code'].isNotEmpty)
+                                  Text('Gate Code: ${addr['gate_code']}',
+                                      style: const TextStyle(
+                                          color: Colors.white70, fontSize: 12)),
                               ],
                             ),
                           ),
@@ -3988,7 +4444,8 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                               setState(() {
                                 _editingAddress = addr;
                                 _isAddingAddress = false;
-                                _isPrimary = addr['is_primary'] == true || addr['is_primary'] == 1;
+                                _isPrimary = addr['is_primary'] == true ||
+                                    addr['is_primary'] == 1;
                                 _titleCtrl.text = addr['title'] ?? '';
                                 _addressCtrl.text = addr['address1'] ?? '';
                                 _countryCtrl.text = addr['country'] ?? '';
@@ -4019,7 +4476,8 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
     try {
       final apiKey = AppConstants.fallbackGoogleMapsApiKey;
       if (apiKey == null || apiKey.isEmpty) return;
-      final uri = Uri.parse("https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$apiKey");
+      final uri = Uri.parse(
+          "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$apiKey");
       final response = await http.get(uri);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -4043,27 +4501,37 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(_editingAddress != null ? "Edit Address" : "New Address", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              IconButton(icon: const Icon(Icons.close, color: Colors.white60), onPressed: _resetAddressForm),
+              Text(_editingAddress != null ? "Edit Address" : "New Address",
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
+              IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white60),
+                  onPressed: _resetAddressForm),
             ],
           ),
           const SizedBox(height: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Site Title", style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const Text("Site Title",
+                  style: TextStyle(color: Colors.white70, fontSize: 13)),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleCtrl,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   filled: true,
                   fillColor: const Color(0xFF1E293B),
                   hintText: "e.g. Primary, Billing",
                   hintStyle: const TextStyle(color: Colors.white38),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
               ),
             ],
@@ -4072,7 +4540,8 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Location Search", style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const Text("Location Search",
+                  style: TextStyle(color: Colors.white70, fontSize: 13)),
               const SizedBox(height: 8),
               TextField(
                 controller: _addressCtrl,
@@ -4082,13 +4551,17 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 },
                 decoration: InputDecoration(
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   filled: true,
                   fillColor: const Color(0xFF1E293B),
                   hintText: "Enter full address",
                   hintStyle: const TextStyle(color: Colors.white38),
-                  prefixIcon: const Icon(Icons.location_on, color: Colors.white60, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  prefixIcon: const Icon(Icons.location_on,
+                      color: Colors.white60, size: 20),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
               ),
             ],
@@ -4096,7 +4569,9 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
           if (_placePredictions.isNotEmpty)
             Material(
               color: const Color(0xFF1E293B),
-              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+              borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12)),
               child: ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -4104,14 +4579,18 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 itemBuilder: (context, index) {
                   final place = _placePredictions[index];
                   return ListTile(
-                    leading: const Icon(Icons.location_on, color: Colors.white60),
-                    title: Text(place['description'], style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    leading:
+                        const Icon(Icons.location_on, color: Colors.white60),
+                    title: Text(place['description'],
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 13)),
                     onTap: () async {
                       _addressCtrl.text = place['description'];
                       setState(() => _placePredictions = []);
                       try {
                         final apiKey = AppConstants.fallbackGoogleMapsApiKey;
-                        final detailsUri = Uri.parse("https://maps.googleapis.com/maps/api/place/details/json?place_id=${place['place_id']}&key=$apiKey");
+                        final detailsUri = Uri.parse(
+                            "https://maps.googleapis.com/maps/api/place/details/json?place_id=${place['place_id']}&key=$apiKey");
                         final detailsRes = await http.get(detailsUri);
                         if (detailsRes.statusCode == 200) {
                           final detailsData = json.decode(detailsRes.body);
@@ -4120,19 +4599,30 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                             final loc = result['geometry']['location'];
                             _lat = loc['lat'];
                             _lng = loc['lng'];
-                            final components = result['address_components'] as List;
-                            _address1 = ''; _city = ''; _state = ''; _zipCode = ''; _country = '';
+                            final components =
+                                result['address_components'] as List;
+                            _address1 = '';
+                            _city = '';
+                            _state = '';
+                            _zipCode = '';
+                            _country = '';
                             for (var c in components) {
                               final types = c['types'] as List;
-                              if (types.contains('street_number')) _address1 = "${c['long_name']} $_address1";
-                              if (types.contains('route')) _address1 += c['short_name'];
-                              if (types.contains('locality')) _city = c['long_name'];
-                              if (types.contains('administrative_area_level_1')) _state = c['short_name'];
-                              if (types.contains('postal_code')) _zipCode = c['long_name'];
-                              if (types.contains('country')) _country = c['short_name'];
+                              if (types.contains('street_number'))
+                                _address1 = "${c['long_name']} $_address1";
+                              if (types.contains('route'))
+                                _address1 += c['short_name'];
+                              if (types.contains('locality'))
+                                _city = c['long_name'];
+                              if (types.contains('administrative_area_level_1'))
+                                _state = c['short_name'];
+                              if (types.contains('postal_code'))
+                                _zipCode = c['long_name'];
+                              if (types.contains('country'))
+                                _country = c['short_name'];
                             }
                             _address1 = _address1.trim();
-                            
+
                             setState(() {
                               _cityCtrl.text = _city;
                               _stateCtrl.text = _state;
@@ -4154,17 +4644,21 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Country", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const Text("Country",
+                        style: TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _countryCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         filled: true,
                         fillColor: const Color(0xFF1E293B),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                     ),
                   ],
@@ -4175,17 +4669,21 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("City", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const Text("City",
+                        style: TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _cityCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         filled: true,
                         fillColor: const Color(0xFF1E293B),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                     ),
                   ],
@@ -4200,17 +4698,21 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("State", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const Text("State",
+                        style: TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _stateCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         filled: true,
                         fillColor: const Color(0xFF1E293B),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                     ),
                   ],
@@ -4221,17 +4723,21 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Zip Code", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const Text("Zip Code",
+                        style: TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _zipCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         filled: true,
                         fillColor: const Color(0xFF1E293B),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                     ),
                   ],
@@ -4246,17 +4752,21 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Unit / Apt #", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const Text("Unit / Apt #",
+                        style: TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _unitCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         filled: true,
                         fillColor: const Color(0xFF1E293B),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                     ),
                   ],
@@ -4267,17 +4777,21 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Gate Code", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const Text("Gate Code",
+                        style: TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _gateCodeCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         filled: true,
                         fillColor: const Color(0xFF1E293B),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                     ),
                   ],
@@ -4286,7 +4800,8 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
             ],
           ),
           const SizedBox(height: 16),
-          const Text("Notes", style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const Text("Notes",
+              style: TextStyle(color: Colors.white70, fontSize: 13)),
           const SizedBox(height: 8),
           TextField(
             controller: _notesCtrl,
@@ -4294,10 +4809,13 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               filled: true,
               fillColor: const Color(0xFF1E293B),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
             ),
           ),
           const SizedBox(height: 16),
@@ -4326,9 +4844,18 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
-                      Text("SET AS PRIMARY ADDRESS", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                      Text("SET AS PRIMARY ADDRESS",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold)),
                       SizedBox(height: 4),
-                      Text("This will be used as the default for jobs and billing.", style: TextStyle(color: Colors.white54, fontSize: 11, fontStyle: FontStyle.italic)),
+                      Text(
+                          "This will be used as the default for jobs and billing.",
+                          style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic)),
                     ],
                   ),
                 ),
@@ -4340,8 +4867,12 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _saveAddress,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), padding: const EdgeInsets.symmetric(vertical: 16)),
-              child: const Text("Save Address", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
+              child: const Text("Save Address",
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -4353,13 +4884,20 @@ class _CustomerProfileModalWidgetState extends State<CustomerProfileModalWidget>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+        Text(label,
+            style: const TextStyle(color: Colors.white38, fontSize: 12)),
         const SizedBox(height: 4),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(12)),
-          child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+          decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(12)),
+          child: Text(value,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500)),
         ),
       ],
     );

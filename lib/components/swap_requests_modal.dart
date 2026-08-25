@@ -4,6 +4,7 @@ import '../backend/api_service.dart';
 import '/shared/toast_service.dart';
 import '../shared/job_parser.dart';
 import '/shared/auth_helpers.dart';
+
 class SwapRequestsModal extends StatefulWidget {
   const SwapRequestsModal({Key? key}) : super(key: key);
 
@@ -48,9 +49,11 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
   }
 
   Color _getStatusColor(String normalizedStatus) {
-    if (normalizedStatus == 'SUBMITTED' || normalizedStatus == 'PENDING') return Colors.orange;
+    if (normalizedStatus == 'SUBMITTED' || normalizedStatus == 'PENDING')
+      return Colors.orange;
     if (normalizedStatus == 'REVIEWED') return Colors.blue;
-    if (normalizedStatus == 'ACCEPTED' || normalizedStatus == 'APPROVED') return Colors.green;
+    if (normalizedStatus == 'ACCEPTED' || normalizedStatus == 'APPROVED')
+      return Colors.green;
     if (normalizedStatus == 'REJECTED') return Colors.redAccent;
     return Colors.grey;
   }
@@ -68,9 +71,9 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
           res = await ApiService.instance.get('/swap-requests');
         } catch (_) {
           if (isAdmin) {
-             res = await ApiService.instance.getAdminJobs();
+            res = await ApiService.instance.getAdminJobs();
           } else {
-             res = await ApiService.instance.getMyJobs();
+            res = await ApiService.instance.getMyJobs();
           }
         }
       }
@@ -97,18 +100,22 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
           } else if (item.containsKey('reason')) {
             swapReq = Map<String, dynamic>.from(item);
           }
-          
+
           if (swapReq != null) {
             String st = swapReq['status']?.toString() ?? '';
             if (st != '9' && st.toLowerCase() != 'deleted') {
               if (!isAdmin && currentUserId != null) {
-                String? reqUserId = swapReq['worker_id']?.toString() ?? swapReq['user_id']?.toString() ?? swapReq['requested_by']?.toString();
+                String? reqUserId = swapReq['worker_id']?.toString() ??
+                    swapReq['user_id']?.toString() ??
+                    swapReq['requested_by']?.toString();
                 if (reqUserId == null && item['assigned_workers'] is List) {
-                   var workers = item['assigned_workers'] as List;
-                   bool isAssigned = workers.any((w) => w['id']?.toString() == currentUserId || w['user_id']?.toString() == currentUserId);
-                   if (!isAssigned) continue;
+                  var workers = item['assigned_workers'] as List;
+                  bool isAssigned = workers.any((w) =>
+                      w['id']?.toString() == currentUserId ||
+                      w['user_id']?.toString() == currentUserId);
+                  if (!isAssigned) continue;
                 } else if (reqUserId != null && reqUserId != currentUserId) {
-                   continue;
+                  continue;
                 }
               }
               filtered.add(item);
@@ -201,34 +208,52 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                         itemBuilder: (context, index) {
                           try {
                             final dynamic rawItem = _swapRequests[index];
-                            final Map<String, dynamic> item = rawItem is Map ? Map<String, dynamic>.from(rawItem) : {};
+                            final Map<String, dynamic> item = rawItem is Map
+                                ? Map<String, dynamic>.from(rawItem)
+                                : {};
 
                             // Determine details based on response payload format
                             Map<String, dynamic>? swapReq;
                             if (item['swap_request'] is Map) {
-                              swapReq = Map<String, dynamic>.from(item['swap_request']);
+                              swapReq = Map<String, dynamic>.from(
+                                  item['swap_request']);
                             } else {
                               swapReq = item;
                             }
 
-                            String jobTitle = item['title']?.toString() ?? item['customer_name']?.toString() ?? item['job_title']?.toString() ?? 'Shift Swap';
-                            String reason = swapReq['reason']?.toString() ?? 'Not specified';
-                            String details = swapReq['details']?.toString() ?? '';
+                            String jobTitle = item['title']?.toString() ??
+                                item['customer_name']?.toString() ??
+                                item['job_title']?.toString() ??
+                                'Shift Swap';
+                            String reason = swapReq['reason']?.toString() ??
+                                'Not specified';
+                            String details =
+                                swapReq['details']?.toString() ?? '';
                             String status = _normalizeStatus(swapReq['status']);
                             Color statusColor = _getStatusColor(status);
 
                             DateTime? schedDate = JobParser.getStartDate(item);
-                            if (schedDate == null && swapReq['created_at'] != null) {
-                              schedDate = DateTime.tryParse(swapReq['created_at'].toString());
+                            if (schedDate == null &&
+                                swapReq['created_at'] != null) {
+                              schedDate = DateTime.tryParse(
+                                  swapReq['created_at'].toString());
                             }
                             String dateStr = schedDate != null
-                                ? DateFormat('EEE, MMM d, yyyy • hh:mm a').format(schedDate)
+                                ? DateFormat('EEE, MMM d, yyyy • hh:mm a')
+                                    .format(schedDate)
                                 : '';
 
-                            bool isCancelable = status == 'SUBMITTED' || status == 'PENDING';
-                            int jobId = item['id'] is int ? item['id'] : (int.tryParse(item['job_id']?.toString() ?? '') ?? 0);
+                            bool isCancelable =
+                                status == 'SUBMITTED' || status == 'PENDING';
+                            int jobId = item['id'] is int
+                                ? item['id']
+                                : (int.tryParse(
+                                        item['job_id']?.toString() ?? '') ??
+                                    0);
                             if (jobId == 0) {
-                              jobId = int.tryParse(item['id']?.toString() ?? '') ?? 0;
+                              jobId =
+                                  int.tryParse(item['id']?.toString() ?? '') ??
+                                      0;
                             }
 
                             return Container(
@@ -243,7 +268,8 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Expanded(
                                         child: Text(
@@ -260,11 +286,16 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: statusColor.withOpacity(0.15),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: statusColor.withOpacity(0.4)),
+                                              color:
+                                                  statusColor.withOpacity(0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                  color: statusColor
+                                                      .withOpacity(0.4)),
                                             ),
                                             child: Text(
                                               status,
@@ -278,8 +309,12 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                                           if (isCancelable && jobId > 0) ...[
                                             const SizedBox(width: 8),
                                             GestureDetector(
-                                              onTap: () => _confirmDeleteRequest(jobId),
-                                              child: const Icon(Icons.delete_outline, color: Colors.orange, size: 20),
+                                              onTap: () =>
+                                                  _confirmDeleteRequest(jobId),
+                                              child: const Icon(
+                                                  Icons.delete_outline,
+                                                  color: Colors.orange,
+                                                  size: 20),
                                             ),
                                           ],
                                         ],
@@ -290,17 +325,23 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                                     const SizedBox(height: 6),
                                     Text(
                                       dateStr,
-                                      style: TextStyle(color: muted, fontSize: 12),
+                                      style:
+                                          TextStyle(color: muted, fontSize: 12),
                                     ),
                                   ],
                                   const SizedBox(height: 10),
                                   Row(
                                     children: [
-                                      Text('Reason: ', style: TextStyle(color: muted, fontSize: 13, fontWeight: FontWeight.w600)),
+                                      Text('Reason: ',
+                                          style: TextStyle(
+                                              color: muted,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600)),
                                       Expanded(
                                         child: Text(
                                           reason,
-                                          style: TextStyle(color: text, fontSize: 13),
+                                          style: TextStyle(
+                                              color: text, fontSize: 13),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
@@ -310,7 +351,10 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                                     const SizedBox(height: 4),
                                     Text(
                                       details,
-                                      style: TextStyle(color: muted.withOpacity(0.8), fontSize: 12, fontStyle: FontStyle.italic),
+                                      style: TextStyle(
+                                          color: muted.withOpacity(0.8),
+                                          fontSize: 12,
+                                          fontStyle: FontStyle.italic),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -327,7 +371,8 @@ class _SwapRequestsModalState extends State<SwapRequestsModal> {
                                 borderRadius: BorderRadius.circular(18),
                                 border: Border.all(color: Colors.red),
                               ),
-                              child: Text('Error rendering request: $e', style: const TextStyle(color: Colors.white)),
+                              child: Text('Error rendering request: $e',
+                                  style: const TextStyle(color: Colors.white)),
                             );
                           }
                         },

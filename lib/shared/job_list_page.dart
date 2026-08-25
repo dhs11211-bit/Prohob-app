@@ -43,6 +43,7 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
   int _currentPage = 1;
   bool _hasMore = true;
   bool _isLoadingMore = false;
+  String _viewMode = 'schedule'; // 'schedule' or 'unassigned'
 
   final ScrollController _listScrollController = ScrollController();
 
@@ -51,7 +52,7 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
     super.initState();
     _focusedDay = DateTime.now();
     _selectedDay = DateTime.now();
-    
+
     if (widget.hideCalendar) {
       final now = DateTime.now();
       _filterStartDate = now.subtract(Duration(days: now.weekday - 1));
@@ -71,7 +72,9 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
   void _onScroll() {
     if (!_listScrollController.hasClients) return;
     final pos = _listScrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent - 200 && !_isLoadingMore && _hasMore) {
+    if (pos.pixels >= pos.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
       _fetchJobs(loadMore: true);
     }
   }
@@ -90,7 +93,7 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
 
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDay);
-      
+
       final Map<String, dynamic> queryParams = {
         'limit': 15,
         'page': _currentPage,
@@ -98,10 +101,12 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
 
       if (widget.hideCalendar) {
         if (_filterStartDate != null) {
-          queryParams['start_date'] = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
+          queryParams['start_date'] =
+              DateFormat('yyyy-MM-dd').format(_filterStartDate!);
         }
         if (_filterEndDate != null) {
-          queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(_filterEndDate!);
+          queryParams['end_date'] =
+              DateFormat('yyyy-MM-dd').format(_filterEndDate!);
         }
       } else {
         queryParams['date'] = dateStr;
@@ -114,8 +119,10 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
         queryParams['staff_id'] = widget.staffId.toString();
       }
 
+      final endpoint = _viewMode == 'unassigned' ? '/jobs/unassigned' : '/jobs';
+
       final res = await ApiService.instance.get(
-        '/jobs',
+        endpoint,
         queryParams: queryParams,
       );
 
@@ -164,233 +171,372 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
         color: bg,
         child: SingleChildScrollView(
           controller: _listScrollController,
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics()),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 12),
+              if (!widget.hideCalendar)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: card,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              if (_viewMode != 'schedule') {
+                                setState(() => _viewMode = 'schedule');
+                                _fetchJobs(reset: true);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _viewMode == 'schedule' ? accentBlue : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text('Schedule', style: TextStyle(color: _viewMode == 'schedule' ? Colors.white : muted, fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              if (_viewMode != 'unassigned') {
+                                setState(() => _viewMode = 'unassigned');
+                                _fetchJobs(reset: true);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _viewMode == 'unassigned' ? accentBlue : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text('Unassigned', style: TextStyle(color: _viewMode == 'unassigned' ? Colors.white : muted, fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // Calendar Card Container or Date Range Filter
               if (widget.hideCalendar)
                 _buildDateRangeFilter()
-              else
+              else if (_viewMode == 'schedule')
                 Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: card,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Card Top Row: < | Month Year v | Today | Week / Month | >
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left, color: Colors.white70, size: 22),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            setState(() {
-                              if (_calendarFormat == CalendarFormat.week) {
-                                _focusedDay = _focusedDay.subtract(const Duration(days: 7));
-                                _selectedDay = _focusedDay;
-                              } else {
-                                _focusedDay = DateTime(_focusedDay.year, _focusedDay.month - 1, 1);
-                                _selectedDay = _focusedDay;
-                              }
-                            });
-                            _fetchJobs(reset: true);
-                          },
-                        ),
-                        GestureDetector(
-                          onTap: () async {
-                            final DateTime? picked = await showDatePicker(
-                              context: context,
-                              initialDate: _selectedDay,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2030),
-                              builder: (context, child) {
-                                return Theme(
-                                  data: Theme.of(context).copyWith(
-                                    colorScheme: const ColorScheme.dark(
-                                      primary: Color(0xFF3B82F6),
-                                      onPrimary: Colors.white,
-                                      surface: Color(0xFF1E293B),
-                                      onSurface: Colors.white,
-                                    ),
-                                  ),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (picked != null) {
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: card,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Card Top Row: < | Month Year v | Today | Week / Month | >
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left,
+                                color: Colors.white70, size: 22),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
                               setState(() {
-                                _selectedDay = picked;
-                                _focusedDay = picked;
+                                if (_calendarFormat == CalendarFormat.week) {
+                                  _focusedDay = _focusedDay
+                                      .subtract(const Duration(days: 7));
+                                  _selectedDay = _focusedDay;
+                                } else {
+                                  _focusedDay = DateTime(_focusedDay.year,
+                                      _focusedDay.month - 1, 1);
+                                  _selectedDay = _focusedDay;
+                                }
                               });
                               _fetchJobs(reset: true);
-                            }
-                          },
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                DateFormat('MMMM yyyy').format(_focusedDay),
-                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.arrow_drop_down, color: Colors.white70, size: 18),
-                            ],
+                            },
                           ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              onPressed: () {
+                          GestureDetector(
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDay,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.dark(
+                                        primary: Color(0xFF3B82F6),
+                                        onPrimary: Colors.white,
+                                        surface: Color(0xFF1E293B),
+                                        onSurface: Colors.white,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
                                 setState(() {
-                                  _selectedDay = DateTime.now();
-                                  _focusedDay = DateTime.now();
+                                  _selectedDay = picked;
+                                  _focusedDay = picked;
                                 });
                                 _fetchJobs(reset: true);
-                              },
-                              child: Text(
-                                "Today",
-                                style: TextStyle(color: accentBlue, fontSize: 13, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _calendarFormat = _calendarFormat == CalendarFormat.week
-                                      ? CalendarFormat.month
-                                      : CalendarFormat.week;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white12,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  _calendarFormat == CalendarFormat.week ? 'Month' : 'Week',
-                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right, color: Colors.white70, size: 22),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            setState(() {
-                              if (_calendarFormat == CalendarFormat.week) {
-                                _focusedDay = _focusedDay.add(const Duration(days: 7));
-                                _selectedDay = _focusedDay;
-                              } else {
-                                _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + 1, 1);
-                                _selectedDay = _focusedDay;
                               }
-                            });
-                            _fetchJobs(reset: true);
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  DateFormat('MMMM yyyy').format(_focusedDay),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.arrow_drop_down,
+                                    color: Colors.white70, size: 18),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedDay = DateTime.now();
+                                    _focusedDay = DateTime.now();
+                                  });
+                                  _fetchJobs(reset: true);
+                                },
+                                child: Text(
+                                  "Today",
+                                  style: TextStyle(
+                                      color: accentBlue,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _calendarFormat =
+                                        _calendarFormat == CalendarFormat.week
+                                            ? CalendarFormat.month
+                                            : CalendarFormat.week;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white12,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    _calendarFormat == CalendarFormat.week
+                                        ? 'Month'
+                                        : 'Week',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right,
+                                color: Colors.white70, size: 22),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              setState(() {
+                                if (_calendarFormat == CalendarFormat.week) {
+                                  _focusedDay =
+                                      _focusedDay.add(const Duration(days: 7));
+                                  _selectedDay = _focusedDay;
+                                } else {
+                                  _focusedDay = DateTime(_focusedDay.year,
+                                      _focusedDay.month + 1, 1);
+                                  _selectedDay = _focusedDay;
+                                }
+                              });
+                              _fetchJobs(reset: true);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // TableCalendar Body
+                      TableCalendar(
+                        firstDay: DateTime.utc(2020, 1, 1),
+                        lastDay: DateTime.utc(2030, 12, 31),
+                        focusedDay: _focusedDay,
+                        calendarFormat: _calendarFormat,
+                        selectedDayPredicate: (day) =>
+                            isSameDay(_selectedDay, day),
+                        onDaySelected: (selectedDay, focusedDay) {
+                          setState(() {
+                            _selectedDay = selectedDay;
+                            _focusedDay = focusedDay;
+                          });
+                          _fetchJobs(reset: true);
+                        },
+                        onPageChanged: (focusedDay) {
+                          setState(() {
+                            _focusedDay = focusedDay;
+                          });
+                        },
+                        headerVisible: false,
+                        daysOfWeekStyle: const DaysOfWeekStyle(
+                          weekdayStyle: TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500),
+                          weekendStyle: TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500),
+                        ),
+                        calendarStyle: const CalendarStyle(
+                          defaultTextStyle: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500),
+                          weekendTextStyle:
+                              TextStyle(color: Colors.white70, fontSize: 14),
+                          outsideDaysVisible: false,
+                          selectedDecoration: BoxDecoration(
+                            color: Color(0xFF3B82F6),
+                            shape: BoxShape.circle,
+                          ),
+                          todayDecoration: BoxDecoration(
+                            color: Color(0x403B82F6),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        calendarBuilders: CalendarBuilders(
+                          markerBuilder: (context, day, events) {
+                            bool hasJobs =
+                                _getJobsForDate(_allJobs, day).isNotEmpty;
+                            if (hasJobs) {
+                              return Positioned(
+                                bottom: 2,
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: neonAction,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              );
+                            }
+                            return null;
                           },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
+
+              // Task 9.4/9.9: Daily Summary Metrics Card
+              if (_allJobs.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [accentBlue.withOpacity(0.8), const Color(0xFF2563EB)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentBlue.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-
-                    // TableCalendar Body
-                    TableCalendar(
-                      firstDay: DateTime.utc(2020, 1, 1),
-                      lastDay: DateTime.utc(2030, 12, 31),
-                      focusedDay: _focusedDay,
-                      calendarFormat: _calendarFormat,
-                      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                      onDaySelected: (selectedDay, focusedDay) {
-                        setState(() {
-                          _selectedDay = selectedDay;
-                          _focusedDay = focusedDay;
-                        });
-                        _fetchJobs(reset: true);
-                      },
-                      onPageChanged: (focusedDay) {
-                        setState(() {
-                          _focusedDay = focusedDay;
-                        });
-                      },
-                      headerVisible: false,
-                      daysOfWeekStyle: const DaysOfWeekStyle(
-                        weekdayStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w500),
-                        weekendStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w500),
-                      ),
-                      calendarStyle: const CalendarStyle(
-                        defaultTextStyle: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
-                        weekendTextStyle: TextStyle(color: Colors.white70, fontSize: 14),
-                        outsideDaysVisible: false,
-                        selectedDecoration: BoxDecoration(
-                          color: Color(0xFF3B82F6),
-                          shape: BoxShape.circle,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(
+                          children: [
+                            const Text('JOBS TODAY', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                            const SizedBox(height: 4),
+                            Text('${_getJobsForDate(_allJobs, _selectedDay).length}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.black)),
+                          ],
                         ),
-                        todayDecoration: BoxDecoration(
-                          color: Color(0x403B82F6),
-                          shape: BoxShape.circle,
+                        Container(width: 1, height: 40, color: Colors.white24),
+                        Column(
+                          children: [
+                            const Text('EXPECTED REV', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                            const SizedBox(height: 4),
+                            Text(
+                              '\$${_getJobsForDate(_allJobs, _selectedDay).fold<double>(0, (sum, item) => sum + (double.tryParse(item['total_amount']?.toString() ?? '0') ?? 0)).toStringAsFixed(2)}',
+                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.black)
+                            ),
+                          ],
                         ),
-                      ),
-                      calendarBuilders: CalendarBuilders(
-                        markerBuilder: (context, day, events) {
-                          bool hasJobs = _getJobsForDate(_allJobs, day).isNotEmpty;
-                          if (hasJobs) {
-                            return Positioned(
-                              bottom: 2,
-                              child: Container(
-                                width: 5,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: neonAction,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            );
-                          }
-                          return null;
-                        },
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
 
               // Date-Grouped Jobs List
               if (_isLoading)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40),
-                  child: Center(child: CircularProgressIndicator(color: accentBlue)),
+                  child: Center(
+                      child: CircularProgressIndicator(color: accentBlue)),
                 )
               else if (_allJobs.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
                   child: Center(
-                    child: Text('No shifts scheduled.', style: TextStyle(color: muted, fontSize: 14)),
+                    child: Text('No shifts scheduled.',
+                        style: TextStyle(color: muted, fontSize: 14)),
                   ),
                 )
               else
@@ -399,27 +545,39 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                   String? lastDateStr;
                   for (var job in _allJobs) {
                     final data = job as Map<String, dynamic>;
-                    DateTime jobTime = JobParser.getStartDate(data) ?? DateTime.now();
+                    DateTime jobTime =
+                        JobParser.getStartDate(data) ?? DateTime.now();
 
-                    String currentDateStr = DateFormat('EEEE, MMM d, yyyy').format(jobTime);
+                    String currentDateStr =
+                        DateFormat('EEEE, MMM d, yyyy').format(jobTime);
                     if (lastDateStr != currentDateStr) {
                       widgets.add(
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 currentDateStr,
-                                style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                    color: textWhite,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold),
                               ),
                               if (lastDateStr == null)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                      color: card,
+                                      borderRadius: BorderRadius.circular(8)),
                                   child: Text(
                                     '+ Request time off',
-                                    style: TextStyle(color: muted, fontSize: 12, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                        color: muted,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
                             ],
@@ -435,7 +593,8 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                         onTap: () async {
                           final result = await Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => SharedJobDetailScreen(jobId: data['id']),
+                              builder: (_) =>
+                                  SharedJobDetailScreen(jobId: data['id']),
                             ),
                           );
                           if (result == true) {
@@ -450,7 +609,9 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                     widgets.add(
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Center(child: CircularProgressIndicator(color: accentBlue)),
+                        child: Center(
+                            child:
+                                CircularProgressIndicator(color: accentBlue)),
                       ),
                     );
                   }
@@ -480,7 +641,11 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Filter by Date", style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+              const Text("Filter by Date",
+                  style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold)),
               TextButton(
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -490,12 +655,18 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                 onPressed: () {
                   setState(() {
                     final now = DateTime.now();
-                    _filterStartDate = now.subtract(Duration(days: now.weekday - 1));
-                    _filterEndDate = _filterStartDate!.add(const Duration(days: 6));
+                    _filterStartDate =
+                        now.subtract(Duration(days: now.weekday - 1));
+                    _filterEndDate =
+                        _filterStartDate!.add(const Duration(days: 6));
                   });
                   _fetchJobs(reset: true);
                 },
-                child: Text("Reset Filters", style: TextStyle(color: accentBlue, fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text("Reset Filters",
+                    style: TextStyle(
+                        color: accentBlue,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -517,7 +688,8 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                     }
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 12),
                     decoration: BoxDecoration(
                       color: bg,
                       borderRadius: BorderRadius.circular(8),
@@ -526,9 +698,18 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(_filterStartDate != null ? DateFormat('MM/dd/yyyy').format(_filterStartDate!) : "From Date", 
-                             style: TextStyle(color: _filterStartDate != null ? Colors.white : Colors.white38, fontSize: 14)),
-                        const Icon(Icons.calendar_today, color: Colors.white54, size: 16),
+                        Text(
+                            _filterStartDate != null
+                                ? DateFormat('MM/dd/yyyy')
+                                    .format(_filterStartDate!)
+                                : "From Date",
+                            style: TextStyle(
+                                color: _filterStartDate != null
+                                    ? Colors.white
+                                    : Colors.white38,
+                                fontSize: 14)),
+                        const Icon(Icons.calendar_today,
+                            color: Colors.white54, size: 16),
                       ],
                     ),
                   ),
@@ -550,7 +731,8 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                     }
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 12),
                     decoration: BoxDecoration(
                       color: bg,
                       borderRadius: BorderRadius.circular(8),
@@ -559,9 +741,18 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(_filterEndDate != null ? DateFormat('MM/dd/yyyy').format(_filterEndDate!) : "End Date", 
-                             style: TextStyle(color: _filterEndDate != null ? Colors.white : Colors.white38, fontSize: 14)),
-                        const Icon(Icons.calendar_today, color: Colors.white54, size: 16),
+                        Text(
+                            _filterEndDate != null
+                                ? DateFormat('MM/dd/yyyy')
+                                    .format(_filterEndDate!)
+                                : "End Date",
+                            style: TextStyle(
+                                color: _filterEndDate != null
+                                    ? Colors.white
+                                    : Colors.white38,
+                                fontSize: 14)),
+                        const Icon(Icons.calendar_today,
+                            color: Colors.white54, size: 16),
                       ],
                     ),
                   ),
