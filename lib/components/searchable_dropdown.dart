@@ -25,7 +25,8 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
   Widget build(BuildContext context) {
     String displayLabel = widget.hint;
     if (widget.value != null) {
-      final selected = widget.items.where((item) => item['value'] == widget.value).toList();
+      final selected =
+          widget.items.where((item) => item['value'] == widget.value).toList();
       if (selected.isNotEmpty) {
         displayLabel = selected.first['label'] ?? widget.hint;
       }
@@ -41,7 +42,7 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
           showDialog(
             context: context,
             useSafeArea: true,
-            barrierColor: Colors.transparent, 
+            barrierColor: Colors.transparent,
             builder: (BuildContext dialogContext) {
               String searchQuery = '';
               return Stack(
@@ -62,7 +63,9 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
                       child: StatefulBuilder(
                         builder: (context, setDialogState) {
                           final filteredItems = widget.items.where((item) {
-                            return (item['label'] ?? '').toLowerCase().contains(searchQuery.toLowerCase());
+                            return (item['label'] ?? '')
+                                .toLowerCase()
+                                .contains(searchQuery.toLowerCase());
                           }).toList();
 
                           return Container(
@@ -70,7 +73,12 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF1E293B),
                               borderRadius: BorderRadius.circular(12),
-                              boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
+                              boxShadow: const [
+                                BoxShadow(
+                                    color: Colors.black54,
+                                    blurRadius: 10,
+                                    offset: Offset(0, 4))
+                              ],
                               border: Border.all(color: Colors.white10),
                             ),
                             child: Column(
@@ -82,15 +90,23 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
                                     height: 36,
                                     child: TextField(
                                       autofocus: true,
-                                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 13),
                                       decoration: InputDecoration(
                                         hintText: "Search...",
-                                        hintStyle: const TextStyle(color: Colors.white38),
-                                        prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 16),
+                                        hintStyle: const TextStyle(
+                                            color: Colors.white38),
+                                        prefixIcon: const Icon(Icons.search,
+                                            color: Colors.white38, size: 16),
                                         filled: true,
                                         fillColor: const Color(0xFF0D1B2A),
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                vertical: 0, horizontal: 12),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            borderSide: BorderSide.none),
                                       ),
                                       onChanged: (val) {
                                         setDialogState(() => searchQuery = val);
@@ -115,15 +131,22 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
                                             widget.onChanged(item['value']);
                                           },
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 12),
                                             decoration: BoxDecoration(
-                                              border: index < filteredItems.length - 1 
-                                                ? const Border(bottom: BorderSide(color: Colors.white10)) 
-                                                : null,
+                                              border: index <
+                                                      filteredItems.length - 1
+                                                  ? const Border(
+                                                      bottom: BorderSide(
+                                                          color:
+                                                              Colors.white10))
+                                                  : null,
                                             ),
                                             child: Text(
                                               item['label'] ?? '',
-                                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13),
                                             ),
                                           ),
                                         );
@@ -161,11 +184,15 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
               Expanded(
                 child: Text(
                   displayLabel,
-                  style: TextStyle(color: widget.value == null ? Colors.white38 : Colors.white, fontSize: 13),
+                  style: TextStyle(
+                      color:
+                          widget.value == null ? Colors.white38 : Colors.white,
+                      fontSize: 13),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.keyboard_arrow_down, color: Color(0xFF3B82F6), size: 20),
+              const Icon(Icons.keyboard_arrow_down,
+                  color: Color(0xFF3B82F6), size: 20),
             ],
           ),
         ),

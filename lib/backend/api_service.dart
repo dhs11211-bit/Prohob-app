@@ -51,7 +51,9 @@ class ApiService {
   }
 
   dynamic _unwrapData(dynamic data) {
-    if (data is Map && data['status'] == 'success' && data.containsKey('data')) {
+    if (data is Map &&
+        data['status'] == 'success' &&
+        data.containsKey('data')) {
       return data['data'];
     }
     return data;
@@ -59,9 +61,10 @@ class ApiService {
 
   // --- Auth Endpoints ---
 
-  Future<Map<String, dynamic>> login(String email, String password, {int? clId}) async {
+  Future<Map<String, dynamic>> login(String email, String password,
+      {int? clId}) async {
     final url = Uri.parse('$baseUrl/auth/login');
-    
+
     final body = <String, dynamic>{'email': email, 'password': password};
     if (clId != null) body['cl_id'] = clId;
 
@@ -72,12 +75,56 @@ class ApiService {
     );
 
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       // Success
       return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Login failed');
+    }
+  }
+
+  Future<Map<String, dynamic>> clockBreak(
+      int jobId, double? lat, double? lng) async {
+    final url = Uri.parse('$baseUrl/clock/break');
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'job_id': jobId,
+        'latitude': lat,
+        'longitude': lng,
+      }),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return _unwrapData(data);
+    } else {
+      throw Exception(data['message'] ?? 'Failed to toggle break');
+    }
+  }
+
+  Future<Map<String, dynamic>> logJobAttempt(
+      int jobId, Map<String, dynamic> payload) async {
+    final url = Uri.parse('$baseUrl/jobs/$jobId/log-attempt');
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode(payload),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return _unwrapData(data);
+    } else {
+      throw Exception(data['message'] ?? 'Failed to log attempt');
     }
   }
 
@@ -91,7 +138,9 @@ class ApiService {
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data['data']; // Returns user object
     } else {
@@ -101,7 +150,8 @@ class ApiService {
 
   Future<Map<String, dynamic>> getPublicSettings() async {
     final url = Uri.parse('$baseUrl/public/settings');
-    final response = await http.get(url, headers: {'Accept': 'application/json'});
+    final response =
+        await http.get(url, headers: {'Accept': 'application/json'});
 
     final data = jsonDecode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -117,7 +167,9 @@ class ApiService {
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -150,7 +202,9 @@ class ApiService {
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
 
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data); // Returns {id, url, filename}
     } else {
@@ -164,7 +218,9 @@ class ApiService {
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data) as List<dynamic>;
     } else {
@@ -177,9 +233,11 @@ class ApiService {
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data['data'] != null ? data['data'] : data; 
+      return data['data'] != null ? data['data'] : data;
     } else {
       throw Exception(data['message'] ?? 'Failed to load subscription plans');
     }
@@ -249,7 +307,9 @@ class ApiService {
       url,
       headers: await _getHeaders(),
     );
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final data = jsonDecode(response.body);
       throw Exception(data['message'] ?? 'Failed to cancel job');
@@ -262,7 +322,9 @@ class ApiService {
       url,
       headers: await _getHeaders(),
     );
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final data = jsonDecode(response.body);
       throw Exception(data['message'] ?? 'Failed to delete job');
@@ -276,7 +338,9 @@ class ApiService {
       url,
       headers: await _getHeaders(),
     );
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final data = jsonDecode(response.body);
       throw Exception(data['message'] ?? 'Failed to cancel recurring job');
@@ -290,7 +354,9 @@ class ApiService {
       url,
       headers: await _getHeaders(),
     );
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final data = jsonDecode(response.body);
       throw Exception(data['message'] ?? 'Failed to delete recurring job');
@@ -304,49 +370,28 @@ class ApiService {
       headers: await _getHeaders(),
       body: jsonEncode({'status': status}),
     );
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final data = jsonDecode(response.body);
       throw Exception(data['message'] ?? 'Failed to update status');
     }
   }
-
-  Future<void> updateChecklist(int jobId, String taskName, bool isDone) async {
-    final url = Uri.parse('$baseUrl/jobs/$jobId/checklist');
-    final response = await http.put(
-      url,
-      headers: await _getHeaders(),
-      body: jsonEncode({'task_name': taskName, 'is_done': isDone}),
-    );
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final data = jsonDecode(response.body);
-      throw Exception(data['message'] ?? 'Failed to update checklist');
-    }
-  }
-
-  Future<void> deleteChecklist(int jobId, String taskName) async {
-    final url = Uri.parse('$baseUrl/jobs/$jobId/checklist');
-    final response = await http.delete(
-      url,
-      headers: await _getHeaders(),
-      body: jsonEncode({'task_name': taskName}),
-    );
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final data = jsonDecode(response.body);
-      throw Exception(data['message'] ?? 'Failed to delete checklist');
-    }
-  }
-
   // --- Clock Endpoints ---
-  Future<Map<String, dynamic>> getClockStatus() async {
+  Future<Map<String, dynamic>> getClockStatus([int? jobId]) async {
     // Add timestamp to prevent browser/OS level caching of the GET request
-    final url = Uri.parse('$baseUrl/clock/status?_t=${DateTime.now().millisecondsSinceEpoch}');
+    String urlStr = '$baseUrl/clock/status?_t=${DateTime.now().millisecondsSinceEpoch}';
+    if (jobId != null) {
+      urlStr += '&job_id=$jobId';
+    }
+    final url = Uri.parse(urlStr);
     final response = await http.get(url, headers: await _getHeaders());
 
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -370,7 +415,9 @@ class ApiService {
       }),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -394,7 +441,9 @@ class ApiService {
       }),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -415,7 +464,9 @@ class ApiService {
       }),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -435,7 +486,9 @@ class ApiService {
       }),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -449,7 +502,9 @@ class ApiService {
       url,
       headers: await _getHeaders(),
     );
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return;
     } else {
@@ -458,8 +513,46 @@ class ApiService {
     }
   }
 
+
+  Future<void> updateChecklist(int jobId, String taskName, bool isDone) async {
+    final url = Uri.parse('$baseUrl/jobs/$jobId/checklist');
+    final response = await http.put(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode({'task_name': taskName, 'is_done': isDone}),
+    );
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+  }
+
+  Future<void> uploadAttachment(String entityType, int entityId, List<int> fileBytes, String fileName) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/attachments';
+    final token = await _getToken();
+
+    var request = http.MultipartRequest('POST', Uri.parse(url));
+    request.headers['Authorization'] = 'Bearer ';
+    request.headers['Accept'] = 'application/json';
+
+    request.fields['entity_type'] = entityType;
+    request.fields['entity_id'] = entityId.toString();
+
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      fileBytes,
+      filename: fileName,
+    ));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    if (response.statusCode >= 400) {
+      throw Exception('Failed to upload attachment');
+    }
+  }
+
   // --- Generic Endpoints ---
-  Future<dynamic> get(String endpoint, {Map<String, dynamic>? queryParams}) async {
+  Future<dynamic> get(String endpoint,
+      {Map<String, dynamic>? queryParams}) async {
     String urlStr = endpoint.startsWith('http')
         ? endpoint
         : '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}';
@@ -479,7 +572,9 @@ class ApiService {
       headers: await _getHeaders(),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -496,7 +591,9 @@ class ApiService {
       body: jsonEncode(body),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode == 422 && data['errors'] != null) {
       throw ValidationException(data['errors']);
     }
@@ -516,7 +613,9 @@ class ApiService {
       body: jsonEncode(body),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode == 422 && data['errors'] != null) {
       throw ValidationException(data['errors']);
     }
@@ -536,7 +635,9 @@ class ApiService {
       body: jsonEncode(body),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -552,18 +653,137 @@ class ApiService {
       headers: await _getHeaders(),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to DELETE $endpoint');
     }
   }
+  // --- Phase 5: Jobs Mobile Endpoints ---
+
+  Future<Map<String, dynamic>> getJobMaterials(int jobId) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/jobs/$jobId/materials';
+    final response =
+        await http.get(Uri.parse(url), headers: await _getHeaders());
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    return jsonDecode(response.body);
+  }
+
+  Future<void> updateJobMaterialStatus(int materialId, String status) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/job-materials/$materialId';
+    final response = await http.put(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+      body: jsonEncode({'status': status}),
+    );
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+  }
+
+  Future<Map<String, dynamic>> getJobNotes(int jobId) async {
+    String url = baseUrl.replaceAll('/mob', '') +
+        '/notes?entity_type=job&entity_id=$jobId';
+    final response =
+        await http.get(Uri.parse(url), headers: await _getHeaders());
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    return jsonDecode(response.body);
+  }
+
+  Future<void> addNote(Map<String, dynamic> payload) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/notes';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'entity_type': 'job',
+        'entity_id': jobId,
+        'note': note,
+        'visibility': visibility
+      }),
+    );
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+  }
+
+  Future<void> updateRelationalChecklist(
+      int checklistId, Map<String, dynamic> payload) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/checklists/$checklistId';
+    final response = await http.put(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+      body: jsonEncode(payload),
+    );
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+  }
+
+  Future<Map<String, dynamic>> getChecklistCompletionStatus(int jobId) async {
+    String url = baseUrl.replaceAll('/mob', '') +
+        '/jobs/$jobId/checklist-completion-status';
+    final response =
+        await http.get(Uri.parse(url), headers: await _getHeaders());
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    return jsonDecode(response.body);
+  }
+
+  Future<void> completeJobWithSignature(
+      int jobId, String signatureBase64) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/jobs/$jobId/complete';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'signature_base64': signatureBase64,
+      }),
+    );
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+  }
+
+  Future<Map<String, dynamic>> getJobAlerts(int jobId) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/jobs/$jobId/alerts';
+    final response =
+        await http.get(Uri.parse(url), headers: await _getHeaders());
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    return jsonDecode(response.body);
+  }
+
+  Future<void> duplicateJob(int jobId) async {
+    String url = baseUrl.replaceAll('/mob', '') + '/jobs/$jobId/duplicate';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    // Could return newly created Job ID if needed.
+  }
+
   // --- Chat Endpoints ---
   Future<void> deleteConversation(int conversationId) async {
-    String url = baseUrl.replaceAll('/mob', '') + '/conversations/$conversationId';
-    final response = await http.delete(Uri.parse(url), headers: await _getHeaders());
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    String url =
+        baseUrl.replaceAll('/mob', '') + '/conversations/$conversationId';
+    final response =
+        await http.delete(Uri.parse(url), headers: await _getHeaders());
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return;
     } else {
@@ -571,6 +791,7 @@ class ApiService {
       throw Exception(data['message'] ?? 'Failed to delete conversation');
     }
   }
+
   Future<Map<String, dynamic>> getConversations({String? type}) async {
     String url = baseUrl.replaceAll('/mob', '') + '/conversations';
     if (type != null) {
@@ -579,7 +800,9 @@ class ApiService {
     final response =
         await http.get(Uri.parse(url), headers: await _getHeaders());
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -593,7 +816,9 @@ class ApiService {
     final response =
         await http.get(Uri.parse(url), headers: await _getHeaders());
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -602,10 +827,11 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> sendMessage(int conversationId, String content,
-      {String channel = 'in_app', List<Map<String, dynamic>>? attachments}) async {
+      {String channel = 'in_app',
+      List<Map<String, dynamic>>? attachments}) async {
     String url = baseUrl.replaceAll('/mob', '') +
         '/conversations/$conversationId/messages';
-    
+
     Map<String, dynamic> payload = {
       'content': content,
       'channel': channel,
@@ -620,7 +846,9 @@ class ApiService {
       body: jsonEncode(payload),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -634,7 +862,8 @@ class ApiService {
     await http.post(Uri.parse(url), headers: await _getHeaders());
   }
 
-  Future<Map<String, dynamic>> createConversation(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> createConversation(
+      Map<String, dynamic> payload) async {
     String url = baseUrl.replaceAll('/mob', '') + '/conversations';
     final response = await http.post(
       Uri.parse(url),
@@ -642,7 +871,9 @@ class ApiService {
       body: jsonEncode(payload),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -659,16 +890,18 @@ class ApiService {
       headers: await _getHeaders(),
       body: jsonEncode(profileData),
     );
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
-      if (response.statusCode == 422 && data['errors'] != null) {
-        throw ValidationException(data['errors']);
-      }
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    if (response.statusCode == 422 && data['errors'] != null) {
+      throw ValidationException(data['errors']);
+    }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
-      } else {
-        throw Exception(data['message'] ?? 'Failed to update profile');
-      }
+    } else {
+      throw Exception(data['message'] ?? 'Failed to update profile');
+    }
   }
 
   Future<Map<String, dynamic>> uploadDocument(
@@ -693,7 +926,9 @@ class ApiService {
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
 
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -730,7 +965,9 @@ class ApiService {
     final response = await http.Response.fromStream(streamedResponse);
     final data = jsonDecode(response.body);
 
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -768,18 +1005,21 @@ class ApiService {
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
-    
+
     dynamic data;
     try {
       data = jsonDecode(response.body);
     } catch (e) {
       if (response.body.trim().startsWith('<')) {
-        throw Exception("Server Error (${response.statusCode}): The uploaded files may exceed the server's maximum allowed size limit.");
+        throw Exception(
+            "Server Error (${response.statusCode}): The uploaded files may exceed the server's maximum allowed size limit.");
       }
       throw Exception("Invalid response from server: ${response.body}");
     }
 
-    if (response.statusCode == 401) { LaravelAuthManager.signOut(); }
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return _unwrapData(data);
     } else {
@@ -787,6 +1027,60 @@ class ApiService {
     }
   }
 
+  // ==========================================
+  // EVENTS MODULE
+  // ==========================================
+
+  Future<Map<String, dynamic>> getEvents({Map<String, dynamic>? params}) async {
+    final queryParams = params ?? {};
+    queryParams['job_type[]'] = 'event';
+    return _request('GET', '/jobs', queryParameters: queryParams);
+  }
+
+  Future<Map<String, dynamic>> getEventAttendees(int eventId) async {
+    return _request('GET', '/events/$eventId/attendees');
+  }
+
+  Future<Map<String, dynamic>> updateEventAttendee(int eventId, int attendeeId, Map<String, dynamic> data) async {
+    return _request('PUT', '/events/$eventId/attendees/$attendeeId', body: data);
+  }
+
+  Future<Map<String, dynamic>> convertEvent(int eventId, String targetType) async {
+    return _request('POST', '/jobs/$eventId/convert', body: {'target_type': targetType});
+  }
+
+  // TASKS MODULE
+  // ==========================================
+
+  Future<Map<String, dynamic>> getTasks({Map<String, dynamic>? params}) async {
+    return _request('GET', '/tasks', queryParameters: params);
+  }
+
+  Future<Map<String, dynamic>> getTask(int id) async {
+    return _request('GET', '/tasks/$id');
+  }
+
+  Future<Map<String, dynamic>> createTask(Map<String, dynamic> data) async {
+    return _request('POST', '/tasks', body: data);
+  }
+
+  Future<Map<String, dynamic>> updateTask(int id, Map<String, dynamic> data) async {
+    return _request('PUT', '/tasks/$id', body: data);
+  }
+
+  Future<Map<String, dynamic>> getTaskComments(int taskId) async {
+    return _request('GET', '/tasks/$taskId/comments');
+  }
+
+  Future<Map<String, dynamic>> addTaskComment(int taskId, Map<String, dynamic> data) async {
+    return _request('POST', '/tasks/$taskId/comments', body: data);
+  }
+
+
+  // ==========================================
+  // FILE UPLOAD HELPERS
+  // ==========================================
+  
   MediaType _getMediaType(String fileName) {
     final ext = fileName.split('.').last.toLowerCase();
     if (ext == 'png') return MediaType('image', 'png');
@@ -795,5 +1089,9 @@ class ApiService {
     if (ext == 'mp4') return MediaType('video', 'mp4');
     if (ext == 'mov' || ext == 'qt') return MediaType('video', 'quicktime');
     return MediaType('image', 'jpeg');
+  }
+
+  Future<Map<String, dynamic>> logJobAttempt(int jobId, Map<String, dynamic> payload) async {
+    return _request('POST', '/jobs/$jobId/log-attempt', body: payload);
   }
 }

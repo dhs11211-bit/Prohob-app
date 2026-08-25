@@ -38,12 +38,13 @@ class _QuickMapModalState extends State<QuickMapModal> {
   void initState() {
     super.initState();
     _address = widget.jobData['address'] ?? 'No address provided';
-    
-    if (widget.jobData['latitude'] != null && widget.jobData['longitude'] != null) {
+
+    if (widget.jobData['latitude'] != null &&
+        widget.jobData['longitude'] != null) {
       _latitude = double.tryParse(widget.jobData['latitude'].toString());
       _longitude = double.tryParse(widget.jobData['longitude'].toString());
     }
-    
+
     _initializeMapData();
   }
 
@@ -53,7 +54,7 @@ class _QuickMapModalState extends State<QuickMapModal> {
       await _geocodeAddress();
     }
     await _createCustomIcon();
-    
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -66,7 +67,7 @@ class _QuickMapModalState extends State<QuickMapModal> {
       final response = await ApiService.instance.get('/public/settings');
       if (mounted && response is Map) {
         final settings = response['data'] ?? response;
-        if (settings is Map && 
+        if (settings is Map &&
             settings.containsKey('google_maps_api_key') &&
             settings['google_maps_api_key'] != null &&
             settings['google_maps_api_key'].toString().trim().isNotEmpty) {
@@ -84,12 +85,15 @@ class _QuickMapModalState extends State<QuickMapModal> {
 
     try {
       final encodedQuery = Uri.encodeComponent(_address);
-      final url = Uri.parse('https://maps.googleapis.com/maps/api/geocode/json?address=$encodedQuery&key=$_googleMapsApiKey');
+      final url = Uri.parse(
+          'https://maps.googleapis.com/maps/api/geocode/json?address=$encodedQuery&key=$_googleMapsApiKey');
       final response = await http.get(url);
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['status'] == 'OK' && data['results'] != null && data['results'].isNotEmpty) {
+        if (data['status'] == 'OK' &&
+            data['results'] != null &&
+            data['results'].isNotEmpty) {
           final location = data['results'][0]['geometry']['location'];
           _latitude = location['lat'];
           _longitude = location['lng'];
@@ -109,7 +113,7 @@ class _QuickMapModalState extends State<QuickMapModal> {
 
       final Paint paint = Paint()..color = color;
       canvas.drawCircle(Offset(size / 2, size / 2), size / 2, paint);
-      
+
       final Paint borderPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
@@ -117,7 +121,8 @@ class _QuickMapModalState extends State<QuickMapModal> {
       canvas.drawCircle(Offset(size / 2, size / 2), size / 2, borderPaint);
 
       // Draw House
-      final TextPainter housePainter = TextPainter(textDirection: ui.TextDirection.ltr);
+      final TextPainter housePainter =
+          TextPainter(textDirection: ui.TextDirection.ltr);
       housePainter.text = TextSpan(
         text: String.fromCharCode(Icons.home.codePoint),
         style: TextStyle(
@@ -137,7 +142,8 @@ class _QuickMapModalState extends State<QuickMapModal> {
       );
 
       // Draw Wrench
-      final TextPainter wrenchPainter = TextPainter(textDirection: ui.TextDirection.ltr);
+      final TextPainter wrenchPainter =
+          TextPainter(textDirection: ui.TextDirection.ltr);
       wrenchPainter.text = TextSpan(
         text: String.fromCharCode(Icons.build.codePoint),
         style: TextStyle(
@@ -158,9 +164,11 @@ class _QuickMapModalState extends State<QuickMapModal> {
 
       final ui.Picture picture = pictureRecorder.endRecording();
       final ui.Image image = await picture.toImage(size.toInt(), size.toInt());
-      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
-      _jobIcon = maps.BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+      final ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+
+      _jobIcon =
+          maps.BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
     } catch (e) {
       debugPrint("Error creating custom icon: $e");
     }
@@ -169,7 +177,8 @@ class _QuickMapModalState extends State<QuickMapModal> {
   void _openFullMap() async {
     if (_address.isEmpty || _address == 'No address provided') return;
     final encodedQuery = Uri.encodeComponent(_address);
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$encodedQuery');
+    final url = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=$encodedQuery');
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -186,9 +195,13 @@ class _QuickMapModalState extends State<QuickMapModal> {
   }
 
   void _showStreetViewImage() {
-    if (_googleMapsApiKey == null || _googleMapsApiKey!.isEmpty || _latitude == null || _longitude == null) return;
-    final imageUrl = 'https://maps.googleapis.com/maps/api/streetview?size=800x800&location=$_latitude,$_longitude&key=$_googleMapsApiKey';
-    
+    if (_googleMapsApiKey == null ||
+        _googleMapsApiKey!.isEmpty ||
+        _latitude == null ||
+        _longitude == null) return;
+    final imageUrl =
+        'https://maps.googleapis.com/maps/api/streetview?size=800x800&location=$_latitude,$_longitude&key=$_googleMapsApiKey';
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -200,7 +213,7 @@ class _QuickMapModalState extends State<QuickMapModal> {
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Image.network(
-                imageUrl, 
+                imageUrl,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
@@ -255,7 +268,7 @@ class _QuickMapModalState extends State<QuickMapModal> {
               ),
             ),
           ),
-          
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
@@ -280,7 +293,7 @@ class _QuickMapModalState extends State<QuickMapModal> {
               ],
             ),
           ),
-          
+
           // Map Container
           Container(
             height: 250,
@@ -291,29 +304,30 @@ class _QuickMapModalState extends State<QuickMapModal> {
               color: const Color(0xFF1E293B),
             ),
             clipBehavior: Clip.antiAlias,
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : (_latitude != null && _longitude != null)
-                  ? Stack(
-                      children: [
-                        maps.GoogleMap(
-                          initialCameraPosition: maps.CameraPosition(
-                            target: maps.LatLng(_latitude!, _longitude!),
-                            zoom: 15.0,
-                          ),
-                          markers: {
-                            if (_jobIcon != null)
-                              maps.Marker(
-                                markerId: const maps.MarkerId('job_location'),
-                                position: maps.LatLng(_latitude!, _longitude!),
-                                icon: _jobIcon!,
-                              ),
-                          },
-                          onMapCreated: (controller) {
-                            _mapController = controller;
-                            if (!kIsWeb) {
-                              try {
-                                _mapController?.setMapStyle('''
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : (_latitude != null && _longitude != null)
+                    ? Stack(
+                        children: [
+                          maps.GoogleMap(
+                            initialCameraPosition: maps.CameraPosition(
+                              target: maps.LatLng(_latitude!, _longitude!),
+                              zoom: 15.0,
+                            ),
+                            markers: {
+                              if (_jobIcon != null)
+                                maps.Marker(
+                                  markerId: const maps.MarkerId('job_location'),
+                                  position:
+                                      maps.LatLng(_latitude!, _longitude!),
+                                  icon: _jobIcon!,
+                                ),
+                            },
+                            onMapCreated: (controller) {
+                              _mapController = controller;
+                              if (!kIsWeb) {
+                                try {
+                                  _mapController?.setMapStyle('''
                                 [
                                   { "elementType": "geometry", "stylers": [{ "color": "#1e293b" }] },
                                   { "elementType": "labels.text.fill", "stylers": [{ "color": "#94a3b8" }] },
@@ -322,26 +336,28 @@ class _QuickMapModalState extends State<QuickMapModal> {
                                   { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#0f172a" }] }
                                 ]
                                 ''');
-                              } catch (_) {}
-                            }
-                          },
-                          zoomControlsEnabled: true,
-                          myLocationButtonEnabled: false,
-                          mapToolbarEnabled: false,
-                        ),
-                        if (_googleMapsApiKey != null && _googleMapsApiKey!.isNotEmpty)
-                          Positioned(
-                            left: 12,
-                            bottom: 12,
-                            child: GestureDetector(
-                              onTap: _showStreetViewImage,
+                                } catch (_) {}
+                              }
+                            },
+                            zoomControlsEnabled: true,
+                            myLocationButtonEnabled: false,
+                            mapToolbarEnabled: false,
+                          ),
+                          if (_googleMapsApiKey != null &&
+                              _googleMapsApiKey!.isNotEmpty)
+                            Positioned(
+                              left: 12,
+                              bottom: 12,
+                              child: GestureDetector(
+                                onTap: _showStreetViewImage,
                                 child: Container(
                                   width: 70,
                                   height: 70,
                                   clipBehavior: Clip.antiAlias,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
                                     boxShadow: const [
                                       BoxShadow(
                                         color: Colors.black45,
@@ -353,37 +369,43 @@ class _QuickMapModalState extends State<QuickMapModal> {
                                   child: Image.network(
                                     'https://maps.googleapis.com/maps/api/streetview?size=200x200&location=$_latitude,$_longitude&key=$_googleMapsApiKey',
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
                                       color: Colors.grey[800],
-                                      child: const Center(child: Icon(Icons.streetview, color: Colors.white54, size: 30)),
+                                      child: const Center(
+                                          child: Icon(Icons.streetview,
+                                              color: Colors.white54, size: 30)),
                                     ),
                                   ),
                                 ),
+                              ),
                             ),
-                          ),
-                      ],
-                    )
-                  : const Center(
-                      child: Text(
-                        'Location could not be loaded.',
-                        style: TextStyle(color: Colors.white70),
+                        ],
+                      )
+                    : const Center(
+                        child: Text(
+                          'Location could not be loaded.',
+                          style: TextStyle(color: Colors.white70),
+                        ),
                       ),
-                    ),
           ),
 
           const SizedBox(height: 16),
-          
+
           // Address text
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                const Icon(Icons.location_on, color: Color(0xFF94A3B8), size: 18),
+                const Icon(Icons.location_on,
+                    color: Color(0xFF94A3B8), size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _address,
-                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                    style:
+                        const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -403,7 +425,8 @@ class _QuickMapModalState extends State<QuickMapModal> {
               child: ElevatedButton.icon(
                 onPressed: _openFullMap,
                 icon: const Icon(Icons.map_outlined, color: Colors.white),
-                label: const Text('Open in Google Maps', style: TextStyle(color: Colors.white, fontSize: 16)),
+                label: const Text('Open in Google Maps',
+                    style: TextStyle(color: Colors.white, fontSize: 16)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF59E0B),
                   shape: RoundedRectangleBorder(

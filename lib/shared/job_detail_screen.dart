@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -41,7 +42,11 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
 
   bool _isLoading = true;
   Map<String, dynamic>? _clockStatus;
-  Map<String, dynamic>? _jobData;
+    Map<String, dynamic>? _jobData;
+  List<dynamic> _notes = [];
+  List<dynamic> _materials = [];
+  List<dynamic> _alerts = [];
+  List<dynamic> _relationalChecklists = [];
   String? _errorMessage;
   bool _showAddTaskInput = false;
   final TextEditingController _taskInputController = TextEditingController();
@@ -59,16 +64,58 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     _fetchGoogleMapsKey();
   }
 
-  Future<void> _loadJobDetail() async {
+    Future<void> _loadJobDetail() async {
     try {
       final res = await ApiService.instance.get('/jobs/${widget.jobId}');
+      
+      // Phase 5 Concurrent Fetches
       Map<String, dynamic>? clockRes;
+      List<dynamic> fetchedNotes = [];
+      List<dynamic> fetchedMaterials = [];
+      List<dynamic> fetchedAlerts = [];
+      
       try {
-        clockRes = await ApiService.instance.getClockStatus();
-      } catch (_) {}
+        final responses = await Future.wait([
+          ApiService.instance.getClockStatus(widget.jobId).catchError((_) => <String, dynamic>{}),
+          ApiService.instance.getNotes('job', widget.jobId).catchError((_) => {'data': []}),
+          ApiService.instance.getJobMaterials(widget.jobId).catchError((_) => {'data': []}),
+          ApiService.instance.getJobAlerts(widget.jobId).catchError((_) => {'data': {'alerts': []}}),
+        ]);
+        
+        clockRes = responses[0] as Map<String, dynamic>?;
+        
+        final notesRes = responses[1] as Map<String, dynamic>?;
+        if (notesRes != null && notesRes['data'] != null) {
+          fetchedNotes = notesRes['data'] as List<dynamic>;
+        }
+        
+        final materialsRes = responses[2] as Map<String, dynamic>?;
+        if (materialsRes != null && materialsRes['data'] != null) {
+          fetchedMaterials = materialsRes['data'] as List<dynamic>;
+        }
+        
+        final alertsRes = responses[3] as Map<String, dynamic>?;
+        if (alertsRes != null && alertsRes['data'] != null && alertsRes['data']['alerts'] != null) {
+          fetchedAlerts = alertsRes['data']['alerts'] as List<dynamic>;
+        }
+      } catch (e) {
+        print("Error fetching secondary data: $e");
+      }
+
       if (mounted) {
         setState(() {
           _jobData = res is Map<String, dynamic> ? (res['data'] ?? res) : res;
+          
+          // The main API returns job.checklists array in Phase 4.
+          if (_jobData != null && _jobData!['checklists'] != null) {
+            _relationalChecklists = _jobData!['checklists'] as List<dynamic>;
+          } else {
+            _relationalChecklists = [];
+          }
+          
+          _notes = fetchedNotes;
+          _materials = fetchedMaterials;
+          _alerts = fetchedAlerts;
           _clockStatus = clockRes;
           _isLoading = false;
         });
@@ -598,6 +645,408 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     );
   }
 
+  
+  Widget _buildAlertsBanner() {
+    if (_alerts.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      color: Colors.redAccent.withOpacity(0.9),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,        children: _alerts.map((alert) {
+          String text = 'Critical Alert';
+          IconData iconData = Icons.warning_amber_rounded;
+          Color iconColor = Colors.white;
+
+          if (alert == 'missing_crew') text = 'No Crew Assigned';
+          else if (alert == 'missing_materials') text = 'Missing Materials';
+          else if (alert == 'incomplete_checklist') text = 'Incomplete Checklist Tasks';
+          else if (alert.toString().startsWith('travel|')) {
+            final parts = alert.toString().split('|');
+            text = 'Travel Time: ${parts[1]} mins from previous job';
+            iconData = Icons.directions_car;
+            iconColor = Colors.yellowAccent;
+          }
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Icon(iconData, color: iconColor, size: 20),
+                const SizedBox(width: 8),
+                Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildNotesSection() {
+    List<dynamic> visibleNotes = _notes.where((n) {
+      if (!AuthHelpers.isAdmin && n['visibility'] == 'internal') return false;
+      return true;
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionHeader('JOB NOTES'),
+            IconButton(
+              icon: Icon(Icons.note_add, color: accentBlue),
+              onPressed: () => _showAddNoteSheet(),
+            )
+          ],
+        ),
+        if (visibleNotes.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text('No notes added yet.', style: TextStyle(color: muted, fontSize: 14)),
+          )
+        else
+          ...visibleNotes.map((note) {
+            Color badgeColor = note['visibility'] == 'internal' ? Colors.red : 
+                               note['visibility'] == 'customer' ? accentGreen : accentBlue;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(note['author_name'] ?? 'Unknown', style: TextStyle(color: textWhite, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: badgeColor.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                        child: Text((note['visibility'] ?? 'crew').toString().toUpperCase(), style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(note['note'] ?? '', style: TextStyle(color: muted, fontSize: 14)),
+                ],
+              ),
+            );
+          }).toList(),
+      ],
+    );
+  }
+
+  void _showAddNoteSheet() {
+    String visibility = 'crew';
+    final noteCtrl = TextEditingController();
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: bg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 16, right: 16, top: 16
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Add Note', style: TextStyle(color: textWhite, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: noteCtrl,
+                    style: TextStyle(color: textWhite),
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'Enter note details...',
+                      hintStyle: TextStyle(color: muted),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: visibility,
+                    dropdownColor: cardBg,
+                    style: TextStyle(color: textWhite),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    ),
+                    items: [
+                      DropdownMenuItem(value: 'crew', child: Text('Crew (Default)')),
+                      DropdownMenuItem(value: 'customer', child: Text('Customer Visible')),
+                      if (AuthHelpers.isAdmin)
+                        DropdownMenuItem(value: 'internal', child: Text('Internal (Admin)')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setSheetState(() => visibility = val);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: accentBlue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                      onPressed: () async {
+                        if (noteCtrl.text.trim().isEmpty) return;
+                        Navigator.pop(context);
+                        try {
+                          await ApiService.instance.addNote({'entity_type': 'job', 'entity_id': widget.jobId, 'note': noteCtrl.text.trim(), 'visibility': visibility});
+                          ToastService.success(context, 'Note added');
+                          _loadJobDetail();
+                        } catch (_) {
+                          ToastService.error(context, 'Failed to add note');
+                        }
+                      },
+                      child: const Text('Save Note', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
+  Widget _buildMaterialsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('MATERIALS & PARTS'),
+        if (_materials.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text('No materials assigned.', style: TextStyle(color: muted, fontSize: 14)),
+          )
+        else
+          ..._materials.map((mat) {
+            String status = mat['status'] ?? 'pending';
+            Color badgeColor = Colors.grey;
+            if (status == 'loaded') badgeColor = accentBlue;
+            if (status == 'in_use') badgeColor = goldColor;
+            if (status == 'used' || status == 'returned') badgeColor = accentGreen;
+            if (status == 'missing') badgeColor = Colors.red;
+
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(mat['name'] ?? 'Unknown Item', style: TextStyle(color: textWhite, fontSize: 15)),
+              subtitle: Text('Qty: ${mat['quantity']} ${mat['unit'] ?? ''}', style: TextStyle(color: muted, fontSize: 13)),
+              trailing: InkWell(
+                onTap: () => _showMaterialStatusSheet(mat),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: badgeColor.withOpacity(0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: badgeColor.withOpacity(0.5))),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(status.toUpperCase().replaceAll('_', ' '), style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_drop_down, color: badgeColor, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+      ],
+    );
+  }
+
+  void _showMaterialStatusSheet(Map<String, dynamic> material) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cardBg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text('Update Status: ${material['name']}', style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              ...['pending', 'loaded', 'in_use', 'used', 'returned', 'missing'].map((s) => ListTile(
+                title: Text(s.toUpperCase().replaceAll('_', ' '), style: TextStyle(color: textWhite)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    await ApiService.instance.updateJobMaterialStatus(material['id'], s);
+                    ToastService.success(context, 'Material updated');
+                    _loadJobDetail();
+                  } catch (_) {
+                    ToastService.error(context, 'Failed to update material');
+                  }
+                },
+              )).toList(),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
+  
+  Widget _buildChecklistSection() {
+    int completedCount = _relationalChecklists.where((c) => c['checklist_status'] == 'completed').length;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionHeader('JOB CHECKLIST'),
+            Text('${completedCount}/${_relationalChecklists.length}', style: TextStyle(color: accentBlue, fontWeight: FontWeight.bold, fontSize: 13))
+          ],
+        ),
+        if (_relationalChecklists.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text('No tasks defined for this job.', style: TextStyle(color: muted, fontSize: 14)),
+          )
+        else
+          ..._relationalChecklists.map((task) {
+            bool isCompleted = task['checklist_status'] == 'completed';
+            bool reqPhoto = task['required_photo'] == 1 || task['required_photo'] == true;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: isCompleted ? Colors.green.withOpacity(0.05) : cardBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isCompleted ? Colors.green.withOpacity(0.2) : Colors.white10)
+              ),
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: () async {
+                      String newStatus = isCompleted ? 'pending' : 'completed';
+                      try {
+                        await ApiService.instance.updateRelationalChecklist(task['id'], {'checklist_status': newStatus});
+                        setState(() { task['checklist_status'] = newStatus; });
+                      } catch (_) { ToastService.error(context, 'Failed to update task'); }
+                    },
+                    child: Icon(isCompleted ? Icons.check_circle : Icons.radio_button_unchecked, color: isCompleted ? accentGreen : muted, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(task['name'] ?? 'Task', style: TextStyle(color: isCompleted ? muted : textWhite, fontSize: 15, decoration: isCompleted ? TextDecoration.lineThrough : null)),
+                        if (task['description'] != null && task['description'].toString().isNotEmpty)
+                          Text(task['description'], style: TextStyle(color: muted, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  if (reqPhoto)
+                    IconButton(
+                      icon: Icon(Icons.camera_alt, color: accentBlue),
+                      onPressed: () async {
+                         final picker = ImagePicker();
+                         final XFile? image = await picker.pickImage(
+                           source: ImageSource.camera, 
+                           imageQuality: 70,
+                         );
+                         if (image != null) {
+                            ToastService.success(context, 'Uploading evidence...');
+                            try {
+                               final bytes = await image.readAsBytes();
+                               await ApiService.instance.uploadAttachment('checklist', task['id'], bytes.toList(), image.name);
+                               ToastService.success(context, 'Evidence uploaded!');
+                               setState(() { task['checklist_status'] = 'completed'; });
+                               await ApiService.instance.updateRelationalChecklist(task['id'], {'checklist_status': 'completed'});
+                            } catch (_) {
+                               ToastService.error(context, 'Upload failed');
+                            }
+                         }
+                      },
+                    )
+                ],
+              ),
+            );
+          }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildInstructionsSection() {
+    String cust = _jobData?['instructions_customer'] ?? '';
+    String crew = _jobData?['instructions_crew'] ?? '';
+    String comp = _jobData?['instructions_completion'] ?? '';
+    String internal = _jobData?['instructions_internal'] ?? '';
+
+    List<Widget> tabs = [];
+    List<Widget> tabViews = [];
+
+    if (cust.isNotEmpty) {
+      tabs.add(const Tab(text: 'Customer'));
+      tabViews.add(Padding(padding: const EdgeInsets.all(12), child: Text(cust, style: TextStyle(color: textWhite, fontSize: 14))));
+    }
+    if (crew.isNotEmpty) {
+      tabs.add(const Tab(text: 'Crew'));
+      tabViews.add(Padding(padding: const EdgeInsets.all(12), child: Text(crew, style: TextStyle(color: textWhite, fontSize: 14))));
+    }
+    if (comp.isNotEmpty) {
+      tabs.add(const Tab(text: 'Completion'));
+      tabViews.add(Padding(padding: const EdgeInsets.all(12), child: Text(comp, style: TextStyle(color: textWhite, fontSize: 14))));
+    }
+    if (AuthHelpers.isAdmin && internal.isNotEmpty) {
+      tabs.add(const Tab(text: 'Internal'));
+      tabViews.add(Padding(padding: const EdgeInsets.all(12), child: Text(internal, style: TextStyle(color: goldColor, fontSize: 14))));
+    }
+
+    if (tabs.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('INSTRUCTIONS'),
+        DefaultTabController(
+          length: tabs.length,
+          child: Column(
+            children: [
+              TabBar(
+                isScrollable: true,
+                indicatorColor: accentBlue,
+                labelColor: accentBlue,
+                unselectedLabelColor: muted,
+                tabs: tabs,
+              ),
+              SizedBox(
+                height: 120,
+                child: TabBarView(children: tabViews),
+              )
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, top: 16),
@@ -683,6 +1132,32 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
         }
       },
     );
+  }
+
+    void _duplicateJob() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cardBg,
+        title: Text('Duplicate Job', style: TextStyle(color: textWhite)),
+        content: Text('Are you sure you want to duplicate this job?', style: TextStyle(color: muted)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Duplicate')),
+        ],
+      )
+    ) ?? false;
+    
+    if (!confirm) return;
+    try {
+      final res = await ApiService.instance.duplicateJob(widget.jobId);
+      final newJobId = res['new_job_id'];
+      if (newJobId != null) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SharedJobDetailScreen(jobId: newJobId)));
+      }
+    } catch (e) {
+      ToastService.error(context, 'Failed to duplicate job');
+    }
   }
 
   void _confirmDeleteJob(bool isRecurringJob) {
@@ -891,6 +1366,16 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     String currentStatus = _jobData!['job_status'] ?? 'scheduled';
     bool isSaving = false;
 
+    // Phase 9: Mobile Drag-and-Drop Parity (Rescheduling)
+    DateTime? selectedDate = JobParser.getStartDate(_jobData!);
+    TimeOfDay? selectedTime;
+    if (_jobData!['start_time'] != null) {
+      final parts = _jobData!['start_time'].split(':');
+      if (parts.length >= 2) {
+        selectedTime = TimeOfDay(hour: int.tryParse(parts[0]) ?? 9, minute: int.tryParse(parts[1]) ?? 0);
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -944,6 +1429,73 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
                     ),
                   ),
+                  
+                  // Phase 9: Date and Time Pickers
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Date', style: TextStyle(color: muted, fontSize: 12, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            InkWell(
+                              onTap: () async {
+                                final DateTime? picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedDate ?? DateTime.now(),
+                                  firstDate: DateTime(2000),
+                                  lastDate: DateTime(2101),
+                                );
+                                if (picked != null && picked != selectedDate) {
+                                  setModalState(() => selectedDate = picked);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(14)),
+                                child: Text(
+                                  selectedDate != null ? DateFormat('MMM d, yyyy').format(selectedDate!) : 'Select Date',
+                                  style: TextStyle(color: textWhite),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Time', style: TextStyle(color: muted, fontSize: 12, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            InkWell(
+                              onTap: () async {
+                                final TimeOfDay? picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: selectedTime ?? const TimeOfDay(hour: 9, minute: 0),
+                                );
+                                if (picked != null && picked != selectedTime) {
+                                  setModalState(() => selectedTime = picked);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(14)),
+                                child: Text(
+                                  selectedTime != null ? selectedTime!.format(context) : 'Select Time',
+                                  style: TextStyle(color: textWhite),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
                   const SizedBox(height: 16),
                   Text('Job Status', style: TextStyle(color: muted, fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
@@ -998,18 +1550,28 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                           : () async {
                               setModalState(() => isSaving = true);
                               try {
-                                await ApiService.instance.put('/jobs/${widget.jobId}', {
+                                final Map<String, dynamic> payload = {
                                   'title': titleCtrl.text.trim(),
                                   'job_status': currentStatus,
                                   'notes': notesCtrl.text.trim(),
                                   'description': notesCtrl.text.trim(),
-                                });
+                                };
+                                
+                                if (selectedDate != null) {
+                                  payload['start_date'] = DateFormat('yyyy-MM-dd').format(selectedDate!);
+                                }
+                                if (selectedTime != null) {
+                                  payload['start_time'] = '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}';
+                                }
+
+                                await ApiService.instance.put('/jobs/${widget.jobId}', payload);
                                 Navigator.pop(ctx);
                                 _loadJobDetail();
-    _fetchGoogleMapsKey();
+                                _fetchGoogleMapsKey();
                                 ToastService.success(context, 'Job updated successfully');
                               } catch (e) {
                                 setModalState(() => isSaving = false);
+                                // The Conflict Detection engine can throw specific errors here!
                                 ToastService.error(context, 'Failed to update job: $e');
                               }
                             },
@@ -1490,6 +2052,8 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                   _confirmCancelJob(isRecurring);
                 } else if (value == 'delete') {
                   _confirmDeleteJob(isRecurring);
+                } else if (value == 'duplicate') {
+                  _duplicateJob();
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -1501,6 +2065,17 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                         Icon(Icons.edit_outlined, color: Colors.white),
                         SizedBox(width: 8),
                         Text('Edit Job', style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                if (canEditJob)
+                  PopupMenuItem<String>(
+                    value: 'duplicate',
+                    child: Row(
+                      children: const [
+                        Icon(Icons.copy_outlined, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Duplicate Job', style: TextStyle(color: Colors.white)),
                       ],
                     ),
                   ),
@@ -1547,6 +2122,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              _buildAlertsBanner(),
                               // Top Job Info Header
                               Text(
                                 displayHeading,
@@ -1632,6 +2208,9 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                   clockStatus: _clockStatus,
                                   onStateChanged: _loadJobDetail,
                                   compact: false,
+                                  mapUrl: (address != 'No address provided.' && address.isNotEmpty) 
+                                      ? 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}' 
+                                      : null,
                                 ),
                                 const SizedBox(height: 24),
                               ],
@@ -1763,32 +2342,11 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                 ),
                               ),
 
-                              // JOB DESCRIPTION Section
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  _buildSectionHeader('JOB DESCRIPTION'),
-                                  if (canEditJob)
-                                    IconButton(
-                                      icon: Icon(Icons.edit_square, color: accentBlue, size: 20),
-                                      onPressed: _showEditDescriptionModal,
-                                    ),
-                                ],
-                              ),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: cardBg,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white10),
-                                ),
-                                child: Text(
-                                  description,
-                                  style: TextStyle(color: textWhite, fontSize: 14, height: 1.4),
-                                ),
-                              ),
-
+                              
+                              _buildInstructionsSection(),
+                              const SizedBox(height: 16),
+                              _buildNotesSection(),
+                              
                               // ITEMS & PRICE BOOK Section
                               _buildSectionHeader('ITEMS & PRICE BOOK'),
                               Container(
@@ -1848,258 +2406,12 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                 ),
                               ),
 
-                              // JOB CHECKLIST Section
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  _buildSectionHeader('JOB CHECKLIST'),
-                                  IconButton(
-                                    icon: Icon(
-                                      _showAddTaskInput ? Icons.close : Icons.add_circle_outline,
-                                      color: accentBlue,
-                                      size: 22,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _showAddTaskInput = !_showAddTaskInput;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: cardBg,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white10),
-                                ),
-                                child: Builder(
-                                  builder: (context) {
-                                    final checklistRaw = _jobData!['checklist'];
-                                    List checklist = [];
-                                    if (checklistRaw is List) {
-                                      checklist = checklistRaw;
-                                    }
-                                    return StatefulBuilder(
-                                      builder: (context, setChecklistState) {
-                                        return Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            if (checklist.isNotEmpty)
-                                              ...checklist.map<Widget>((task) {
-                                                final taskName = (task is Map)
-                                                    ? (task['name'] ?? task['title'] ?? task['task'] ?? 'Task')
-                                                    : task.toString();
-                                                final isCompleted = (task is Map)
-                                                    ? (task['completed'] == true || task['is_completed'] == true || task['status'] == 'completed')
-                                                    : false;
-                                                String completedTimeString = '';
-                                                if (isCompleted && task is Map && task['completed_at'] != null) {
-                                                  try {
-                                                    final dt = DateTime.parse(task['completed_at'].toString()).toLocal();
-                                                    final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-                                                    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
-                                                    final min = dt.minute.toString().padLeft(2, '0');
-                                                    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                                                    completedTimeString = '${months[dt.month - 1]} ${dt.day}, $hour:$min $ampm';
-                                                  } catch (_) {}
-                                                }
-                                                return Padding(
-                                                  padding: const EdgeInsets.only(bottom: 8),
-                                                  child: Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: InkWell(
-                                                          onTap: () async {
-                                                            final targetState = !isCompleted;
-                                                            final confirm = await showDialog<bool>(
-                                                              context: context,
-                                                              builder: (ctx) => AlertDialog(
-                                                                backgroundColor: cardBg,
-                                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                                                title: Text(
-                                                                  targetState ? 'Mark Task Completed?' : 'Mark Task Incomplete?',
-                                                                  style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold),
-                                                                ),
-                                                                content: Text(
-                                                                  targetState
-                                                                      ? 'Are you sure you want to mark "$taskName" as completed?'
-                                                                      : 'Are you sure you want to mark "$taskName" as incomplete?',
-                                                                  style: TextStyle(color: muted, fontSize: 13),
-                                                                ),
-                                                                actions: [
-                                                                  TextButton(
-                                                                    onPressed: () => Navigator.pop(ctx, false),
-                                                                    child: Text('Cancel', style: TextStyle(color: muted)),
-                                                                  ),
-                                                                  ElevatedButton(
-                                                                    style: ElevatedButton.styleFrom(
-                                                                      backgroundColor: targetState ? accentGreen : accentBlue,
-                                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                                                    ),
-                                                                    onPressed: () => Navigator.pop(ctx, true),
-                                                                    child: Text(targetState ? 'Complete' : 'Confirm', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            );
-
-                                                            if (confirm != true) return;
-
-                                                            setChecklistState(() {
-                                                              if (task is Map) {
-                                                                task['completed'] = targetState;
-                                                                task['completed_at'] = targetState ? DateTime.now().toIso8601String() : null;
-                                                              }
-                                                            });
-                                                            try {
-                                                              await ApiService.instance.updateChecklist(widget.jobId, taskName, targetState);
-                                                            } catch (_) {}
-                                                          },
-                                                          child: Row(
-                                                            children: [
-                                                              Icon(
-                                                                isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
-                                                                color: isCompleted ? accentGreen : muted,
-                                                                size: 22,
-                                                              ),
-                                                              const SizedBox(width: 12),
-                                                              Expanded(
-                                                                child: Text(
-                                                                  taskName,
-                                                                  style: TextStyle(
-                                                                    color: isCompleted ? muted : textWhite,
-                                                                    fontSize: 14,
-                                                                    decoration: isCompleted ? TextDecoration.lineThrough : null,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              if (isCompleted && completedTimeString.isNotEmpty)
-                                                                Container(
-                                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                                  decoration: BoxDecoration(
-                                                                    color: accentBlue.withOpacity(0.15),
-                                                                    borderRadius: BorderRadius.circular(6),
-                                                                  ),
-                                                                  child: Text(
-                                                                    completedTimeString,
-                                                                    style: TextStyle(
-                                                                      color: accentBlue,
-                                                                      fontSize: 10,
-                                                                      fontWeight: FontWeight.bold,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      IconButton(
-                                                        icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 18),
-                                                        padding: const EdgeInsets.all(4),
-                                                        constraints: const BoxConstraints(),
-                                                        onPressed: () async {
-                                                          final confirm = await showDialog<bool>(
-                                                            context: context,
-                                                            builder: (ctx) => AlertDialog(
-                                                              backgroundColor: cardBg,
-                                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                                              title: Text('Remove Checklist Item?', style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold)),
-                                                              content: Text('Are you sure you want to remove "$taskName"?', style: TextStyle(color: muted, fontSize: 13)),
-                                                              actions: [
-                                                                TextButton(
-                                                                  onPressed: () => Navigator.pop(ctx, false),
-                                                                  child: Text('Cancel', style: TextStyle(color: muted)),
-                                                                ),
-                                                                ElevatedButton(
-                                                                  style: ElevatedButton.styleFrom(
-                                                                    backgroundColor: const Color(0xFFEF4444),
-                                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                                                  ),
-                                                                  onPressed: () => Navigator.pop(ctx, true),
-                                                                  child: const Text('Remove', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          );
-
-                                                          if (confirm != true) return;
-
-                                                          setChecklistState(() {
-                                                            checklist.remove(task);
-                                                          });
-                                                          try {
-                                                            await ApiService.instance.deleteChecklist(widget.jobId, taskName);
-                                                            if (mounted) {
-                                                              ToastService.success(context, 'Checklist successfully deleted');
-                                                            }
-                                                          } catch (_) {}
-                                                        },
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              }).toList()
-                                            else
-                                              Padding(
-                                                padding: const EdgeInsets.only(bottom: 4),
-                                                child: Text('No checklist items yet.', style: TextStyle(color: muted, fontSize: 14)),
-                                              ),
-                                            if (_showAddTaskInput) ...[
-                                              const SizedBox(height: 12),
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: TextField(
-                                                      controller: _taskInputController,
-                                                      style: TextStyle(color: textWhite, fontSize: 13),
-                                                      decoration: InputDecoration(
-                                                        hintText: 'Add a new task...',
-                                                        hintStyle: TextStyle(color: muted, fontSize: 13),
-                                                        isDense: true,
-                                                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                                        filled: true,
-                                                        fillColor: bg,
-                                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  ElevatedButton(
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: accentBlue,
-                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                                    ),
-                                                    onPressed: () async {
-                                                      final text = _taskInputController.text.trim();
-                                                      if (text.isEmpty) return;
-                                                      _taskInputController.clear();
-                                                       setChecklistState(() {
-                                                         checklist.add({'text': text, 'name': text, 'title': text, 'task': text, 'completed': false});
-                                                       });
-                                                      setState(() {
-                                                        _showAddTaskInput = false;
-                                                      });
-                                                      ToastService.success(context, 'Checklist task added successfully');
-                                                      try {
-                                                        await ApiService.instance.updateChecklist(widget.jobId, text, false);
-                                                      } catch (_) {}
-                                                    },
-                                                    child: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                              ),
+                              
+                              
+                              _buildMaterialsSection(),
+                              const SizedBox(height: 16),
+                              _buildChecklistSection(),
+                              const SizedBox(height: 16),
 
                               // ASSIGNED TEAMS Section
                               Row(
@@ -2458,6 +2770,38 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                               // FINANCIAL DETAILS Section (Permission guarded)
                               if (canViewFinancials) ...[
                                 _buildSectionHeader('FINANCIAL DETAILS'),
+                                
+                                // Phase 5: Financial Metrics Dashboard
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    color: cardBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.white10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                        Text('Revenue', style: TextStyle(color: muted, fontSize: 12)),
+                                        Text('\$${_jobData?['revenue_total'] ?? '0.00'}', style: TextStyle(color: accentGreen, fontWeight: FontWeight.bold, fontSize: 16)),
+                                      ])),
+                                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                        Text('Costs', style: TextStyle(color: muted, fontSize: 12)),
+                                        Text('\$${_jobData?['cost_total'] ?? '0.00'}', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16)),
+                                      ])),
+                                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                        Text('Margin', style: TextStyle(color: muted, fontSize: 12)),
+                                        Text('${_jobData?['margin_percent'] ?? '0.0'}%', style: TextStyle(color: goldColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                                      ])),
+                                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                        Text('Deposit', style: TextStyle(color: muted, fontSize: 12)),
+                                        Text('\$${_jobData?['deposit_balance'] ?? '0.00'}', style: TextStyle(color: accentBlue, fontWeight: FontWeight.bold, fontSize: 16)),
+                                      ])),
+                                    ],
+                                  ),
+                                ),
+                                
                                 Builder(builder: (context) {
                                   // Compute totals at runtime from job details (never from DB)
                                   final detailsList = _jobData!['details'] ?? _jobData!['items'] ?? [];
@@ -2694,6 +3038,20 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                         ),
                       ],
                     ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: accentBlue,
+        child: const Icon(Icons.note_add),
+        onPressed: _showAddNoteSheet,
+      ),
     );
   }
+
+
+
+
+
+
 }
+
+
+

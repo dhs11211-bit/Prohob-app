@@ -13,17 +13,23 @@ class AuthHelpers {
 
   static bool get isAdmin {
     final slug = roleSlug;
-    return slug == 'admin' || slug == 'super_admin' || slug == 'super-admin' || slug == 'manager';
+    return slug == 'admin' ||
+        slug == 'super_admin' ||
+        slug == 'super-admin' ||
+        slug == 'manager';
   }
 
   static List<String> get permissions {
     final data = userData;
     final permsRaw = data?['role']?['permissions'];
     if (permsRaw is List) {
-      return permsRaw.map((p) {
-        if (p is Map) return (p['name'] ?? p['slug'] ?? '').toString();
-        return p.toString();
-      }).where((s) => s.isNotEmpty).toList();
+      return permsRaw
+          .map((p) {
+            if (p is Map) return (p['name'] ?? p['slug'] ?? '').toString();
+            return p.toString();
+          })
+          .where((s) => s.isNotEmpty)
+          .toList();
     }
     return [];
   }

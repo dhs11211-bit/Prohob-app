@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../custom_code/widgets/index.dart' as custom_widgets;
+import 'quote_list_page.dart';
+import '../tasks/tasks_list_screen.dart';
+import '../events/events_list_screen.dart';
 
 class AdminMoreTab extends StatefulWidget {
   final String? initialSection;
@@ -85,12 +88,16 @@ class _AdminMoreTabState extends State<AdminMoreTab> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 20),
+                  icon: const Icon(Icons.arrow_back_ios_rounded,
+                      color: Colors.white, size: 20),
                   onPressed: () => setState(() => _activeSection = null),
                 ),
                 Text(
                   title,
-                  style: TextStyle(color: textWhite, fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: textWhite,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -155,6 +162,34 @@ class _AdminMoreTabState extends State<AdminMoreTab> {
                   icon: Icons.map_rounded,
                   color: const Color(0xFFF59E0B),
                   onTap: () => setState(() => _activeSection = 'map'),
+                ),
+                _menuCard(
+                  title: 'Estimates',
+                  subtitle: 'Quotes & Approvals',
+                  icon: Icons.request_quote_rounded,
+                  color: const Color(0xFF8B5CF6),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const QuoteListPage(),
+                      ),
+                    );
+                  },
+                ),
+                _menuCard(
+                  title: 'Tasks',
+                  subtitle: 'Checklists & To-dos',
+                  icon: Icons.check_box_rounded,
+                  color: const Color(0xFFEC4899),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TasksListScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -234,3 +269,4 @@ class _AdminMoreTabState extends State<AdminMoreTab> {
     );
   }
 }
+

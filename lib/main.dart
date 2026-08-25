@@ -19,6 +19,16 @@ import '/backend/api_service.dart';
 import '/shared/toast_service.dart';
 import '/components/create_invoice_modal.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// Background messaging handler
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Global role helper — checks the authenticated user's role slug
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,6 +39,9 @@ void main() async {
   GoRouter.optionURLReflectsImperativeAPIs = true;
   usePathUrlStrategy();
 
+  // Task 10.8: Initialize Firebase
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await LaravelAuthManager.initialize();
   await FlutterFlowTheme.initialize();
@@ -370,11 +383,14 @@ class _NavBarPageState extends State<NavBarPage> {
       case 1:
         return shared.SharedJobListPage(showWorkerFilter: isAdmin);
       case 2:
-        return custom_widgets.CustomInbox(width: double.infinity, height: double.infinity);
+        return custom_widgets.CustomInbox(
+            width: double.infinity, height: double.infinity);
       case 3:
         return const shared.SharedWalletTab();
       case 4:
-        return isAdmin ? shared.AdminMoreTab(initialSection: _adminMoreTabInitialSection) : const shared.SharedHomeTab();
+        return isAdmin
+            ? shared.AdminMoreTab(initialSection: _adminMoreTabInitialSection)
+            : const shared.SharedHomeTab();
       default:
         return const shared.SharedHomeTab();
     }

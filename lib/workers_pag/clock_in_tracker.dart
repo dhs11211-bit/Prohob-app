@@ -15,6 +15,8 @@ import '../shared/job_parser.dart';
 import '../components/contact_list_modal.dart';
 import '../components/quick_map_modal.dart';
 import '/shared/toast_service.dart';
+import '../shared/gps_consent_screen.dart';
+import '../backend/location_tracking_service.dart';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -25,7 +27,7 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:intl/intl.dart';
-
+import '../shared/firebase_service.dart';
 
 class ClockInTracker extends StatefulWidget {
   const ClockInTracker({Key? key, this.width, this.height}) : super(key: key);
@@ -51,6 +53,14 @@ class _ClockInTrackerState extends State<ClockInTracker> {
   final PageController _pageController = PageController(viewportFraction: 0.95);
   int _currentJobIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Task 10.8: Initialize Firebase Push Notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FirebaseService().init(context);
+    });
+  }
   final String _darkMinimalMapStyle = '''
   [
     { "elementType": "geometry", "stylers": [{ "color": "#0F172A" }] },
@@ -66,11 +76,10 @@ class _ClockInTrackerState extends State<ClockInTracker> {
   ]
   ''';
 
-
   List<dynamic> _todayJobs = [];
   bool _isLoadingJobs = true;
   Map<String, dynamic>? _clockStatus;
-  
+
   @override
   void initState() {
     super.initState();
@@ -99,8 +108,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     }
   }
 
-
-  void _showConfirmDialog(String title, String content, VoidCallback onConfirm) {
+  void _showConfirmDialog(
+      String title, String content, VoidCallback onConfirm) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -129,7 +138,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     return DateFormat('hh:mm a').format(time);
   }
 
-  Future<void> _openInAppMap(double? lat, double? lng, String address, String timeLabel) async {
+  Future<void> _openInAppMap(
+      double? lat, double? lng, String address, String timeLabel) async {
     final tempJobData = {
       'address': address,
       'latitude': lat,
@@ -148,9 +158,21 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     );
   }
 
-  Future<void> _performClockIn(int jobId, double? jobLat, double? jobLng, DateTime? scheduledTime) async {
-    _showConfirmDialog('🚨 Start Shift?', 'Are you sure you want to Clock In now?', () async {
+  Future<void> _performClockIn(int jobId, double? jobLat, double? jobLng,
+      DateTime? scheduledTime) async {
+    _showConfirmDialog(
+        '🚨 Start Shift?', 'Are you sure you want to Clock In now?', () async {
       setState(() => _isProcessing = true);
+      final me = await ApiService.instance.getMe();
+      if (me['gps_consent_at'] == null) {
+        setState(() => _isProcessing = false);
+        bool? consented = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const GpsConsentScreen()),
+        );
+        if (consented != true) return;
+        setState(() => _isProcessing = true);
+      }
       Position? userPos;
       try {
         userPos = await Geolocator.getCurrentPosition(
@@ -158,8 +180,34 @@ class _ClockInTrackerState extends State<ClockInTracker> {
       } catch (e) {
         print("GPS Bypass");
       }
+
+      // Check for mock location
+      if (userPos != null && userPos.isMocked) {
+        if (mounted) {
+          ToastService.error(
+              context, 'Mock location detected. Cannot verify location.');
+          setState(() => _isProcessing = false);
+        }
+        
+        // Log attempt silently
+        try {
+          await ApiService.instance.logJobAttempt(jobId, {
+            'attempt_type': 'start',
+            'lat': userPos.latitude,
+            'lng': userPos.longitude,
+            'distance_from_job_m': 0, // Simplified for mock block
+            'was_blocked': true,
+            'bypass_reason': 'mock_location',
+            'is_mock_location': true,
+          });
+        } catch (_) {}
+        return;
+      }
+
       try {
-        await ApiService.instance.clockIn(jobId, userPos?.latitude, userPos?.longitude);
+        await ApiService.instance
+            .clockIn(jobId, userPos?.latitude, userPos?.longitude);
+        LocationTrackingService.instance.startTracking();
         await _fetchData();
         if (mounted) setState(() {});
       } catch (e) {
@@ -172,7 +220,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     });
   }
 
-  Future<void> _performClockOut(int jobId, DateTime clockInTime, String clientName) async {
+  Future<void> _performClockOut(
+      int jobId, DateTime clockInTime, String clientName) async {
     _showConfirmDialog('🛑 Complete Shift?',
         'Are you sure you want to Complete this shift? This will send it to the Admin for review.',
         () async {
@@ -184,8 +233,34 @@ class _ClockInTrackerState extends State<ClockInTracker> {
       } catch (e) {
         print("GPS Bypass");
       }
+
+      // Check for mock location
+      if (userPos != null && userPos.isMocked) {
+        if (mounted) {
+          ToastService.error(
+              context, 'Mock location detected. Cannot verify location.');
+          setState(() => _isProcessing = false);
+        }
+        
+        // Log attempt silently
+        try {
+          await ApiService.instance.logJobAttempt(jobId, {
+            'attempt_type': 'finish',
+            'lat': userPos.latitude,
+            'lng': userPos.longitude,
+            'distance_from_job_m': 0, // Simplified for mock block
+            'was_blocked': true,
+            'bypass_reason': 'mock_location',
+            'is_mock_location': true,
+          });
+        } catch (_) {}
+        return;
+      }
+
       try {
-        await ApiService.instance.clockOut(jobId, userPos?.latitude, userPos?.longitude);
+        await ApiService.instance
+            .clockOut(jobId, userPos?.latitude, userPos?.longitude);
+        LocationTrackingService.instance.stopTracking();
         await _fetchData();
         if (mounted) setState(() {});
       } catch (e) {
@@ -198,7 +273,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     });
   }
 
-  Future<void> _toggleTaskStatus(int jobId, String taskName, Map<String, dynamic> currentStatusMap) async {
+  Future<void> _toggleTaskStatus(
+      int jobId, String taskName, Map<String, dynamic> currentStatusMap) async {
     bool isDone = !(currentStatusMap[taskName] == true);
     if (isDone) {
       _showConfirmDialog(
@@ -213,7 +289,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     }
   }
 
-  Future<void> _executeToggleTask(int jobId, String taskName, bool isDone) async {
+  Future<void> _executeToggleTask(
+      int jobId, String taskName, bool isDone) async {
     setState(() => _isProcessing = true);
     try {
       await ApiService.instance.updateChecklist(jobId, taskName, isDone);
@@ -322,33 +399,47 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                   backgroundColor: Colors.orange,
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16))),
-                              onPressed: isSubmitting ? null : () async {
-                                setModal(() => isSubmitting = true);
-                                try {
-                                  await ApiService.instance.submitSwapRequest(jobId, swapReason, detailsController.text.trim());
-                                  if (mounted) {
-                                    Navigator.pop(context);
-                                    ToastService.success(context, 'Swap request sent to Admin!');
-                                  }
-                                } catch (e) {
-                                  if (mounted) {
-                                    ToastService.error(context, 'Error: $e');
-                                    setModal(() => isSubmitting = false);
-                                  }
-                                }
-                              },
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () async {
+                                      setModal(() => isSubmitting = true);
+                                      try {
+                                        await ApiService.instance
+                                            .submitSwapRequest(
+                                                jobId,
+                                                swapReason,
+                                                detailsController.text.trim());
+                                        if (mounted) {
+                                          Navigator.pop(context);
+                                          ToastService.success(context,
+                                              'Swap request sent to Admin!');
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ToastService.error(
+                                              context, 'Error: $e');
+                                          setModal(() => isSubmitting = false);
+                                        }
+                                      }
+                                    },
                               child: isSubmitting
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2))
                                   : const Text('SUBMIT REQUEST',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold)))),
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)))),
                       const SizedBox(height: 30)
                     ]))));
   }
 
   void _deleteSwapRequest(int jobId) {
-    _showConfirmDialog('Delete Swap Request?', 'Are you sure you want to delete this shift swap request? This action will remove your request from the system.', () async {
+    _showConfirmDialog('Delete Swap Request?',
+        'Are you sure you want to delete this shift swap request? This action will remove your request from the system.',
+        () async {
       setState(() => _isProcessing = true);
       try {
         await ApiService.instance.cancelSwapRequest(jobId);
@@ -367,7 +458,9 @@ class _ClockInTrackerState extends State<ClockInTracker> {
   }
 
   void _cancelSwapRequest(int jobId) {
-    _showConfirmDialog('Cancel Swap Request?', 'Are you sure you want to cancel your shift swap request? You will remain assigned to this shift.', () async {
+    _showConfirmDialog('Cancel Swap Request?',
+        'Are you sure you want to cancel your shift swap request? You will remain assigned to this shift.',
+        () async {
       setState(() => _isProcessing = true);
       try {
         await ApiService.instance.cancelSwapRequest(jobId);
@@ -445,12 +538,15 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                       setModal(() => isSending = true);
                                       try {
                                         // TODO: Phase 4 - Connect to Laravel Chat API
-                                        await Future.delayed(const Duration(seconds: 1));
+                                        await Future.delayed(
+                                            const Duration(seconds: 1));
                                         Navigator.pop(context);
-                                        ToastService.success(context, 'Alert sent!');
+                                        ToastService.success(
+                                            context, 'Alert sent!');
                                       } catch (e) {
                                         setModal(() => isSending = false);
-                                        ToastService.error(context, 'Error: $e');
+                                        ToastService.error(
+                                            context, 'Error: $e');
                                       }
                                     },
                               child: isSending
@@ -526,7 +622,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
         width: widget.width ?? double.infinity,
         color: bg,
         child: _isLoadingJobs
-            ? const Center(child: CircularProgressIndicator(color: Colors.white))
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.white))
             : Builder(builder: (context) {
                 var todayJobs = _todayJobs;
                 if (todayJobs.isEmpty) {
@@ -567,135 +664,182 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                     color: muted, fontSize: 15, height: 1.5))
                           ])));
                 }
-                
+
                 if (_currentJobIndex >= todayJobs.length) {
                   _currentJobIndex = 0;
                 }
 
-
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 16, bottom: 120),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
-                        height: _isShiftExpanded 
-                            ? (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null && todayJobs[_currentJobIndex]['swap_request']['status']?.toString() != '9' ? 490 : 430) 
-                            : (todayJobs.isNotEmpty && _currentJobIndex < todayJobs.length && todayJobs[_currentJobIndex]['swap_request'] != null && todayJobs[_currentJobIndex]['swap_request']['status']?.toString() != '9' ? 430 : 350),
-                        child: PageView.builder(
-                          controller: _pageController,
-                          onPageChanged: (index) =>
-                              setState(() => _currentJobIndex = index),
-                          itemCount: todayJobs.length,
-                          itemBuilder: (context, index) {
-                            var jobData = todayJobs[index];
-                            int jobId = jobData['id'];
-                            String clientName =
-                                jobData['customer_name'] ?? 'Assigned Shift';
-                            String jobTitle = 
-                                jobData['title'] ?? jobData['job_type'] ?? '';
-                            String displayAddress =
-                                jobData['address'] ?? 'No address set';
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16, bottom: 120),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          height: _isShiftExpanded
+                              ? (todayJobs.isNotEmpty &&
+                                      _currentJobIndex < todayJobs.length &&
+                                      todayJobs[_currentJobIndex]
+                                              ['swap_request'] !=
+                                          null &&
+                                      todayJobs[_currentJobIndex]
+                                                  ['swap_request']['status']
+                                              ?.toString() !=
+                                          '9'
+                                  ? 490
+                                  : 430)
+                              : (todayJobs.isNotEmpty &&
+                                      _currentJobIndex < todayJobs.length &&
+                                      todayJobs[_currentJobIndex]
+                                              ['swap_request'] !=
+                                          null &&
+                                      todayJobs[_currentJobIndex]
+                                                  ['swap_request']['status']
+                                              ?.toString() !=
+                                          '9'
+                                  ? 430
+                                  : 350),
+                          child: PageView.builder(
+                            controller: _pageController,
+                            onPageChanged: (index) =>
+                                setState(() => _currentJobIndex = index),
+                            itemCount: todayJobs.length,
+                            itemBuilder: (context, index) {
+                              var jobData = todayJobs[index];
+                              int jobId = jobData['id'];
+                              String clientName =
+                                  jobData['customer_name'] ?? 'Assigned Shift';
+                              String jobTitle =
+                                  jobData['title'] ?? jobData['job_type'] ?? '';
+                              String displayAddress =
+                                  jobData['address'] ?? 'No address set';
 
                               DateTime scheduledTime =
-                                  JobParser.getStartDate(jobData) ?? DateTime.now();
+                                  JobParser.getStartDate(jobData) ??
+                                      DateTime.now();
                               String shiftTimeLabel =
-                                DateFormat('hh:mm a').format(scheduledTime);
-                            String shiftDateLabel =
-                                DateFormat('EEEE, MMM d').format(scheduledTime);
+                                  DateFormat('hh:mm a').format(scheduledTime);
+                              String shiftDateLabel = DateFormat('EEEE, MMM d')
+                                  .format(scheduledTime);
 
-                            double? jobLat;
-                            double? jobLng;
+                              double? jobLat;
+                              double? jobLng;
 
-                            if (jobData['location'] is Map<String, dynamic>) {
-                              jobLat =
-                                  double.tryParse((jobData['location'] as Map<String, dynamic>)['latitude']?.toString() ?? '');
-                              jobLng =
-                                  double.tryParse((jobData['location'] as Map<String, dynamic>)['longitude']?.toString() ?? '');
-                            } else if (jobData['lat'] != null &&
-                                jobData['lng'] != null) {
-                              jobLat =
-                                  double.tryParse(jobData['lat'].toString());
-                              jobLng =
-                                  double.tryParse(jobData['lng'].toString());
-                            } else if (jobData['latitude'] != null &&
-                                jobData['longitude'] != null) {
-                              jobLat = double.tryParse(
-                                  jobData['latitude'].toString());
-                              jobLng = double.tryParse(
-                                  jobData['longitude'].toString());
-                            }
+                              if (jobData['location'] is Map<String, dynamic>) {
+                                jobLat = double.tryParse((jobData['location']
+                                            as Map<String, dynamic>)['latitude']
+                                        ?.toString() ??
+                                    '');
+                                jobLng = double.tryParse((jobData['location']
+                                                as Map<String, dynamic>)[
+                                            'longitude']
+                                        ?.toString() ??
+                                    '');
+                              } else if (jobData['lat'] != null &&
+                                  jobData['lng'] != null) {
+                                jobLat =
+                                    double.tryParse(jobData['lat'].toString());
+                                jobLng =
+                                    double.tryParse(jobData['lng'].toString());
+                              } else if (jobData['latitude'] != null &&
+                                  jobData['longitude'] != null) {
+                                jobLat = double.tryParse(
+                                    jobData['latitude'].toString());
+                                jobLng = double.tryParse(
+                                    jobData['longitude'].toString());
+                              }
 
-                            return Builder(
-                                builder: (context) {
-                                  // Determine clock status for THIS specific job
-                                  // A job is "active" only when _clockStatus points to it
-                                  bool isCurrentJobActive = _clockStatus != null &&
-                                      _clockStatus!['status'] == 'clocked_in' &&
-                                      _clockStatus?['job_id']?.toString() == jobId.toString();
+                              return Builder(builder: (context) {
+                                // Determine clock status for THIS specific job
+                                // A job is "active" only when _clockStatus points to it
+                                bool isCurrentJobActive = _clockStatus !=
+                                        null &&
+                                    _clockStatus!['status'] == 'clocked_in' &&
+                                    _clockStatus?['job_id']?.toString() ==
+                                        jobId.toString();
 
-                                  // A job is "completed" when its backend status says so
-                                  String rawStatus = (jobData['job_status'] ?? '').toString().toLowerCase();
-                                  bool isCompleted = rawStatus == 'completed';
-                                  bool isOnBreak = rawStatus == 'on_hold';
+                                // A job is "completed" when its backend status says so
+                                String rawStatus = (jobData['job_status'] ?? '')
+                                    .toString()
+                                    .toLowerCase();
+                                bool isCompleted = rawStatus == 'completed';
+                                bool isOnBreak = rawStatus == 'on_hold';
 
-                                  DateTime? clockInTime = isCurrentJobActive && _clockStatus?['clock_in_time'] != null
-                                      ? _parseSafeDate(_clockStatus!['clock_in_time'])
-                                      : null;
+                                DateTime? clockInTime = isCurrentJobActive &&
+                                        _clockStatus?['clock_in_time'] != null
+                                    ? _parseSafeDate(
+                                        _clockStatus!['clock_in_time'])
+                                    : null;
 
-                                  bool hasClockedIn = isCurrentJobActive && clockInTime != null;
-                                  bool hasClockedOut = isCompleted;
+                                bool hasClockedIn =
+                                    isCurrentJobActive && clockInTime != null;
+                                bool hasClockedOut = isCompleted;
 
-                                  String buttonLabel = 'CLOCK IN';
-                                  if (hasClockedOut && !hasClockedIn) {
-                                    buttonLabel = '✓ SHIFT COMPLETED';
-                                  } else if (isOnBreak) {
-                                    buttonLabel = 'ON BREAK — TAP TO RESUME';
-                                  } else if (hasClockedIn) {
-                                    buttonLabel = 'COMPLETE SHIFT — ${_getFormattedTime(clockInTime!)}';
+                                String buttonLabel = 'CLOCK IN';
+                                if (hasClockedOut && !hasClockedIn) {
+                                  buttonLabel = '✓ SHIFT COMPLETED';
+                                } else if (isOnBreak) {
+                                  buttonLabel = 'ON BREAK — TAP TO RESUME';
+                                } else if (hasClockedIn) {
+                                  buttonLabel =
+                                      'COMPLETE SHIFT — ${_getFormattedTime(clockInTime!)}';
+                                }
+
+                                Map<String, dynamic>? swapRequest =
+                                    jobData['swap_request'] is Map
+                                        ? jobData['swap_request']
+                                        : null;
+                                String swapStatus = 'none';
+                                if (swapRequest != null) {
+                                  String rawS = swapRequest['status']
+                                          ?.toString()
+                                          .toLowerCase() ??
+                                      '0';
+                                  if (rawS == '9' || rawS == 'deleted') {
+                                    swapRequest = null;
+                                    swapStatus = 'none';
+                                  } else if (rawS == '0' ||
+                                      rawS == 'submitted') {
+                                    swapStatus = 'submitted';
+                                  } else if (rawS == '1' ||
+                                      rawS == 'reviewed') {
+                                    swapStatus = 'reviewed';
+                                  } else if (rawS == '2' || rawS == 'pending') {
+                                    swapStatus = 'pending';
+                                  } else if (rawS == '3' ||
+                                      rawS == 'rejected') {
+                                    swapStatus = 'rejected';
+                                  } else if (rawS == '4' ||
+                                      rawS == 'accepted' ||
+                                      rawS == 'approved') {
+                                    swapStatus = 'accepted';
+                                  } else {
+                                    swapStatus = rawS;
                                   }
+                                }
 
-                                  Map<String, dynamic>? swapRequest = jobData['swap_request'] is Map ? jobData['swap_request'] : null;
-                                  String swapStatus = 'none';
-                                  if (swapRequest != null) {
-                                    String rawS = swapRequest['status']?.toString().toLowerCase() ?? '0';
-                                    if (rawS == '9' || rawS == 'deleted') {
-                                      swapRequest = null;
-                                      swapStatus = 'none';
-                                    } else if (rawS == '0' || rawS == 'submitted') {
-                                      swapStatus = 'submitted';
-                                    } else if (rawS == '1' || rawS == 'reviewed') {
-                                      swapStatus = 'reviewed';
-                                    } else if (rawS == '2' || rawS == 'pending') {
-                                      swapStatus = 'pending';
-                                    } else if (rawS == '3' || rawS == 'rejected') {
-                                      swapStatus = 'rejected';
-                                    } else if (rawS == '4' || rawS == 'accepted' || rawS == 'approved') {
-                                      swapStatus = 'accepted';
-                                    } else {
-                                      swapStatus = rawS;
-                                    }
-                                  }
+                                Color swapColor = Colors.orange;
+                                if (swapStatus == 'accepted')
+                                  swapColor = Colors.green;
+                                if (swapStatus == 'rejected')
+                                  swapColor = Colors.red;
+                                if (swapStatus == 'reviewed')
+                                  swapColor = Colors.blue;
 
-                                  Color swapColor = Colors.orange;
-                                  if (swapStatus == 'accepted') swapColor = Colors.green;
-                                  if (swapStatus == 'rejected') swapColor = Colors.red;
-                                  if (swapStatus == 'reviewed') swapColor = Colors.blue;
+                                bool isCancelable = swapStatus == 'submitted' ||
+                                    swapStatus == 'pending';
 
-                                  bool isCancelable = swapStatus == 'submitted' || swapStatus == 'pending';
-
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8.0),
-                                    child: Align(
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0),
+                                  child: Align(
                                       alignment: Alignment.topCenter,
                                       child: Container(
                                           padding: const EdgeInsets.symmetric(
-                                               horizontal: 20, vertical: 16),
+                                              horizontal: 20, vertical: 16),
                                           decoration: BoxDecoration(
                                               color: card,
                                               borderRadius:
@@ -706,533 +850,677 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                     blurRadius: 10)
                                               ]),
                                           child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                          if (swapRequest != null)
-                                            Container(
-                                              margin: const EdgeInsets.only(bottom: 16),
-                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                              decoration: BoxDecoration(
-                                                color: swapColor.withOpacity(0.2),
-                                                borderRadius: BorderRadius.circular(12),
-                                                border: Border.all(color: swapColor.withOpacity(0.5)),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  Icon(
-                                                    swapStatus == 'accepted' ? Icons.check_circle : (swapStatus == 'rejected' ? Icons.cancel : Icons.pending_actions),
-                                                    color: swapColor,
-                                                    size: 20
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Expanded(
-                                                    child: Text(
-                                                      'Swap Request: ${swapStatus.toUpperCase()}',
-                                                      style: TextStyle(
-                                                        color: swapColor,
-                                                        fontWeight: FontWeight.bold,
-                                                        fontSize: 13
-                                                      )
-                                                    )
-                                                  ),
-                                                  if (isCancelable)
-                                                    GestureDetector(
-                                                      onTap: () => _deleteSwapRequest(jobId),
-                                                      child: const Icon(Icons.delete_outline, color: Colors.orange, size: 20),
-                                                    )
-                                                ],
-                                              )
-                                            ),
-                                          Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
+                                              mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Expanded(
-                                                  child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Row(
-                                                          children: [
-                                                            Text(
-                                                                'SCHEDULED SHIFT',
-                                                                style: TextStyle(
-                                                                    color:
-                                                                        accentBlue,
-                                                                    fontSize:
-                                                                        10,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
-                                                                    letterSpacing:
-                                                                        1.2)),
-                                                            const SizedBox(
-                                                                width: 8),
-                                                            Text(
-                                                                '• $shiftDateLabel',
-                                                                style: TextStyle(
-                                                                    color:
-                                                                        muted,
-                                                                    fontSize:
-                                                                        10,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w600)),
-                                                          ],
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 8),
-                                                        Text(clientName,
-                                                            style: TextStyle(
-                                                                color: text,
-                                                                fontSize: 20,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold),
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis),
-                                                        if (jobTitle.isNotEmpty) ...[
-                                                          const SizedBox(height: 4),
-                                                          Text(jobTitle,
-                                                              style: TextStyle(
-                                                                  color: muted,
-                                                                  fontSize: 16,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w500),
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis),
-                                                        ],
-                                                        const SizedBox(
-                                                            height: 4),
-                                                        Row(children: [
-                                                          Icon(Icons.schedule,
-                                                              color: muted,
-                                                              size: 18),
-                                                          const SizedBox(
-                                                              width: 6),
-                                                          Text(shiftTimeLabel,
-                                                              style: TextStyle(
-                                                                  color: muted,
-                                                                  fontSize: 16,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w500))
-                                                        ])
-                                                      ]),
-                                                ),
-                                                if (hasClockedIn &&
-                                                    !hasClockedOut)
+                                                if (swapRequest != null)
                                                   Container(
-                                                      width: 12,
-                                                      height: 12,
-                                                      decoration:
-                                                          const BoxDecoration(
-                                                              color: Colors
-                                                                  .redAccent,
-                                                              shape: BoxShape
-                                                                  .circle)),
-                                                 InkWell(
-                                                   onTap: () async {
-                                                     await Navigator.push(
-                                                       context,
-                                                       MaterialPageRoute(
-                                                         builder: (context) => SharedJobDetailScreen(jobId: jobId),
-                                                       ),
-                                                     );
-                                                     _fetchData();
-                                                   },
-                                                   borderRadius: BorderRadius.circular(20),
-                                                   child: Container(
-                                                     padding: const EdgeInsets.all(8),
-                                                     decoration: BoxDecoration(
-                                                       color: Colors.white.withOpacity(0.08),
-                                                       shape: BoxShape.circle,
-                                                       border: Border.all(color: Colors.white12),
-                                                     ),
-                                                     child: const Icon(
-                                                       Icons.arrow_forward_ios_rounded,
-                                                       color: Colors.white70,
-                                                       size: 14,
-                                                     ),
-                                                   ),
-                                                 ),
-                                              ]),
-                                          const SizedBox(height: 20),
-                                          Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: [
-                                                Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text('Status',
-                                                          style: TextStyle(
-                                                              color: muted,
-                                                              fontSize: 11)),
-                                                      const SizedBox(height: 6),
-                                                      _statusBadge(jobData['job_status']?.toString())
-                                                    ]),
-                                                GestureDetector(
-                                                  onTap: () => _openInAppMap(
-                                                      jobLat,
-                                                      jobLng,
-                                                      displayAddress,
-                                                      shiftTimeLabel),
-                                                  child: Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 12,
-                                                        vertical: 8),
-                                                    decoration: BoxDecoration(
-                                                        color: Colors.orange
-                                                            .withOpacity(0.1),
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                              bottom: 16),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 16,
+                                                          vertical: 12),
+                                                      decoration: BoxDecoration(
+                                                        color: swapColor
+                                                            .withOpacity(0.2),
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(12),
                                                         border: Border.all(
-                                                            color: Colors.orange
+                                                            color: swapColor
                                                                 .withOpacity(
-                                                                    0.3))),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        Icon(Icons.map_outlined,
-                                                            color: Colors.orange,
-                                                            size: 16),
-                                                        const SizedBox(
-                                                            width: 6),
-                                                        Text(
-                                                            displayAddress.length >
-                                                                    18
-                                                                ? '${displayAddress.substring(0, 18)}...'
-                                                                : displayAddress,
-                                                            style: TextStyle(
-                                                                color:
-                                                                    Colors.orange,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 12)),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                )
-                                              ]),
-                                          const Divider(
-                                              height: 40,
-                                              color: Colors.white10),
-                                          Row(children: [
-                                            Expanded(
-                                                child: JobActionButtons(
-                                                  jobId: jobId,
-                                                  jobStatus: jobData['job_status'] ?? '',
-                                                  clockStatus: _clockStatus,
-                                                  onStateChanged: _fetchData,
-                                                  compact: true,
-                                                  scheduledTime: scheduledTime,
-                                                ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            GestureDetector(
-                                                onTap: () => setState(() =>
-                                                    _isShiftExpanded =
-                                                        !_isShiftExpanded),
-                                                child: Container(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            16),
-                                                    decoration: BoxDecoration(
-                                                        color: Colors.white10,
+                                                                    0.5)),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                              swapStatus ==
+                                                                      'accepted'
+                                                                  ? Icons
+                                                                      .check_circle
+                                                                  : (swapStatus ==
+                                                                          'rejected'
+                                                                      ? Icons
+                                                                          .cancel
+                                                                      : Icons
+                                                                          .pending_actions),
+                                                              color: swapColor,
+                                                              size: 20),
+                                                          const SizedBox(
+                                                              width: 8),
+                                                          Expanded(
+                                                              child: Text(
+                                                                  'Swap Request: ${swapStatus.toUpperCase()}',
+                                                                  style: TextStyle(
+                                                                      color:
+                                                                          swapColor,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      fontSize:
+                                                                          13))),
+                                                          if (isCancelable)
+                                                            GestureDetector(
+                                                              onTap: () =>
+                                                                  _deleteSwapRequest(
+                                                                      jobId),
+                                                              child: const Icon(
+                                                                  Icons
+                                                                      .delete_outline,
+                                                                  color: Colors
+                                                                      .orange,
+                                                                  size: 20),
+                                                            )
+                                                        ],
+                                                      )),
+                                                Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Expanded(
+                                                        child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Row(
+                                                                children: [
+                                                                  Text(
+                                                                      'SCHEDULED SHIFT',
+                                                                      style: TextStyle(
+                                                                          color:
+                                                                              accentBlue,
+                                                                          fontSize:
+                                                                              10,
+                                                                          fontWeight: FontWeight
+                                                                              .bold,
+                                                                          letterSpacing:
+                                                                              1.2)),
+                                                                  const SizedBox(
+                                                                      width: 8),
+                                                                  Text(
+                                                                      '• $shiftDateLabel',
+                                                                      style: TextStyle(
+                                                                          color:
+                                                                              muted,
+                                                                          fontSize:
+                                                                              10,
+                                                                          fontWeight:
+                                                                              FontWeight.w600)),
+                                                                ],
+                                                              ),
+                                                              const SizedBox(
+                                                                  height: 8),
+                                                              Text(clientName,
+                                                                  style: TextStyle(
+                                                                      color:
+                                                                          text,
+                                                                      fontSize:
+                                                                          20,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold),
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis),
+                                                              if (jobTitle
+                                                                  .isNotEmpty) ...[
+                                                                const SizedBox(
+                                                                    height: 4),
+                                                                Text(jobTitle,
+                                                                    style: TextStyle(
+                                                                        color:
+                                                                            muted,
+                                                                        fontSize:
+                                                                            16,
+                                                                        fontWeight:
+                                                                            FontWeight
+                                                                                .w500),
+                                                                    overflow:
+                                                                        TextOverflow
+                                                                            .ellipsis),
+                                                              ],
+                                                              const SizedBox(
+                                                                  height: 4),
+                                                              Row(children: [
+                                                                Icon(
+                                                                    Icons
+                                                                        .schedule,
+                                                                    color:
+                                                                        muted,
+                                                                    size: 18),
+                                                                const SizedBox(
+                                                                    width: 6),
+                                                                Text(
+                                                                    shiftTimeLabel,
+                                                                    style: TextStyle(
+                                                                        color:
+                                                                            muted,
+                                                                        fontSize:
+                                                                            16,
+                                                                        fontWeight:
+                                                                            FontWeight.w500))
+                                                              ])
+                                                            ]),
+                                                      ),
+                                                      if (hasClockedIn &&
+                                                          !hasClockedOut)
+                                                        Container(
+                                                            width: 12,
+                                                            height: 12,
+                                                            decoration: const BoxDecoration(
+                                                                color: Colors
+                                                                    .redAccent,
+                                                                shape: BoxShape
+                                                                    .circle)),
+                                                      InkWell(
+                                                        onTap: () async {
+                                                          await Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                              builder: (context) =>
+                                                                  SharedJobDetailScreen(
+                                                                      jobId:
+                                                                          jobId),
+                                                            ),
+                                                          );
+                                                          _fetchData();
+                                                        },
                                                         borderRadius:
                                                             BorderRadius
-                                                                .circular(16)),
-                                                    child: Icon(
-                                                        _isShiftExpanded
-                                                            ? Icons.close
-                                                            : Icons.more_horiz,
-                                                        color: text)))
-                                          ]),
-                                          if (_isShiftExpanded) ...[
-                                            const SizedBox(height: 20),
-                                            // If completed, show summary instead of action buttons
-                                            if (hasClockedOut)
-                                              Container(
-                                                padding: const EdgeInsets.all(16),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green.shade900.withOpacity(0.3),
-                                                  borderRadius: BorderRadius.circular(16),
-                                                  border: Border.all(color: Colors.green.shade700.withOpacity(0.5)),
-                                                ),
-                                                child: Column(
-                                                  children: [
-                                                    Row(
-                                                      mainAxisAlignment: MainAxisAlignment.center,
-                                                      children: [
-                                                        Icon(Icons.check_circle, color: Colors.green.shade400, size: 20),
-                                                        const SizedBox(width: 8),
-                                                        Text('Timesheet submitted for Admin review',
-                                                            style: TextStyle(color: Colors.green.shade400, fontSize: 13, fontWeight: FontWeight.w600)),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                              )
-                                            else
-                                              Row(children: [
-                                               Expanded(
-                                                   child: GestureDetector(
-                                                       onTap: () {
-                                                         if (swapRequest == null) {
-                                                           _openSwapShiftModal(jobId);
-                                                         } else if (isCancelable) {
-                                                           _cancelSwapRequest(jobId);
-                                                         }
-                                                       },
-                                                       child: _subBtn(
-                                                           swapRequest != null ? Icons.info_outline : Icons.swap_calls,
-                                                           swapRequest == null 
-                                                             ? 'Swap Shift' 
-                                                             : (isCancelable ? 'Cancel Swap Request' : 'Swap ${swapStatus.toUpperCase()}')))),
-                                               const SizedBox(width: 12),
-                                               Expanded(
-                                                   child: GestureDetector(
-                                                       onTap: () => ContactListModal.show(context),
-                                                       child: _subBtn(
-                                                           Icons.message,
-                                                           'Contact')))
-                                             ])
-                                          ]
-                                        ]))),
-                                  );
-                                }); // Closes Builder
-                          }, // Closes itemBuilder
-                        ), // Closes PageView.builder
-                      ), // Closes SizedBox
-                      if (todayJobs.length > 1)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16, bottom: 24),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(todayJobs.length, (index) {
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                width: _currentJobIndex == index ? 24 : 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                    color: _currentJobIndex == index
-                                        ? neonAction
-                                        : Colors.white24,
-                                    borderRadius: BorderRadius.circular(4)),
-                              );
-                            }),
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 16),
-                            Text('TASK CHECKLIST',
-                                style: TextStyle(
-                                    color: muted,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2)),
-                            const SizedBox(height: 16),
-                            Builder(
-                                builder: (context) {
-                                  var jobData = todayJobs[_currentJobIndex];
-                                  int jobId = jobData['id'];
-                                  List<dynamic> safeTasks = jobData['checklist'] ?? [];
-                                  if (safeTasks.isEmpty)
-                                    return Text(
-                                        'No tasks assigned for this job.',
-                                        style: TextStyle(
-                                            color: muted, fontSize: 14));
-
-                                  List<dynamic> sortedTasks = List.from(safeTasks);
-                                  sortedTasks.sort((a, b) {
-                                    bool aCompleted = a is Map ? a['completed'] == true : false;
-                                    bool bCompleted = b is Map ? b['completed'] == true : false;
-                                    if (aCompleted == bCompleted) return 0;
-                                    return aCompleted ? 1 : -1;
-                                  });
-
-                                  bool hasClockedIn = _clockStatus?['job_id']?.toString() == jobId.toString();
-                                  
-                                  Map<String, dynamic> taskStatusMap = {};
-                                  Map<String, String?> taskCompletedAtMap = {};
-                                  for (var item in safeTasks) {
-                                    if (item is Map) {
-                                      String? tName = item['name']?.toString() ?? item['title']?.toString() ?? item['text']?.toString();
-                                      if (tName != null) {
-                                        taskStatusMap[tName] = item['completed'] == true;
-                                        taskCompletedAtMap[tName] = item['completed_at']?.toString();
-                                      }
-                                    } else if (item is String) {
-                                      taskStatusMap[item] = false;
-                                      taskCompletedAtMap[item] = null;
-                                    }
-                                  }
-
-                                  return Column(
-                                      children: sortedTasks.map((taskItem) {
-                                    String taskName = '';
-                                    if (taskItem is Map) {
-                                      taskName = taskItem['name']?.toString() ?? taskItem['title']?.toString() ?? taskItem['text']?.toString() ?? '';
-                                    } else if (taskItem is String) {
-                                      taskName = taskItem;
-                                    }
-                                    if (taskName.isEmpty) return const SizedBox.shrink();
-
-                                    bool isCompleted = taskStatusMap[taskName] == true;
-                                    String? completedAt = taskCompletedAtMap[taskName];
-                                    String formattedTime = '';
-                                    if (isCompleted && completedAt != null && completedAt.isNotEmpty) {
-                                      try {
-                                        DateTime dt = _parseSafeDate(completedAt);
-                                        formattedTime = DateFormat('MMM d, h:mm a').format(dt);
-                                      } catch (_) {}
-                                    }
-
-                                    Color btnColor = isCompleted
-                                        ? accentBlue.withOpacity(0.2)
-                                        : card;
-                                    Color txtColor =
-                                        isCompleted ? accentBlue : muted;
-                                    String btnText =
-                                        isCompleted ? 'DONE' : 'MARK READY';
-                                    IconData btnIcon = isCompleted
-                                        ? Icons.check_circle
-                                        : Icons.circle_outlined;
-
-                                    return Container(
-                                        margin:
-                                            const EdgeInsets.only(bottom: 12),
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                            color: card,
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                            border: Border.all(
-                                                color: isCompleted
-                                                    ? accentBlue
-                                                        .withOpacity(0.3)
-                                                    : Colors.transparent)),
-                                        child: Row(children: [
-                                          Container(
-                                              padding: const EdgeInsets.all(10),
-                                              decoration: BoxDecoration(
-                                                  color: bg,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          10)),
-                                              child: Icon(Icons.assignment,
-                                                  color: isCompleted
-                                                      ? accentBlue
-                                                      : muted,
-                                                  size: 20)),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                              child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    Text(taskName,
-                                                        style: TextStyle(
-                                                            color: isCompleted
-                                                                ? text
-                                                                : Colors.white70,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 15,
-                                                            decoration: isCompleted ? TextDecoration.lineThrough : null)),
-                                                    if (isCompleted && formattedTime.isNotEmpty) ...[
-                                                      const SizedBox(height: 4),
-                                                      Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                        decoration: BoxDecoration(
-                                                          color: accentBlue.withOpacity(0.15),
-                                                          borderRadius: BorderRadius.circular(6),
-                                                        ),
-                                                        child: Text(
-                                                          formattedTime,
-                                                          style: TextStyle(
-                                                            color: accentBlue,
-                                                            fontSize: 11,
-                                                            fontWeight: FontWeight.w600,
+                                                                .circular(20),
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .all(8),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: Colors.white
+                                                                .withOpacity(
+                                                                    0.08),
+                                                            shape:
+                                                                BoxShape.circle,
+                                                            border: Border.all(
+                                                                color: Colors
+                                                                    .white12),
+                                                          ),
+                                                          child: const Icon(
+                                                            Icons
+                                                                .arrow_forward_ios_rounded,
+                                                            color:
+                                                                Colors.white70,
+                                                            size: 14,
                                                           ),
                                                         ),
                                                       ),
-                                                    ],
-                                                  ])),
-                                          const SizedBox(width: 12),
-                                          GestureDetector(
-                                              onTap: () {
-                                                if (!hasClockedIn) {
-                                                  ToastService.warning(context, 'You must Clock In first!');
-                                                  return;
-                                                }
-                                                _toggleTaskStatus(jobId,
-                                                    taskName, taskStatusMap);
-                                              },
-                                              child: AnimatedContainer(
-                                                  duration: const Duration(
-                                                      milliseconds: 200),
+                                                    ]),
+                                                const SizedBox(height: 20),
+                                                Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.end,
+                                                    children: [
+                                                      Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text('Status',
+                                                                style: TextStyle(
+                                                                    color:
+                                                                        muted,
+                                                                    fontSize:
+                                                                        11)),
+                                                            const SizedBox(
+                                                                height: 6),
+                                                            _statusBadge(jobData[
+                                                                    'job_status']
+                                                                ?.toString())
+                                                          ]),
+                                                      GestureDetector(
+                                                        onTap: () =>
+                                                            _openInAppMap(
+                                                                jobLat,
+                                                                jobLng,
+                                                                displayAddress,
+                                                                shiftTimeLabel),
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      12,
+                                                                  vertical: 8),
+                                                          decoration: BoxDecoration(
+                                                              color: Colors
+                                                                  .orange
+                                                                  .withOpacity(
+                                                                      0.1),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          12),
+                                                              border: Border.all(
+                                                                  color: Colors
+                                                                      .orange
+                                                                      .withOpacity(
+                                                                          0.3))),
+                                                          child: Row(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              Icon(
+                                                                  Icons
+                                                                      .map_outlined,
+                                                                  color: Colors
+                                                                      .orange,
+                                                                  size: 16),
+                                                              const SizedBox(
+                                                                  width: 6),
+                                                              Text(
+                                                                  displayAddress.length >
+                                                                          18
+                                                                      ? '${displayAddress.substring(0, 18)}...'
+                                                                      : displayAddress,
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .orange,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      fontSize:
+                                                                          12)),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      )
+                                                    ]),
+                                                const Divider(
+                                                    height: 40,
+                                                    color: Colors.white10),
+                                                Row(children: [
+                                                  Expanded(
+                                                    child: JobActionButtons(
+                                                      jobId: jobId,
+                                                      jobStatus: jobData[
+                                                              'job_status'] ??
+                                                          '',
+                                                      clockStatus: _clockStatus,
+                                                      onStateChanged:
+                                                          _fetchData,
+                                                      compact: true,
+                                                      scheduledTime:
+                                                          scheduledTime,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  GestureDetector(
+                                                      onTap: () => setState(() =>
+                                                          _isShiftExpanded =
+                                                              !_isShiftExpanded),
+                                                      child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .all(16),
+                                                          decoration: BoxDecoration(
+                                                              color: Colors
+                                                                  .white10,
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          16)),
+                                                          child: Icon(
+                                                              _isShiftExpanded
+                                                                  ? Icons.close
+                                                                  : Icons
+                                                                      .more_horiz,
+                                                              color: text)))
+                                                ]),
+                                                if (_isShiftExpanded) ...[
+                                                  const SizedBox(height: 20),
+                                                  // If completed, show summary instead of action buttons
+                                                  if (hasClockedOut)
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              16),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors
+                                                            .green.shade900
+                                                            .withOpacity(0.3),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(16),
+                                                        border: Border.all(
+                                                            color: Colors
+                                                                .green.shade700
+                                                                .withOpacity(
+                                                                    0.5)),
+                                                      ),
+                                                      child: Column(
+                                                        children: [
+                                                          Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              Icon(
+                                                                  Icons
+                                                                      .check_circle,
+                                                                  color: Colors
+                                                                      .green
+                                                                      .shade400,
+                                                                  size: 20),
+                                                              const SizedBox(
+                                                                  width: 8),
+                                                              Text(
+                                                                  'Timesheet submitted for Admin review',
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .green
+                                                                          .shade400,
+                                                                      fontSize:
+                                                                          13,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600)),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    )
+                                                  else
+                                                    Row(children: [
+                                                      Expanded(
+                                                          child:
+                                                              GestureDetector(
+                                                                  onTap: () {
+                                                                    if (swapRequest ==
+                                                                        null) {
+                                                                      _openSwapShiftModal(
+                                                                          jobId);
+                                                                    } else if (isCancelable) {
+                                                                      _cancelSwapRequest(
+                                                                          jobId);
+                                                                    }
+                                                                  },
+                                                                  child: _subBtn(
+                                                                      swapRequest !=
+                                                                              null
+                                                                          ? Icons
+                                                                              .info_outline
+                                                                          : Icons
+                                                                              .swap_calls,
+                                                                      swapRequest ==
+                                                                              null
+                                                                          ? 'Swap Shift'
+                                                                          : (isCancelable
+                                                                              ? 'Cancel Swap Request'
+                                                                              : 'Swap ${swapStatus.toUpperCase()}')))),
+                                                      const SizedBox(width: 12),
+                                                      Expanded(
+                                                          child: GestureDetector(
+                                                              onTap: () =>
+                                                                  ContactListModal
+                                                                      .show(
+                                                                          context),
+                                                              child: _subBtn(
+                                                                  Icons.message,
+                                                                  'Contact')))
+                                                    ])
+                                                ]
+                                              ]))),
+                                );
+                              }); // Closes Builder
+                            }, // Closes itemBuilder
+                          ), // Closes PageView.builder
+                        ), // Closes SizedBox
+                        if (todayJobs.length > 1)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16, bottom: 24),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children:
+                                  List.generate(todayJobs.length, (index) {
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                  width: _currentJobIndex == index ? 24 : 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                      color: _currentJobIndex == index
+                                          ? neonAction
+                                          : Colors.white24,
+                                      borderRadius: BorderRadius.circular(4)),
+                                );
+                              }),
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 16),
+                              Text('TASK CHECKLIST',
+                                  style: TextStyle(
+                                      color: muted,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2)),
+                              const SizedBox(height: 16),
+                              Builder(builder: (context) {
+                                var jobData = todayJobs[_currentJobIndex];
+                                int jobId = jobData['id'];
+                                List<dynamic> safeTasks =
+                                    jobData['checklist'] ?? [];
+                                if (safeTasks.isEmpty)
+                                  return Text('No tasks assigned for this job.',
+                                      style: TextStyle(
+                                          color: muted, fontSize: 14));
+
+                                List<dynamic> sortedTasks =
+                                    List.from(safeTasks);
+                                sortedTasks.sort((a, b) {
+                                  bool aCompleted =
+                                      a is Map ? a['completed'] == true : false;
+                                  bool bCompleted =
+                                      b is Map ? b['completed'] == true : false;
+                                  if (aCompleted == bCompleted) return 0;
+                                  return aCompleted ? 1 : -1;
+                                });
+
+                                bool hasClockedIn =
+                                    _clockStatus?['job_id']?.toString() ==
+                                        jobId.toString();
+
+                                Map<String, dynamic> taskStatusMap = {};
+                                Map<String, String?> taskCompletedAtMap = {};
+                                for (var item in safeTasks) {
+                                  if (item is Map) {
+                                    String? tName = item['name']?.toString() ??
+                                        item['title']?.toString() ??
+                                        item['text']?.toString();
+                                    if (tName != null) {
+                                      taskStatusMap[tName] =
+                                          item['completed'] == true;
+                                      taskCompletedAtMap[tName] =
+                                          item['completed_at']?.toString();
+                                    }
+                                  } else if (item is String) {
+                                    taskStatusMap[item] = false;
+                                    taskCompletedAtMap[item] = null;
+                                  }
+                                }
+
+                                return Column(
+                                    children: sortedTasks.map((taskItem) {
+                                  String taskName = '';
+                                  if (taskItem is Map) {
+                                    taskName = taskItem['name']?.toString() ??
+                                        taskItem['title']?.toString() ??
+                                        taskItem['text']?.toString() ??
+                                        '';
+                                  } else if (taskItem is String) {
+                                    taskName = taskItem;
+                                  }
+                                  if (taskName.isEmpty)
+                                    return const SizedBox.shrink();
+
+                                  bool isCompleted =
+                                      taskStatusMap[taskName] == true;
+                                  String? completedAt =
+                                      taskCompletedAtMap[taskName];
+                                  String formattedTime = '';
+                                  if (isCompleted &&
+                                      completedAt != null &&
+                                      completedAt.isNotEmpty) {
+                                    try {
+                                      DateTime dt = _parseSafeDate(completedAt);
+                                      formattedTime =
+                                          DateFormat('MMM d, h:mm a')
+                                              .format(dt);
+                                    } catch (_) {}
+                                  }
+
+                                  Color btnColor = isCompleted
+                                      ? accentBlue.withOpacity(0.2)
+                                      : card;
+                                  Color txtColor =
+                                      isCompleted ? accentBlue : muted;
+                                  String btnText =
+                                      isCompleted ? 'DONE' : 'MARK READY';
+                                  IconData btnIcon = isCompleted
+                                      ? Icons.check_circle
+                                      : Icons.circle_outlined;
+
+                                  return Container(
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                          color: card,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                              color: isCompleted
+                                                  ? accentBlue.withOpacity(0.3)
+                                                  : Colors.transparent)),
+                                      child: Row(children: [
+                                        Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                                color: bg,
+                                                borderRadius:
+                                                    BorderRadius.circular(10)),
+                                            child: Icon(Icons.assignment,
+                                                color: isCompleted
+                                                    ? accentBlue
+                                                    : muted,
+                                                size: 20)),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                            child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                              Text(taskName,
+                                                  style: TextStyle(
+                                                      color: isCompleted
+                                                          ? text
+                                                          : Colors.white70,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 15,
+                                                      decoration: isCompleted
+                                                          ? TextDecoration
+                                                              .lineThrough
+                                                          : null)),
+                                              if (isCompleted &&
+                                                  formattedTime.isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Container(
                                                   padding: const EdgeInsets
                                                       .symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 8),
+                                                      horizontal: 8,
+                                                      vertical: 2),
                                                   decoration: BoxDecoration(
-                                                      color: btnColor,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                      border: Border.all(
-                                                          color: isCompleted
-                                                              ? Colors
-                                                                  .transparent
-                                                              : Colors
-                                                                  .white10)),
-                                                  child: Row(
-                                                    children: [
-                                                      Icon(btnIcon,
-                                                          color: txtColor,
-                                                          size: 14),
-                                                      const SizedBox(width: 4),
-                                                      Text(btnText,
-                                                          style: TextStyle(
-                                                              color: txtColor,
-                                                              fontSize: 11,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold))
-                                                    ],
-                                                  )))
-                                        ]));
-                                  }).toList());
-                                }),
-                          ],
-                        ),
-                      )
-                    ],
+                                                    color: accentBlue
+                                                        .withOpacity(0.15),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6),
+                                                  ),
+                                                  child: Text(
+                                                    formattedTime,
+                                                    style: TextStyle(
+                                                      color: accentBlue,
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ])),
+                                        const SizedBox(width: 12),
+                                        GestureDetector(
+                                            onTap: () {
+                                              if (!hasClockedIn) {
+                                                ToastService.warning(context,
+                                                    'You must Clock In first!');
+                                                return;
+                                              }
+                                              _toggleTaskStatus(jobId, taskName,
+                                                  taskStatusMap);
+                                            },
+                                            child: AnimatedContainer(
+                                                duration: const Duration(
+                                                    milliseconds: 200),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 8),
+                                                decoration: BoxDecoration(
+                                                    color: btnColor,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                    border: Border.all(
+                                                        color: isCompleted
+                                                            ? Colors.transparent
+                                                            : Colors.white10)),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(btnIcon,
+                                                        color: txtColor,
+                                                        size: 14),
+                                                    const SizedBox(width: 4),
+                                                    Text(btnText,
+                                                        style: TextStyle(
+                                                            color: txtColor,
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))
+                                                  ],
+                                                )))
+                                      ]));
+                                }).toList());
+                              }),
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }));
+                );
+              }));
   }
 }

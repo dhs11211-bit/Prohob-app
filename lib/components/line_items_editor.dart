@@ -43,7 +43,8 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
   @override
   void didUpdateWidget(covariant LineItemsEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialItems != oldWidget.initialItems || widget.isReadOnly != oldWidget.isReadOnly) {
+    if (widget.initialItems != oldWidget.initialItems ||
+        widget.isReadOnly != oldWidget.isReadOnly) {
       setState(() {
         _selectedItems = List<Map<String, dynamic>>.from(widget.initialItems);
       });
@@ -60,7 +61,9 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
           if (res is List) {
             _catalogItems = res.map((e) => e as Map<String, dynamic>).toList();
           } else if (res is Map && res['data'] is List) {
-            _catalogItems = (res['data'] as List).map((e) => e as Map<String, dynamic>).toList();
+            _catalogItems = (res['data'] as List)
+                .map((e) => e as Map<String, dynamic>)
+                .toList();
           }
         });
       }
@@ -74,7 +77,10 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
   void _notifyParent() {
     double total = 0.0;
     for (var item in _selectedItems) {
-      double price = double.tryParse(item['unit_price']?.toString() ?? item['price']?.toString() ?? '0') ?? 0.0;
+      double price = double.tryParse(item['unit_price']?.toString() ??
+              item['price']?.toString() ??
+              '0') ??
+          0.0;
       int qty = int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
       total += (price * qty);
     }
@@ -130,7 +136,9 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
       value: null,
       hint: _isLoadingCatalog ? "Loading items..." : "Select item...",
       items: _catalogItems.isEmpty
-          ? [{'value': 'no_items', 'label': 'No items available'}]
+          ? [
+              {'value': 'no_items', 'label': 'No items available'}
+            ]
           : _catalogItems.map((item) {
               return {
                 'value': item['id'].toString(),
@@ -139,7 +147,8 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
             }).toList(),
       onChanged: (val) {
         if (val == null || val == 'no_items') return;
-        final selected = _catalogItems.firstWhere((i) => i['id'].toString() == val);
+        final selected =
+            _catalogItems.firstWhere((i) => i['id'].toString() == val);
         _addCatalogItem(selected);
       },
     );
@@ -169,9 +178,12 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
                     hintStyle: const TextStyle(color: Colors.white38),
                     filled: true,
                     fillColor: const Color(0xFF0F172A),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                   ),
                 ),
               ),
@@ -180,16 +192,20 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
                 flex: 1,
                 child: TextFormField(
                   controller: _priceCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Price',
                     hintStyle: const TextStyle(color: Colors.white38),
                     filled: true,
                     fillColor: const Color(0xFF0F172A),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                   ),
                 ),
               ),
@@ -202,10 +218,15 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: _addQuickItem,
-              child: const Text("Add Item", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              child: const Text("Add Item",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13)),
             ),
           )
         ],
@@ -219,15 +240,19 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_selectedItems.isNotEmpty) ...[
-          const Text("Line Items", style: TextStyle(color: Colors.white70, fontSize: 14)),
+          const Text("Line Items",
+              style: TextStyle(color: Colors.white70, fontSize: 14)),
           const SizedBox(height: 8),
           ..._selectedItems.asMap().entries.map((entry) {
             int idx = entry.key;
             var item = entry.value;
             String desc = item['description']?.toString() ?? 'Item';
-            double price = double.tryParse(item['unit_price']?.toString() ?? item['price']?.toString() ?? '0') ?? 0.0;
+            double price = double.tryParse(item['unit_price']?.toString() ??
+                    item['price']?.toString() ??
+                    '0') ??
+                0.0;
             int qty = int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
-            
+
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -242,9 +267,15 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(desc, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13)),
+                        Text(desc,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13)),
                         const SizedBox(height: 2),
-                        Text('Qty: $qty', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                        Text('Qty: $qty',
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -253,17 +284,28 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
                     child: TextFormField(
                       initialValue: price.toStringAsFixed(2),
                       readOnly: widget.isReadOnly,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13),
                       textAlign: TextAlign.right,
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
                         filled: true,
-                        fillColor: const Color(0xFF0F172A), // Darker background to look like an input
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none),
+                        fillColor: const Color(
+                            0xFF0F172A), // Darker background to look like an input
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide.none),
                         prefixText: '\$',
-                        prefixStyle: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 13),
+                        prefixStyle: const TextStyle(
+                            color: Colors.white54,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13),
                       ),
                       onChanged: (val) {
                         item['unit_price'] = double.tryParse(val) ?? 0.0;
@@ -275,7 +317,8 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: () => _removeItem(idx),
-                      child: const Icon(Icons.close, color: Colors.redAccent, size: 18),
+                      child: const Icon(Icons.close,
+                          color: Colors.redAccent, size: 18),
                     )
                   ]
                 ],
@@ -284,13 +327,16 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
           }).toList(),
           const SizedBox(height: 12),
         ],
-
         if (!widget.isReadOnly) ...[
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Items", style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
+              const Text("Items",
+                  style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold)),
               if (!_isAddingNew)
                 GestureDetector(
                   onTap: () => setState(() {
@@ -301,16 +347,15 @@ class _LineItemsEditorState extends State<LineItemsEditor> {
                   child: const Row(children: [
                     Icon(Icons.add_circle, color: Color(0xFF3B82F6), size: 16),
                     SizedBox(width: 4),
-                    Text("Add quick item", style: TextStyle(color: Color(0xFF3B82F6), fontSize: 13))
+                    Text("Add quick item",
+                        style:
+                            TextStyle(color: Color(0xFF3B82F6), fontSize: 13))
                   ]),
                 )
             ],
           ),
           const SizedBox(height: 8),
-          if (_isAddingNew)
-            _buildQuickAddForm()
-          else
-            _buildCatalogDropdown()
+          if (_isAddingNew) _buildQuickAddForm() else _buildCatalogDropdown()
         ]
       ],
     );

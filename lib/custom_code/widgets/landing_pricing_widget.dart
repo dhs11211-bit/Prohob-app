@@ -46,7 +46,7 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
     try {
       final plansFuture = ApiService.instance.getSubscriptionPlans();
       final settingsFuture = ApiService.instance.getPublicSettings();
-      
+
       final results = await Future.wait([plansFuture, settingsFuture]);
       final plans = results[0] as List<dynamic>;
       final settings = results[1] as Map<String, dynamic>;
@@ -54,7 +54,8 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
       if (mounted) {
         setState(() {
           _plans = plans;
-          if (settings['platform_name'] != null && settings['platform_name'].toString().isNotEmpty) {
+          if (settings['platform_name'] != null &&
+              settings['platform_name'].toString().isNotEmpty) {
             _platformName = settings['platform_name'].toString().toUpperCase();
           }
           _isLoading = false;
@@ -146,24 +147,26 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
             // --- PRICING CARDS ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _isLoading 
-                ? const Padding(
-                    padding: EdgeInsets.all(40), 
-                    child: CircularProgressIndicator(color: Color(0xFF3B82F6))
-                  )
-                : _plans.isEmpty 
+              child: _isLoading
                   ? const Padding(
-                      padding: EdgeInsets.all(40), 
-                      child: Text('No plans available', style: TextStyle(color: Colors.white))
-                    )
-                  : Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      alignment: WrapAlignment.center,
-                      children: _plans.map((plan) {
-                        return _buildPricingCard(context: context, plan: plan as Map<String, dynamic>);
-                      }).toList(),
-                    ),
+                      padding: EdgeInsets.all(40),
+                      child:
+                          CircularProgressIndicator(color: Color(0xFF3B82F6)))
+                  : _plans.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Text('No plans available',
+                              style: TextStyle(color: Colors.white)))
+                      : Wrap(
+                          spacing: 16,
+                          runSpacing: 16,
+                          alignment: WrapAlignment.center,
+                          children: _plans.map((plan) {
+                            return _buildPricingCard(
+                                context: context,
+                                plan: plan as Map<String, dynamic>);
+                          }).toList(),
+                        ),
             ),
 
             const SizedBox(height: 80),
@@ -184,13 +187,20 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
     required Map<String, dynamic> plan,
   }) {
     final title = plan['name']?.toString() ?? 'PLAN';
-    final price = plan['price_monthly'] != null ? '\$${plan['price_monthly']}' : '\$0';
+    final price =
+        plan['price_monthly'] != null ? '\$${plan['price_monthly']}' : '\$0';
     final description = plan['description']?.toString() ?? '';
-    final isPopular = plan['is_popular'] == true || plan['is_popular'] == 1 || plan['is_popular'] == '1';
+    final isPopular = plan['is_popular'] == true ||
+        plan['is_popular'] == 1 ||
+        plan['is_popular'] == '1';
     final planId = plan['id'];
-    
-    final trialDays = plan['trial_days'] is num ? (plan['trial_days'] as num).toInt() : int.tryParse(plan['trial_days']?.toString() ?? '0');
-    final yearlyDiscount = plan['yearly_discount_percentage'] is num ? (plan['yearly_discount_percentage'] as num) : num.tryParse(plan['yearly_discount_percentage']?.toString() ?? '0');
+
+    final trialDays = plan['trial_days'] is num
+        ? (plan['trial_days'] as num).toInt()
+        : int.tryParse(plan['trial_days']?.toString() ?? '0');
+    final yearlyDiscount = plan['yearly_discount_percentage'] is num
+        ? (plan['yearly_discount_percentage'] as num)
+        : num.tryParse(plan['yearly_discount_percentage']?.toString() ?? '0');
 
     List<String> features = [];
     if (plan['features'] != null) {
@@ -202,7 +212,9 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
     }
 
     return Container(
-      width: MediaQuery.of(context).size.width > 400 ? 380 : MediaQuery.of(context).size.width - 32,
+      width: MediaQuery.of(context).size.width > 400
+          ? 380
+          : MediaQuery.of(context).size.width - 32,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B), // Card color
@@ -254,7 +266,8 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
             Padding(
               padding: const EdgeInsets.only(top: 12.0),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFF10B981)), // Green
                   borderRadius: BorderRadius.circular(6),

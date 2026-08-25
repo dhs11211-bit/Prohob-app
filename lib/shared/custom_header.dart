@@ -52,7 +52,7 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
     setState(() {
       String fName = user['first_name'] ?? user['name'] ?? '';
       String lName = user['last_name'] ?? '';
-      
+
       // Combine first name and last name for full display
       _userName = [fName, lName].where((s) => s.isNotEmpty).join(' ').trim();
       if (_userName.isEmpty) _userName = 'User';
@@ -62,7 +62,7 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
           : (_userName.isNotEmpty ? _userName[0].toUpperCase() : 'U');
 
       _userRole = user['role']?['name'] ?? user['role']?['slug'];
-      
+
       // Extract company name if available
       _companyName = user['company']?['name'] ?? 'Unknown Company';
     });
@@ -122,23 +122,29 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
                       'Notifications',
-                      style: TextStyle(color: text, fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: text,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
                   InkWell(
                     onTap: () {
-                      setModalState(() => _hiddenNotifs.add('all_cleared_trigger'));
+                      setModalState(
+                          () => _hiddenNotifs.add('all_cleared_trigger'));
                       setState(() {});
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0x1A3B82F6),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         'Clear All',
-                        style: TextStyle(color: accentBlue, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: accentBlue, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -150,14 +156,19 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.notifications_off_outlined, color: Color(0x8094A3B8), size: 60),
+                      const Icon(Icons.notifications_off_outlined,
+                          color: Color(0x8094A3B8), size: 60),
                       const SizedBox(height: 16),
                       Text(
                         "You're all caught up!",
-                        style: TextStyle(color: text, fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: text,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      Text('No new notifications.', style: TextStyle(color: muted)),
+                      Text('No new notifications.',
+                          style: TextStyle(color: muted)),
                     ],
                   ),
                 ),
@@ -193,7 +204,8 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white, size: 20),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
@@ -213,19 +225,27 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                 backgroundColor: accentBlue.withOpacity(0.2),
                 child: Text(
                   _initials,
-                  style: TextStyle(color: accentBlue, fontSize: 26, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: accentBlue,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 12),
               Text(
                 _userName,
-                style: TextStyle(color: text, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: text, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               if (_userRole != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   _userRole!.toUpperCase(),
-                  style: TextStyle(color: muted, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1),
+                  style: TextStyle(
+                      color: muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1),
                 ),
               ],
               const SizedBox(height: 20),
@@ -237,56 +257,82 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                   child: ListView(
                     children: [
                       ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: accentBlue.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.person_outline, color: accentBlue, size: 20),
+                          child: Icon(Icons.person_outline,
+                              color: accentBlue, size: 20),
                         ),
-                        title: const Text('My Profile', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                        subtitle: Text('Edit personal information & details', style: TextStyle(color: muted, fontSize: 12)),
-                        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                        title: const Text('My Profile',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                        subtitle: Text('Edit personal information & details',
+                            style: TextStyle(color: muted, fontSize: 12)),
+                        trailing: const Icon(Icons.chevron_right_rounded,
+                            color: Colors.white38),
                         onTap: () {
                           Navigator.pop(context);
-                          ProfileScreen.showModal(context, initialTab: ProfileTab.profile);
+                          ProfileScreen.showModal(context,
+                              initialTab: ProfileTab.profile);
                         },
                       ),
                       const SizedBox(height: 6),
                       ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: accentBlue.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.description_outlined, color: accentBlue, size: 20),
+                          child: Icon(Icons.description_outlined,
+                              color: accentBlue, size: 20),
                         ),
-                        title: const Text('My Documents', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                        subtitle: Text('Manage Photo ID, SSN, W-9 & Bank forms', style: TextStyle(color: muted, fontSize: 12)),
-                        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                        title: const Text('My Documents',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                        subtitle: Text('Manage Photo ID, SSN, W-9 & Bank forms',
+                            style: TextStyle(color: muted, fontSize: 12)),
+                        trailing: const Icon(Icons.chevron_right_rounded,
+                            color: Colors.white38),
                         onTap: () {
                           Navigator.pop(context);
-                          ProfileScreen.showModal(context, initialTab: ProfileTab.documents);
+                          ProfileScreen.showModal(context,
+                              initialTab: ProfileTab.documents);
                         },
                       ),
                       const SizedBox(height: 6),
                       ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: accentBlue.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.swap_calls, color: accentBlue, size: 20),
+                          child: Icon(Icons.swap_calls,
+                              color: accentBlue, size: 20),
                         ),
-                        title: const Text('Swap Requests', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                        subtitle: Text('View & track shift swap requests', style: TextStyle(color: muted, fontSize: 12)),
-                        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                        title: const Text('Swap Requests',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                        subtitle: Text('View & track shift swap requests',
+                            style: TextStyle(color: muted, fontSize: 12)),
+                        trailing: const Icon(Icons.chevron_right_rounded,
+                            color: Colors.white38),
                         onTap: () {
                           Navigator.pop(context);
                           SwapRequestsModal.show(context);
@@ -294,7 +340,8 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                       ),
                       const SizedBox(height: 6),
                       ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -303,7 +350,11 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                           ),
                           child: Icon(Icons.logout, color: accentRed, size: 20),
                         ),
-                        title: Text('Log Out', style: TextStyle(color: accentRed, fontSize: 15, fontWeight: FontWeight.bold)),
+                        title: Text('Log Out',
+                            style: TextStyle(
+                                color: accentRed,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold)),
                         onTap: () {
                           Navigator.pop(context);
                           _handleLogOut();
@@ -332,7 +383,8 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: EdgeInsets.only(top: topPadding, left: 20, right: 20, bottom: 12),
+            padding: EdgeInsets.only(
+                top: topPadding, left: 20, right: 20, bottom: 12),
             child: Row(
               children: [
                 // LEFT (Name and Greeting)
@@ -345,20 +397,28 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                       children: [
                         Text(
                           _userName,
-                          style: TextStyle(color: text, fontSize: 22, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              color: text,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold),
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        Text(_getGreeting(), style: TextStyle(color: muted, fontSize: 12, fontWeight: FontWeight.w500)),
+                        Text(_getGreeting(),
+                            style: TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ),
                 ),
-                
+
                 // MIDDLE (Company Name Chip)
                 if (_companyName.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: card,
                       borderRadius: BorderRadius.circular(20),
@@ -370,8 +430,13 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                         Icon(Icons.business_rounded, size: 14, color: muted),
                         const SizedBox(width: 6),
                         Text(
-                          _companyName.length > 10 ? '${_companyName.substring(0, 10)}...' : _companyName,
-                          style: TextStyle(color: text, fontSize: 13, fontWeight: FontWeight.w600),
+                          _companyName.length > 10
+                              ? '${_companyName.substring(0, 10)}...'
+                              : _companyName,
+                          style: TextStyle(
+                              color: text,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -394,7 +459,8 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white10),
                             ),
-                            child: Icon(Icons.notifications_none_rounded, color: text, size: 22),
+                            child: Icon(Icons.notifications_none_rounded,
+                                color: text, size: 22),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -411,7 +477,10 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                             child: Center(
                               child: Text(
                                 _initials,
-                                style: TextStyle(color: accentBlue, fontWeight: FontWeight.bold, fontSize: 16),
+                                style: TextStyle(
+                                    color: accentBlue,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16),
                               ),
                             ),
                           ),

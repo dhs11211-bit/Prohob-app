@@ -18,7 +18,8 @@ class ProfileScreen extends StatefulWidget {
     this.initialTab = ProfileTab.profile,
   }) : super(key: key);
 
-  static Future<void> showModal(BuildContext context, {ProfileTab initialTab = ProfileTab.profile}) {
+  static Future<void> showModal(BuildContext context,
+      {ProfileTab initialTab = ProfileTab.profile}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -133,7 +134,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _lastNameController.text = ln;
           }
 
-          if ((_firstNameController.text.isEmpty && _lastNameController.text.isEmpty) && fullName.isNotEmpty) {
+          if ((_firstNameController.text.isEmpty &&
+                  _lastNameController.text.isEmpty) &&
+              fullName.isNotEmpty) {
             final parts = fullName.split(' ');
             _firstNameController.text = parts.first;
             if (parts.length > 1) {
@@ -141,16 +144,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
           }
 
-          if (userData['phone'] != null) _phoneController.text = userData['phone'].toString();
-          if (userData['address'] != null) _addressController.text = userData['address'].toString();
-          if (userData['city'] != null) _cityController.text = userData['city'].toString();
-          if (userData['email'] != null) _userEmail = userData['email'].toString();
-          
+          if (userData['phone'] != null)
+            _phoneController.text = userData['phone'].toString();
+          if (userData['address'] != null)
+            _addressController.text = userData['address'].toString();
+          if (userData['city'] != null)
+            _cityController.text = userData['city'].toString();
+          if (userData['email'] != null)
+            _userEmail = userData['email'].toString();
+
           Map<String, dynamic> addrData = {};
           if (userData['primary_address'] is Map) {
             addrData = userData['primary_address'] as Map<String, dynamic>;
-          } else if (userData['addresses'] is List && (userData['addresses'] as List).isNotEmpty) {
-            addrData = (userData['addresses'] as List)[0] as Map<String, dynamic>;
+          } else if (userData['addresses'] is List &&
+              (userData['addresses'] as List).isNotEmpty) {
+            addrData =
+                (userData['addresses'] as List)[0] as Map<String, dynamic>;
           }
 
           if (userData['address2'] != null) {
@@ -177,7 +186,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           if (userData['role'] != null) {
             if (userData['role'] is Map) {
-              _userRole = userData['role']['name'] ?? userData['role']['slug'] ?? 'User';
+              _userRole = userData['role']['name'] ??
+                  userData['role']['slug'] ??
+                  'User';
             } else {
               _userRole = userData['role'].toString();
             }
@@ -208,13 +219,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isSaving = true;
       _serverErrors.clear();
     });
-    
+
     try {
       final payload = {
         'first_name': _firstNameController.text.trim(),
         'last_name': _lastNameController.text.trim(),
         'phone': _phoneController.text.trim(),
-        'address1': _address1.isNotEmpty ? _address1 : _addressController.text.trim(),
+        'address1':
+            _address1.isNotEmpty ? _address1 : _addressController.text.trim(),
         'address': _addressController.text.trim(),
         'city': _cityController.text.trim(),
         'state': _stateStr,
@@ -222,13 +234,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'country': _country,
         'latitude': _lat,
         'longitude': _lng,
-        if (_address2Controller.text.trim().isNotEmpty) 'address2': _address2Controller.text.trim(),
-        if (_gateCodeController.text.trim().isNotEmpty) 'gate_code': _gateCodeController.text.trim(),
-        if (_entryNotesController.text.trim().isNotEmpty) 'notes': _entryNotesController.text.trim(),
+        if (_address2Controller.text.trim().isNotEmpty)
+          'address2': _address2Controller.text.trim(),
+        if (_gateCodeController.text.trim().isNotEmpty)
+          'gate_code': _gateCodeController.text.trim(),
+        if (_entryNotesController.text.trim().isNotEmpty)
+          'notes': _entryNotesController.text.trim(),
       };
 
       await ApiService.instance.updateProfile(payload);
-      
+
       if (mounted) {
         ToastService.success(context, 'Profile updated successfully!');
         Navigator.pop(context);
@@ -259,7 +274,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           orElse: () => null,
         );
         setState(() {
-          _googleMapsApiKey = mapSetting != null ? mapSetting['setting_value'] : AppConstants.fallbackGoogleMapsApiKey;
+          _googleMapsApiKey = mapSetting != null
+              ? mapSetting['setting_value']
+              : AppConstants.fallbackGoogleMapsApiKey;
         });
       } else {
         setState(() {
@@ -287,7 +304,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'OK') {
-          setState(() => _placePredictions = List<dynamic>.from(data['predictions'] ?? []));
+          setState(() => _placePredictions =
+              List<dynamic>.from(data['predictions'] ?? []));
         }
       }
     } catch (e) {
@@ -305,28 +323,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final data = jsonDecode(response.body);
         if (data['status'] == 'OK') {
           var location = data['result']['geometry']['location'];
-          var components = data['result']['address_components'] as List<dynamic>?;
-          
+          var components =
+              data['result']['address_components'] as List<dynamic>?;
+
           String pStreetNumber = '';
           String pRoute = '';
           String pCity = '';
           String pState = '';
           String pPostal = '';
           String pCountry = '';
-          
+
           if (components != null) {
             for (var c in components) {
               List<dynamic> types = c['types'] ?? [];
-              if (types.contains('street_number')) pStreetNumber = c['long_name'];
+              if (types.contains('street_number'))
+                pStreetNumber = c['long_name'];
               if (types.contains('route')) pRoute = c['long_name'];
               if (types.contains('locality')) pCity = c['long_name'];
-              if (types.contains('administrative_area_level_1')) pState = c['short_name'];
+              if (types.contains('administrative_area_level_1'))
+                pState = c['short_name'];
               if (types.contains('postal_code')) pPostal = c['long_name'];
               if (types.contains('country')) pCountry = c['long_name'];
             }
           }
 
-          String pAddress1 = pStreetNumber.isNotEmpty ? "$pStreetNumber $pRoute".trim() : pRoute;
+          String pAddress1 = pStreetNumber.isNotEmpty
+              ? "$pStreetNumber $pRoute".trim()
+              : pRoute;
 
           setState(() {
             _lat = location['lat'].toDouble();
@@ -438,12 +461,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white, size: 20),
                   onPressed: () => Navigator.pop(context),
                 ),
                 Expanded(
                   child: Text(
-                    _activeTab == ProfileTab.profile ? 'My Profile' : 'My Documents',
+                    _activeTab == ProfileTab.profile
+                        ? 'My Profile'
+                        : 'My Documents',
                     style: TextStyle(
                       color: textWhite,
                       fontSize: 20,
@@ -462,7 +488,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                   child: Text(
                     _activeTab == ProfileTab.profile ? 'Documents' : 'Profile',
-                    style: TextStyle(color: accentBlue, fontWeight: FontWeight.bold, fontSize: 13),
+                    style: TextStyle(
+                        color: accentBlue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13),
                   ),
                 ),
               ],
@@ -517,7 +546,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${_firstNameController.text} ${_lastNameController.text}'.trim().isEmpty
+                          '${_firstNameController.text} ${_lastNameController.text}'
+                                  .trim()
+                                  .isEmpty
                               ? _userName
                               : '${_firstNameController.text} ${_lastNameController.text}',
                           style: TextStyle(
@@ -530,7 +561,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: accentBlue.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(6),
@@ -571,8 +603,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: 'First Name',
                     controller: _firstNameController,
                     icon: Icons.person_outline,
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))
+                    ],
+                    validator: (val) =>
+                        val == null || val.trim().isEmpty ? 'Required' : null,
                     errorText: _serverErrors['first_name'],
                   ),
                 ),
@@ -582,8 +617,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: 'Last Name',
                     controller: _lastNameController,
                     icon: Icons.person_outline,
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))
+                    ],
+                    validator: (val) =>
+                        val == null || val.trim().isEmpty ? 'Required' : null,
                     errorText: _serverErrors['last_name'],
                   ),
                 ),
@@ -620,18 +658,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: _placePredictions.map<Widget>((p) => ListTile(
-                        title: Text(p['description']?.toString() ?? '',
-                            style: const TextStyle(color: Colors.white, fontSize: 12)),
-                        onTap: () async {
-                          String pId = p['place_id']?.toString() ?? '';
-                          setState(() {
-                            _addressController.text = p['description']?.toString() ?? '';
-                            _placePredictions.clear();
-                          });
-                          await getPlaceDetails(pId);
-                        },
-                      )).toList(),
+                      children: _placePredictions
+                          .map<Widget>((p) => ListTile(
+                                title: Text(p['description']?.toString() ?? '',
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 12)),
+                                onTap: () async {
+                                  String pId = p['place_id']?.toString() ?? '';
+                                  setState(() {
+                                    _addressController.text =
+                                        p['description']?.toString() ?? '';
+                                    _placePredictions.clear();
+                                  });
+                                  await getPlaceDetails(pId);
+                                },
+                              ))
+                          .toList(),
                     ),
                   ),
               ],
@@ -771,7 +813,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String docType,
   }) {
     final bool isUploading = _uploadingDocType == docType;
-    final bool hasDoc = _documents[docType] != null && _documents[docType]!.isNotEmpty;
+    final bool hasDoc =
+        _documents[docType] != null && _documents[docType]!.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -779,7 +822,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: hasDoc ? accentGreen.withOpacity(0.3) : Colors.white.withOpacity(0.05),
+          color: hasDoc
+              ? accentGreen.withOpacity(0.3)
+              : Colors.white.withOpacity(0.05),
         ),
       ),
       child: Row(
@@ -823,13 +868,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: accentBlue),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: accentBlue),
                     )
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          hasDoc ? Icons.check_circle_outline : Icons.cloud_upload_outlined,
+                          hasDoc
+                              ? Icons.check_circle_outline
+                              : Icons.cloud_upload_outlined,
                           color: hasDoc ? accentGreen : muted,
                           size: 20,
                         ),
@@ -868,7 +916,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(color: muted, fontSize: 11, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              color: muted, fontSize: 11, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
         Container(
@@ -885,12 +934,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             maxLines: maxLines,
             style: TextStyle(color: textWhite, fontSize: 14),
             decoration: InputDecoration(
-              prefixIcon: maxLines == 1 ? Icon(icon, color: accentBlue, size: 18) : null,
+              prefixIcon: maxLines == 1
+                  ? Icon(icon, color: accentBlue, size: 18)
+                  : null,
               hintText: hint,
               hintStyle: TextStyle(color: muted.withOpacity(0.5), fontSize: 13),
               border: InputBorder.none,
               errorText: errorText,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               isDense: true,
             ),
           ),

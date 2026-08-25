@@ -267,8 +267,7 @@ extension IterableExt<T> on Iterable<T> {
       .toList();
 }
 
-extension StringDocRef on String {
-}
+extension StringDocRef on String {}
 
 void setDarkModeSetting(BuildContext context, ThemeMode themeMode) =>
     MyApp.of(context).setThemeMode(themeMode);

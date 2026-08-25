@@ -8,7 +8,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class RecurringSeriesModal extends StatefulWidget {
   final int parentJobId;
 
-  const RecurringSeriesModal({Key? key, required this.parentJobId}) : super(key: key);
+  const RecurringSeriesModal({Key? key, required this.parentJobId})
+      : super(key: key);
 
   @override
   State<RecurringSeriesModal> createState() => _RecurringSeriesModalState();
@@ -27,8 +28,9 @@ class _RecurringSeriesModalState extends State<RecurringSeriesModal> {
   Future<void> _fetchInstances() async {
     try {
       final token = await ApiService.instance.getToken();
-      
-      final url = Uri.parse('${ApiService.baseUrl}/jobs?recurring_parent_id=${widget.parentJobId}&per_page=50');
+
+      final url = Uri.parse(
+          '${ApiService.baseUrl}/jobs?recurring_parent_id=${widget.parentJobId}&per_page=50');
       final response = await http.get(
         url,
         headers: {
@@ -40,11 +42,13 @@ class _RecurringSeriesModalState extends State<RecurringSeriesModal> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> items = data['data']['data'] ?? data['data'] ?? [];
-        
+
         // Sort by start_date ascending
         items.sort((a, b) {
-          final dateA = DateTime.tryParse(a['start_date'] ?? '') ?? DateTime(2000);
-          final dateB = DateTime.tryParse(b['start_date'] ?? '') ?? DateTime(2000);
+          final dateA =
+              DateTime.tryParse(a['start_date'] ?? '') ?? DateTime(2000);
+          final dateB =
+              DateTime.tryParse(b['start_date'] ?? '') ?? DateTime(2000);
           return dateA.compareTo(dateB);
         });
 
@@ -66,12 +70,15 @@ class _RecurringSeriesModalState extends State<RecurringSeriesModal> {
   Widget _buildInstanceCard(dynamic job) {
     String status = (job['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
     Color statusColor = const Color(0xFF3B82F6);
-    if (status == 'ACTIVE' || status == 'IN PROGRESS') statusColor = const Color(0xFF10B981);
-    if (status == 'PENDING' || status == 'DRAFT') statusColor = const Color(0xFFF59E0B);
+    if (status == 'ACTIVE' || status == 'IN PROGRESS')
+      statusColor = const Color(0xFF10B981);
+    if (status == 'PENDING' || status == 'DRAFT')
+      statusColor = const Color(0xFFF59E0B);
     if (status == 'COMPLETED') statusColor = const Color(0xFF8B5CF6);
 
     DateTime? jobDate = DateTime.tryParse(job['start_date']?.toString() ?? '');
-    String dateStr = jobDate != null ? DateFormat('MMM d, yyyy').format(jobDate) : 'No Date';
+    String dateStr =
+        jobDate != null ? DateFormat('MMM d, yyyy').format(jobDate) : 'No Date';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -115,24 +122,29 @@ class _RecurringSeriesModalState extends State<RecurringSeriesModal> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 12, color: Colors.white60),
+                    const Icon(Icons.calendar_today,
+                        size: 12, color: Colors.white60),
                     const SizedBox(width: 4),
                     Text(
                       dateStr,
-                      style: const TextStyle(color: Colors.white60, fontSize: 12),
+                      style:
+                          const TextStyle(color: Colors.white60, fontSize: 12),
                     ),
                   ],
                 ),
-                if (job['hide_from_calendar'] == true || job['hide_from_calendar'] == 1)
+                if (job['hide_from_calendar'] == true ||
+                    job['hide_from_calendar'] == 1)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Row(
                       children: [
-                        const Icon(Icons.visibility_off, size: 12, color: Colors.orangeAccent),
+                        const Icon(Icons.visibility_off,
+                            size: 12, color: Colors.orangeAccent),
                         const SizedBox(width: 4),
                         const Text(
                           "Hidden from Calendar",
-                          style: TextStyle(color: Colors.orangeAccent, fontSize: 10),
+                          style: TextStyle(
+                              color: Colors.orangeAccent, fontSize: 10),
                         ),
                       ],
                     ),
