@@ -90,8 +90,7 @@
 
         <!-- Required for background location tracking during jobs -->
         <service 
-            android:name=".LocationService" 
-            android:foregroundServiceType="location" 
-            android:exported="false" />
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="location" />
     </application>
 </manifest>

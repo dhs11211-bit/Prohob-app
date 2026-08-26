@@ -18,6 +18,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _eventData;
   List<dynamic> _attendees = [];
+  int? _myUserId;
 
   // Reused colors
   final Color bgDark = const Color(0xFF0F172A);
@@ -35,9 +36,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     try {
       final res = await ApiService.instance.getJob(widget.eventId.toString());
       final attRes = await ApiService.instance.getEventAttendees(widget.eventId);
+      final userRes = await ApiService.instance.getMe();
       setState(() {
         _eventData = res['data'];
         _attendees = attRes['data'] ?? [];
+        _myUserId = userRes['id'];
       });
     } catch (e) {
       debugPrint("Error loading event detail: $e");
@@ -159,6 +162,63 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
             const SizedBox(height: 16),
 
+            // Top RSVP Action Bar if I am an attendee
+            Builder(
+              builder: (ctx) {
+                if (_myUserId == null) return const SizedBox.shrink();
+                try {
+                  final myAttendee = _attendees.firstWhere((a) => a['user_id'] == _myUserId, orElse: () => null);
+                  if (myAttendee == null) return const SizedBox.shrink();
+                  
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Your RSVP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                                onPressed: () => _respondRSVP(myAttendee['id'], 'accepted'),
+                                child: const Text("Accept", style: TextStyle(color: Colors.white)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                onPressed: () => _respondRSVP(myAttendee['id'], 'declined'),
+                                child: const Text("Decline", style: TextStyle(color: Colors.white)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                                onPressed: () => _respondRSVP(myAttendee['id'], 'tentative'),
+                                child: const Text("Tentative", style: TextStyle(color: Colors.white)),
+                              ),
+                            ),
+                          ],
+                        )
+                      ],
+                    ),
+                  );
+                } catch (e) {
+                  return const SizedBox.shrink();
+                }
+              }
+            ),
+
             // Schedule Card
             Container(
               padding: const EdgeInsets.all(16),
@@ -253,17 +313,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                               Text(rsvp.toUpperCase(), style: TextStyle(color: _getRsvpColor(rsvp), fontSize: 10, fontWeight: FontWeight.bold)),
                               const SizedBox(width: 4),
                               Icon(_getRsvpIcon(rsvp), color: _getRsvpColor(rsvp), size: 16),
-                              
-                              // If it's me, allow quick respond
-                              PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert, color: Colors.white54, size: 20),
-                                onSelected: (val) => _respondRSVP(att['id'], val),
-                                itemBuilder: (context) => const [
-                                  PopupMenuItem(value: 'accepted', child: Text('Accept')),
-                                  PopupMenuItem(value: 'declined', child: Text('Decline')),
-                                  PopupMenuItem(value: 'tentative', child: Text('Tentative')),
-                                ],
-                              )
                             ],
                           ),
                         );

@@ -19,16 +19,23 @@ class _SignatureScreenState extends State<SignatureScreen> {
     penColor: Colors.black,
     exportBackgroundColor: Colors.white,
   );
+  
+  final TextEditingController _nameController = TextEditingController();
 
   bool _isSaving = false;
 
   @override
   void dispose() {
     _controller.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
   Future<void> _submitSignature() async {
+    if (_nameController.text.trim().isEmpty) {
+      ToastService.error(context, 'Please provide a printed name');
+      return;
+    }
     if (_controller.isEmpty) {
       ToastService.error(context, 'Please provide a signature');
       return;
@@ -41,7 +48,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
       if (bytes != null) {
         final base64Signature = base64Encode(bytes);
         await ApiService.instance.completeJobWithSignature(
-            widget.jobId, 'data:image/png;base64,' + base64Signature);
+            widget.jobId, 'data:image/png;base64,' + base64Signature, _nameController.text.trim());
         ToastService.success(context, 'Job Completed Successfully!');
         Navigator.pop(context, true); // return true to indicate success
       }
@@ -71,9 +78,24 @@ class _SignatureScreenState extends State<SignatureScreen> {
               textAlign: TextAlign.center,
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              controller: _nameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Printed Name',
+                hintStyle: const TextStyle(color: Colors.white54),
+                filled: true,
+                fillColor: const Color(0xFF1E293B),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Signature(
@@ -108,14 +130,11 @@ class _SignatureScreenState extends State<SignatureScreen> {
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
                       : const Text('Submit Signature',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
+                          style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );

@@ -15,6 +15,7 @@ import '../shared/job_parser.dart';
 import '../components/contact_list_modal.dart';
 import '../components/quick_map_modal.dart';
 import '/shared/toast_service.dart';
+import '../shared/auth_helpers.dart' as shared;
 import '../shared/gps_consent_screen.dart';
 import '../backend/location_tracking_service.dart';
 
@@ -616,6 +617,103 @@ class _ClockInTrackerState extends State<ClockInTracker> {
   }
 
   @override
+  Widget _buildQuickStats(List<dynamic> jobs) {
+    int completed = jobs.where((j) => (j['job_status'] ?? '').toString().toLowerCase() == 'completed').length;
+    int pending = jobs.length - completed;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(child: _statCard('Completed', completed.toString(), Icons.check_circle_outline, const Color(0xFF10B981))),
+          const SizedBox(width: 12),
+          Expanded(child: _statCard('Pending', pending.toString(), Icons.schedule, const Color(0xFFF59E0B))),
+          const SizedBox(width: 12),
+          Expanded(child: _statCard('Total', jobs.length.toString(), Icons.work_outline, const Color(0xFF3B82F6))),
+        ],
+      ),
+    );
+  }
+
+  Widget _statCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(title, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTodaySchedule(List<dynamic> jobs) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Today\'s Schedule', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          ...jobs.asMap().entries.map((entry) {
+            int index = entry.key;
+            var job = entry.value;
+            bool isActive = _currentJobIndex == index;
+            String status = (job['job_status'] ?? '').toString().toLowerCase();
+            bool isCompleted = status == 'completed';
+            
+            DateTime scheduledTime = JobParser.getStartDate(job) ?? DateTime.now();
+            String timeLabel = DateFormat('hh:mm a').format(scheduledTime);
+            
+            return GestureDetector(
+              onTap: () {
+                _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isActive ? const Color(0xFF3B82F6).withOpacity(0.1) : const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isActive ? const Color(0xFF3B82F6).withOpacity(0.5) : Colors.white10),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isCompleted ? const Color(0xFF10B981) : (isActive ? const Color(0xFF3B82F6) : Colors.grey),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(job['customer_name'] ?? 'Job', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          Text(job['title'] ?? 'Task', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Text(timeLabel, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
   Widget build(BuildContext context) {
     return Container(
         height: widget.height ?? MediaQuery.of(context).size.height,
@@ -1318,8 +1416,10 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                               Builder(builder: (context) {
                                 var jobData = todayJobs[_currentJobIndex];
                                 int jobId = jobData['id'];
-                                List<dynamic> safeTasks =
-                                    jobData['checklist'] ?? [];
+                                
+                                List<dynamic> advancedChecklists = jobData['checklists'] ?? [];
+                                List<dynamic> safeTasks = advancedChecklists.isNotEmpty ? advancedChecklists : (jobData['checklist'] ?? []);
+                                
                                 if (safeTasks.isEmpty)
                                   return Text('No tasks assigned for this job.',
                                       style: TextStyle(
@@ -1328,10 +1428,14 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                 List<dynamic> sortedTasks =
                                     List.from(safeTasks);
                                 sortedTasks.sort((a, b) {
-                                  bool aCompleted =
-                                      a is Map ? a['completed'] == true : false;
-                                  bool bCompleted =
-                                      b is Map ? b['completed'] == true : false;
+                                  bool aCompleted = false;
+                                  if (a is Map) {
+                                    aCompleted = a.containsKey('checklist_status') ? a['checklist_status'] == 'completed' : a['completed'] == true;
+                                  }
+                                  bool bCompleted = false;
+                                  if (b is Map) {
+                                    bCompleted = b.containsKey('checklist_status') ? b['checklist_status'] == 'completed' : b['completed'] == true;
+                                  }
                                   if (aCompleted == bCompleted) return 0;
                                   return aCompleted ? 1 : -1;
                                 });
@@ -1348,8 +1452,9 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                         item['title']?.toString() ??
                                         item['text']?.toString();
                                     if (tName != null) {
-                                      taskStatusMap[tName] =
-                                          item['completed'] == true;
+                                      taskStatusMap[tName] = item.containsKey('checklist_status') 
+                                          ? item['checklist_status'] == 'completed'
+                                          : item['completed'] == true;
                                       taskCompletedAtMap[tName] =
                                           item['completed_at']?.toString();
                                     }
@@ -1475,6 +1580,10 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                               if (!hasClockedIn) {
                                                 ToastService.warning(context,
                                                     'You must Clock In first!');
+                                                return;
+                                              }
+                                              if (!shared.AuthHelpers.hasMobilePermission('can_complete_tasks')) {
+                                                ToastService.error(context, 'You do not have permission to complete tasks.');
                                                 return;
                                               }
                                               _toggleTaskStatus(jobId, taskName,

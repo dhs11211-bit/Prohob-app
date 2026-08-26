@@ -49,6 +49,12 @@ void main() async {
   final appState = FFAppState(); // Initialize FFAppState
   await appState.initializePersistedState();
 
+  try {
+      await shared.BackgroundGpsService.initializeService();
+  } catch(e) {
+      print('Background GPS Service Init Error: $e');
+  }
+
   runApp(ChangeNotifierProvider(
     create: (context) => appState,
     child: MyApp(),

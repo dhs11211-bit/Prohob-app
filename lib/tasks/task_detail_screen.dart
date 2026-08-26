@@ -132,16 +132,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _task!['task_status'].toString().toUpperCase(),
-                style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold, fontSize: 12),
-              ),
+            DropdownButton<String>(
+              value: _task!['task_status'],
+              items: ['pending', 'in_progress', 'completed', 'cancelled', 'verified']
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.toUpperCase())))
+                  .toList(),
+              onChanged: (val) async {
+                if (val != null && val != _task!['task_status']) {
+                  try {
+                    await ApiService.instance.request(
+                      method: 'PUT',
+                      endpoint: '/tasks/${widget.taskId}',
+                      body: {'task_status': val},
+                    );
+                    setState(() => _task!['task_status'] = val);
+                  } catch (e) {
+                    debugPrint('Error updating status: $e');
+                  }
+                }
+              },
             ),
             const SizedBox(height: 16),
             const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
