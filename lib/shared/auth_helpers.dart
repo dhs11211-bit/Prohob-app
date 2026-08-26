@@ -1,4 +1,5 @@
 import '/auth/laravel_auth_manager.dart';
+import '../backend/api_service.dart';
 
 class AuthHelpers {
   static Map<String, dynamic>? get userData {
@@ -38,5 +39,19 @@ class AuthHelpers {
     if (isAdmin) return true;
     final target = permissionName.trim().toLowerCase();
     return permissions.any((p) => p.trim().toLowerCase() == target);
+  }
+
+  static Map<String, dynamic> mobilePermissions = {};
+
+  static Future<void> fetchMobilePermissions() async {
+    try {
+      mobilePermissions = await ApiService.instance.getMobilePermissions();
+    } catch (_) {}
+  }
+
+  static bool hasMobilePermission(String permissionName) {
+    if (isAdmin) return true;
+    if (mobilePermissions.isEmpty) return true; // Default allow if not fetched
+    return mobilePermissions[permissionName] == true;
   }
 }

@@ -405,15 +405,17 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     List<Map<String, String>> contacts = [];
 
     // Customer contact
-    String custName = _jobData!['customer_name'] ?? 'Customer';
-    String? custPhone = _jobData!['customer_phone'] ?? _jobData!['phone'] ?? (_jobData!['customer'] is Map ? _jobData!['customer']['phone'] : null);
-    contacts.add({
-      'name': custName,
-      'role': 'Customer',
-      'phone': (custPhone != null && custPhone.isNotEmpty) ? custPhone : 'No Phone',
-      'type': 'customer',
-      'has_phone': (custPhone != null && custPhone.isNotEmpty) ? 'true' : 'false',
-    });
+    if (AuthHelpers.hasMobilePermission('can_contact_customer')) {
+      String custName = _jobData!['customer_name'] ?? 'Customer';
+      String? custPhone = _jobData!['customer_phone'] ?? _jobData!['phone'] ?? (_jobData!['customer'] is Map ? _jobData!['customer']['phone'] : null);
+      contacts.add({
+        'name': custName,
+        'role': 'Customer',
+        'phone': (custPhone != null && custPhone.isNotEmpty) ? custPhone : 'No Phone',
+        'type': 'customer',
+        'has_phone': (custPhone != null && custPhone.isNotEmpty) ? 'true' : 'false',
+      });
+    }
 
     // Assigned Staff
     if (_jobData!['assigned_users'] is List) {
@@ -611,7 +613,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                     },
                   ),
                 ),
-                if (_jobData!['customer_id'] != null || _jobData!['customer_name'] != null) ...[
+                if ((_jobData!['customer_id'] != null || _jobData!['customer_name'] != null) && AuthHelpers.hasMobilePermission('can_contact_customer')) ...[
                   const Divider(color: Colors.white10),
                   Material(
                     color: Colors.transparent,
@@ -833,7 +835,19 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('MATERIALS & PARTS'),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionHeader('MATERIALS & PARTS'),
+            if (AuthHelpers.isAdmin || AuthHelpers.hasMobilePermission('can_add_products'))
+              IconButton(
+                icon: Icon(Icons.add_circle_outline, color: accentBlue, size: 22),
+                onPressed: () {
+                  // Admin add material
+                },
+              ),
+          ],
+        ),
         if (_materials.isEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
@@ -943,6 +957,10 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                 children: [
                   InkWell(
                     onTap: () async {
+                      if (!AuthHelpers.hasMobilePermission('can_complete_tasks')) {
+                        ToastService.error(context, 'Permission denied to complete tasks');
+                        return;
+                      }
                       String newStatus = isCompleted ? 'pending' : 'completed';
                       try {
                         await ApiService.instance.updateRelationalChecklist(task['id'], {'checklist_status': newStatus});
@@ -966,6 +984,10 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                     IconButton(
                       icon: Icon(Icons.camera_alt, color: accentBlue),
                       onPressed: () async {
+                         if (!AuthHelpers.hasMobilePermission('can_complete_tasks')) {
+                           ToastService.error(context, 'Permission denied to complete tasks');
+                           return;
+                         }
                          final picker = ImagePicker();
                          final XFile? image = await picker.pickImage(
                            source: ImageSource.camera, 
@@ -1993,7 +2015,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
   @override
   Widget build(BuildContext context) {
 
-    final canViewFinancials = AuthHelpers.hasPermission('VIEW PROFITABILITY') || AuthHelpers.isAdmin;
+    final canViewFinancials = (AuthHelpers.hasPermission('VIEW PROFITABILITY') || AuthHelpers.isAdmin) && AuthHelpers.hasMobilePermission('can_view_job_price');
     final canEditJob = AuthHelpers.hasPermission('EDIT JOBS') || AuthHelpers.isAdmin;
     final canDeleteJob = AuthHelpers.hasPermission('DELETE JOBS') || AuthHelpers.isAdmin;
 
@@ -2002,7 +2024,17 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     String displayHeading = jobNumber.isNotEmpty ? '$jobNumber - $jobTitle' : jobTitle;
     String customerName = _jobData?['customer_name'] ?? 'No Customer';
     String customerPhone = _jobData?['customer_phone'] ?? _jobData?['phone'] ?? '';
-    String address = _jobData?['address'] ?? 'No address provided.';
+    String address = 'No address provided.';
+    String? accessInstructions;
+    if (_jobData?['address'] is Map) {
+      final addrMap = _jobData!['address'];
+      address = [addrMap['address1'], addrMap['address2'], addrMap['city'], addrMap['state'], addrMap['zip']]
+          .where((e) => e != null && e.toString().trim().isNotEmpty)
+          .join(', ');
+      accessInstructions = addrMap['access_instructions']?.toString();
+    } else if (_jobData?['address'] != null) {
+      address = _jobData!['address'].toString();
+    }
     String? unitNumber = _jobData?['unit_number']?.toString();
     String? gateCode = _jobData?['gate_code']?.toString();
     String? addressNotes = _jobData?['address_notes']?.toString();
@@ -2068,7 +2100,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                       ],
                     ),
                   ),
-                if (canEditJob)
+                if (AuthHelpers.isAdmin || AuthHelpers.hasMobilePermission('can_add_job'))
                   PopupMenuItem<String>(
                     value: 'duplicate',
                     child: Row(
@@ -2341,6 +2373,33 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                   ],
                                 ),
                               ),
+
+                              // Phase 5.12 Amber Site Access Instructions Card
+                              if (accessInstructions != null && accessInstructions.trim().isNotEmpty)
+                                Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(top: 12, bottom: 12),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
+                                          const SizedBox(width: 8),
+                                          const Text('SITE ACCESS INSTRUCTIONS', style: TextStyle(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(accessInstructions, style: TextStyle(color: Colors.amber.shade200, fontSize: 14)),
+                                    ],
+                                  ),
+                                ),
 
                               
                               _buildInstructionsSection(),
@@ -2853,7 +2912,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                     children: [
                                       totalsContainer,
                                       const SizedBox(height: 16),
-                                      if (_jobData!['invoices'] != null && (_jobData!['invoices'] as List).isNotEmpty) ...[
+                                      if (_jobData!['invoices'] != null && (_jobData!['invoices'] as List).isNotEmpty && AuthHelpers.hasMobilePermission('can_view_invoice')) ...[
                                         const Text('INVOICES', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                                         const SizedBox(height: 8),
                                         ...(_jobData!['invoices'] as List).map((inv) {
@@ -2896,7 +2955,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                         }).toList(),
                                         const SizedBox(height: 16),
                                       ],
-                                      if ((_jobData!['invoices'] == null || (_jobData!['invoices'] as List).isEmpty) && (AuthHelpers.hasPermission('CREATE INVOICES') || AuthHelpers.isAdmin))
+                                      if ((_jobData!['invoices'] == null || (_jobData!['invoices'] as List).isEmpty) && (AuthHelpers.hasPermission('CREATE INVOICES') || AuthHelpers.isAdmin) && AuthHelpers.hasMobilePermission('can_send_invoice'))
                                         Padding(
                                           padding: const EdgeInsets.only(bottom: 20),
                                           child: ElevatedButton.icon(

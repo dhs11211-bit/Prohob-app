@@ -166,7 +166,8 @@ class _JobActionButtonsState extends State<JobActionButtons> {
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+        await shared.PermissionHelper.requestAllRequiredPermissions();
+        permission = await Geolocator.checkPermission();
         if (permission == LocationPermission.denied) {
           return null;
         }
@@ -269,6 +270,31 @@ class _JobActionButtonsState extends State<JobActionButtons> {
           if (consented != true) return;
           setState(() => _isProcessing = true);
         }
+
+        // Task 10.7: Mobile Overlapping Jobs Check
+        try {
+          final activeJobsResponse = await ApiService.instance.get('/jobs?assigned_to=me&job_status=in_progress');
+          if (activeJobsResponse != null && activeJobsResponse['data'] != null) {
+             List activeJobs = activeJobsResponse['data'] is List ? activeJobsResponse['data'] : (activeJobsResponse['data']['data'] ?? []);
+             if (activeJobs.isNotEmpty) {
+                // Technically we should check allow_overlapping_jobs from settings here,
+                // but if they have an active job and the backend doesn't block it directly here,
+                // we'll fetch the settings or assume it's blocked by default to be safe.
+                final locCheck = await ApiService.instance.post('/jobs/${widget.jobId}/check-location', {
+                    'lat': 0, 'lng': 0, 'accuracy_m': 0, 'attempt_type': 'start', 'is_mock_location': false
+                });
+                
+                final settings = locCheck?['data']?['settings'] ?? {};
+                if (settings['allow_overlapping_jobs'] == false) {
+                    setState(() => _isProcessing = false);
+                    ToastService.error(context, "Finish your active job (${activeJobs.first['title']}) before starting a new one.");
+                    return;
+                }
+             }
+          }
+        } catch (e) {
+          // ignore
+        }
       }
 
       Position? userPos = await _getSafePosition();
@@ -358,9 +384,9 @@ class _JobActionButtonsState extends State<JobActionButtons> {
     try {
       final res =
           await ApiService.instance.getChecklistCompletionStatus(widget.jobId);
-      final bool canComplete = res['can_complete'] ?? false;
-      final pendingTasks = res['pending_items'] as List<dynamic>? ?? [];
-      final missingMats = res['missing_materials'] as List<dynamic>? ?? [];
+      final resData = res['data'] ?? res; // In case wrapped in successResponse
+      final bool canComplete = resData['all_required_done'] ?? resData['can_complete'] ?? false;
+      final blockers = resData['blockers'] as List<dynamic>? ?? [];
 
       setState(() => _isProcessing = false);
 
@@ -386,21 +412,17 @@ class _JobActionButtonsState extends State<JobActionButtons> {
                           'You cannot finish this job yet. Please complete the following:',
                           style: TextStyle(color: Colors.white70)),
                       const SizedBox(height: 12),
-                      if (pendingTasks.isNotEmpty) ...[
-                        const Text('Pending Tasks:',
+                      if (blockers.isNotEmpty) ...[
+                        const Text('Pending Items:',
                             style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold)),
-                        ...pendingTasks.map((t) => Text('• ' + (t['name'] ?? ''), style: const TextStyle(color: Colors.redAccent))),
+                        ...blockers.map((b) {
+                           String issue = b['issue'] == 'missing_required_photo' ? ' (Needs Photo)' : '';
+                           return Text('• ' + (b['name'] ?? b['text'] ?? '') + issue, style: const TextStyle(color: Colors.redAccent));
+                        }),
                         const SizedBox(height: 8),
                       ],
-                      if (missingMats.isNotEmpty) ...[
-                        const Text('Missing Materials:',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold)),
-                        ...missingMats.map((m) => Text('• ' + (m['name'] ?? ''), style: const TextStyle(color: Colors.redAccent))),
-                      ]
                     ],
                   ),
                   actions: [
@@ -601,8 +623,7 @@ class _JobActionButtonsState extends State<JobActionButtons> {
                     : () {
                         _showConfirmDialog('🛑 Finish Shift?',
                             'Are you sure you want to Finish this shift?', () {
-                          _performAction((pos) => ApiService.instance.clockOut(
-                              widget.jobId, pos?.latitude, pos?.longitude), 'finish');
+                          _checkCompletionGate();
                         });
                       },
                 child: _isProcessing

@@ -93,12 +93,98 @@ class _TasksListScreenState extends State<TasksListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Future: simple create task form
-        },
+        onPressed: () => _showCreateTaskModal(context),
         backgroundColor: const Color(0xFF1E3A8A),
         child: const Icon(Icons.add, color: Colors.white),
       ),
+    );
+  }
+
+  void _showCreateTaskModal(BuildContext context) {
+    final titleController = TextEditingController();
+    String priority = 'normal';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 16,
+                right: 16,
+                top: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Create Task', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Task Title',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: priority,
+                    decoration: const InputDecoration(
+                      labelText: 'Priority',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'low', child: Text('Low')),
+                      DropdownMenuItem(value: 'normal', child: Text('Normal')),
+                      DropdownMenuItem(value: 'high', child: Text('High')),
+                      DropdownMenuItem(value: 'urgent', child: Text('Urgent')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setModalState(() => priority = val);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: () async {
+                      if (titleController.text.trim().isEmpty) return;
+                      Navigator.pop(ctx);
+                      
+                      try {
+                        await ApiService.instance.request(
+                          method: 'POST',
+                          endpoint: '/tasks',
+                          body: {
+                            'title': titleController.text.trim(),
+                            'priority': priority,
+                            'task_type': 'standalone',
+                          },
+                        );
+                        _fetchTasks();
+                      } catch (e) {
+                        debugPrint('Error creating task: $e');
+                      }
+                    },
+                    child: const Text('Create'),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

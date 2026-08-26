@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:rxdart/rxdart.dart';
 import '../backend/api_service.dart';
+import '../shared/auth_helpers.dart' as shared;
 import 'base_auth_user_provider.dart';
 
 export 'base_auth_user_provider.dart';
@@ -93,6 +94,9 @@ class LaravelAuthManager {
     }
 
     _updateUser(response['user']);
+    try {
+      await shared.AuthHelpers.fetchMobilePermissions();
+    } catch (_) {}
     return response;
   }
 

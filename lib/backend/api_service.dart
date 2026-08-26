@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import 'package:http_parser/http_parser.dart';
+import 'offline_sync_service.dart';
+import '../shared/index.dart' as shared;
 
 class ValidationException implements Exception {
   final Map<String, dynamic> errors;
@@ -214,17 +216,23 @@ class ApiService {
 
   // --- Job Endpoints ---
   Future<List<dynamic>> getTodayJobs() async {
-    final url = Uri.parse('$baseUrl/jobs/today');
-    final response = await http.get(url, headers: await _getHeaders());
+    try {
+      final url = Uri.parse('$baseUrl/jobs/today');
+      final response = await http.get(url, headers: await _getHeaders());
 
-    final data = jsonDecode(response.body);
-    if (response.statusCode == 401) {
-      LaravelAuthManager.signOut();
-    }
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return _unwrapData(data) as List<dynamic>;
-    } else {
-      throw Exception(data['message'] ?? 'Failed to load today jobs');
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 401) {
+        LaravelAuthManager.signOut();
+      }
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final jobsList = _unwrapData(data) as List<dynamic>;
+        OfflineSyncService.instance.cacheJobs(jobsList);
+        return jobsList;
+      } else {
+        throw Exception(data['message'] ?? 'Failed to load today jobs');
+      }
+    } catch (e) {
+      return await OfflineSyncService.instance.getCachedJobs();
     }
   }
 
@@ -419,6 +427,11 @@ class ApiService {
       LaravelAuthManager.signOut();
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      try {
+        shared.BackgroundGpsService.start();
+      } catch (e) {
+        print('Could not start GPS tracking: $e');
+      }
       return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to clock in');
@@ -445,6 +458,11 @@ class ApiService {
       LaravelAuthManager.signOut();
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      try {
+        shared.BackgroundGpsService.stop();
+      } catch (e) {
+        print('Could not stop GPS tracking: $e');
+      }
       return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Failed to clock out');
