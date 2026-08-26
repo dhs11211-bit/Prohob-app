@@ -61,6 +61,10 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FirebaseService().init(context);
     });
+    _fetchData();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
   final String _darkMinimalMapStyle = '''
   [
@@ -80,15 +84,6 @@ class _ClockInTrackerState extends State<ClockInTracker> {
   List<dynamic> _todayJobs = [];
   bool _isLoadingJobs = true;
   Map<String, dynamic>? _clockStatus;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchData();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
 
   Future<void> _fetchData() async {
     try {
