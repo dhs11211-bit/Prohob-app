@@ -1036,7 +1036,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       tabs.add(const Tab(text: 'Completion'));
       tabViews.add(Padding(padding: const EdgeInsets.all(12), child: Text(comp, style: TextStyle(color: textWhite, fontSize: 14))));
     }
-    if (AuthHelpers.isAdmin && internal.isNotEmpty) {
+    if ((AuthHelpers.isAdmin || AuthHelpers.hasPermission('can_see_internal_notes')) && internal.isNotEmpty) {
       tabs.add(const Tab(text: 'Internal'));
       tabViews.add(Padding(padding: const EdgeInsets.all(12), child: Text(internal, style: TextStyle(color: goldColor, fontSize: 14))));
     }
@@ -2016,7 +2016,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
   Widget build(BuildContext context) {
 
     final canViewFinancials = (AuthHelpers.hasPermission('VIEW PROFITABILITY') || AuthHelpers.isAdmin) && AuthHelpers.hasMobilePermission('can_view_job_price');
-    final canEditJob = AuthHelpers.hasPermission('EDIT JOBS') || AuthHelpers.isAdmin;
+    final canEditJob = AuthHelpers.hasPermission('EDIT JOBS') || AuthHelpers.isAdmin || AuthHelpers.hasPermission('can_edit_job_details');
     final canDeleteJob = AuthHelpers.hasPermission('DELETE JOBS') || AuthHelpers.isAdmin;
 
     String jobNumber = _jobData?['job_number'] ?? '';
