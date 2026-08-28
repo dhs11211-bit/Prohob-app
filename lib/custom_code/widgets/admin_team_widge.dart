@@ -1817,7 +1817,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge>
         'password': _passwordController.text,
         'password_confirmation': _confirmPasswordController.text,
         'hourly_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
-        'cost_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
+        'hourly_rate': double.tryParse(_hourlyRateController.text) ?? 20.0,
         'role_id': _selectedRoleId,
         'address1':
             _address1.isNotEmpty ? _address1 : _addressController.text.trim(),
@@ -2464,7 +2464,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge>
 
                     await ApiService.instance.put('/admin/workers/$idStr', {
                       'hourly_rate': newRate,
-                      'cost_rate': newRate,
+                      'hourly_rate': newRate,
                     });
 
                     Navigator.pop(dialogContext);
@@ -2561,7 +2561,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge>
 
     double currentRate = double.tryParse(
             workerData['hourly_rate']?.toString() ??
-                workerData['cost_rate']?.toString() ??
+                workerData['hourly_rate']?.toString() ??
                 '') ??
         20.0;
     TextEditingController rateCtrl =
@@ -3028,7 +3028,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge>
                                     'first_name': firstNameCtrl.text.trim(),
                                     'last_name': lastNameCtrl.text.trim(),
                                     'hourly_rate': newRate,
-                                    'cost_rate': newRate,
+                                    'hourly_rate': newRate,
                                   };
                                   if (emailCtrl.text.trim().isNotEmpty)
                                     payload['email'] = emailCtrl.text.trim();
@@ -3152,7 +3152,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge>
 
     double currentRate = double.tryParse(
             workerData['hourly_rate']?.toString() ??
-                workerData['cost_rate']?.toString() ??
+                workerData['hourly_rate']?.toString() ??
                 '') ??
         20.0;
     TextEditingController rateCtrl =
@@ -3326,7 +3326,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge>
                                               'gate_code': gateCtrl.text,
                                               'notes': notesCtrl.text,
                                               'hourly_rate': newRate,
-                                              'cost_rate': newRate,
+                                              'hourly_rate': newRate,
                                             };
                                             if (firstNameCtrl.text
                                                     .trim()

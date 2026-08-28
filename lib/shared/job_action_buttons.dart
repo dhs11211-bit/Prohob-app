@@ -259,7 +259,7 @@ class _JobActionButtonsState extends State<JobActionButtons> {
   Future<void> _performAction(Future<void> Function(Position?) action, String attemptType) async {
     setState(() => _isProcessing = true);
     try {
-      if (attemptType == 'start') {
+      if (attemptType == 'start' || attemptType == 'drive') {
         final me = await ApiService.instance.getMe();
         if (me['gps_consent_at'] == null) {
           setState(() => _isProcessing = false);
@@ -366,7 +366,7 @@ class _JobActionButtonsState extends State<JobActionButtons> {
       }
 
       await action(userPos);
-      if (attemptType == 'start') {
+      if (attemptType == 'start' || attemptType == 'drive') {
         LocationTrackingService.instance.startTracking();
       } else if (attemptType == 'finish') {
         LocationTrackingService.instance.stopTracking();
@@ -490,6 +490,44 @@ class _JobActionButtonsState extends State<JobActionButtons> {
     }
 
     if (!hasClockedIn) {
+      bool isReadyToWork = rawStatus == 'en_route' || rawStatus == 'in_progress';
+      
+      if (!isReadyToWork) {
+        return SizedBox(
+          width: double.infinity,
+          height: 55,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6), // blue for driving
+              foregroundColor: Colors.white,
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: _isProcessing
+                ? null
+                : () {
+                    _showConfirmDialog('🚗 Start Driving?',
+                        'Are you en route to the job location?', () {
+                      _performAction((pos) => ApiService.instance
+                          .startDriving(widget.jobId, pos?.latitude, pos?.longitude), 'drive');
+                    });
+                  },
+            child: _isProcessing
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.directions_car, size: 18),
+                      SizedBox(width: 8),
+                      Text('START DRIVING',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
+          ),
+        );
+      }
+
       return SizedBox(
         width: double.infinity,
         height: 55,
