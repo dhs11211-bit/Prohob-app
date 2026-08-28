@@ -438,6 +438,23 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> startDriving(int jobId, double? lat, double? lng) async {
+    final url = Uri.parse('$baseUrl/jobs/$jobId');
+    final response = await http.put(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'job_status': 'en_route'
+      }),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to start driving');
+    }
+  }
+
   Future<Map<String, dynamic>> clockOut(
       int jobId, double? lat, double? lng) async {
     final url = Uri.parse('$baseUrl/clock/out');
