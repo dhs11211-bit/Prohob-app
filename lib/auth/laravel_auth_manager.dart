@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:rxdart/rxdart.dart';
 import '../backend/api_service.dart';
 import '../shared/auth_helpers.dart' as shared;
@@ -102,6 +103,16 @@ class LaravelAuthManager {
 
   static Future<void> signOut() async {
     try {
+      // Try to unregister FCM token before destroying session
+      try {
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+          await ApiService.instance.delete('/device-tokens', body: {'token': token});
+        }
+      } catch (e) {
+        // Ignore firebase errors on logout
+      }
+
       await ApiService.instance.logout();
     } catch (e) {
       // Ignore network errors on logout

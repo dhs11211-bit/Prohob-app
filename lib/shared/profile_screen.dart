@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import '../app_constants.dart';
 import '/shared/toast_service.dart';
 
-enum ProfileTab { profile, documents }
+enum ProfileTab { profile, documents, notifications }
 
 class ProfileScreen extends StatefulWidget {
   final ProfileTab initialTab;
@@ -68,6 +68,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'W-9 Form': null,
     'Direct Deposit Form': null,
   };
+
+  bool _pushJobAssigned = true;
+  bool _pushTaskAssigned = true;
+  bool _smsJobAssigned = true;
 
   // Ultra-Premium Dark Theme Palette
   final Color bgDark = const Color(0xFF0F172A);
@@ -201,6 +205,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _documents['SSN Card'] = userData['ssn_url'];
           _documents['W-9 Form'] = userData['w9_url'];
           _documents['Direct Deposit Form'] = userData['bank_form_url'];
+
+          if (userData['preferences'] != null) {
+            final prefs = userData['preferences'] as Map<String, dynamic>;
+            _pushJobAssigned = prefs['push_job_assigned'] ?? true;
+            _pushTaskAssigned = prefs['push_task_assigned'] ?? true;
+            _smsJobAssigned = prefs['sms_job_assigned'] ?? true;
+          }
         }
       } catch (err) {
         debugPrint('Error fetching user profile via API: $err');
@@ -209,6 +220,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint('Error loading profile: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _savePreferences() async {
+    try {
+      await ApiService.instance.updateProfile({
+        'preferences': {
+          'push_job_assigned': _pushJobAssigned,
+          'push_task_assigned': _pushTaskAssigned,
+          'sms_job_assigned': _smsJobAssigned,
+        }
+      });
+      // Optionally show toast or handle success without blocking UI
+    } catch (e) {
+      debugPrint('Failed to save preferences: $e');
     }
   }
 
@@ -469,7 +495,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Text(
                     _activeTab == ProfileTab.profile
                         ? 'My Profile'
-                        : 'My Documents',
+                        : _activeTab == ProfileTab.documents 
+                            ? 'My Documents' 
+                            : 'Notifications',
                     style: TextStyle(
                       color: textWhite,
                       fontSize: 20,
@@ -477,24 +505,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
-                // Toggle Tab Button
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _activeTab = _activeTab == ProfileTab.profile
-                          ? ProfileTab.documents
-                          : ProfileTab.profile;
-                    });
-                  },
-                  child: Text(
-                    _activeTab == ProfileTab.profile ? 'Documents' : 'Profile',
-                    style: TextStyle(
-                        color: accentBlue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13),
-                  ),
-                ),
               ],
+            ),
+            const SizedBox(height: 16),
+            // Custom Segmented Control
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _activeTab = ProfileTab.profile),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _activeTab == ProfileTab.profile ? accentBlue : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('Profile', style: TextStyle(color: _activeTab == ProfileTab.profile ? Colors.white : muted, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _activeTab = ProfileTab.documents),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _activeTab == ProfileTab.documents ? accentBlue : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('Documents', style: TextStyle(color: _activeTab == ProfileTab.documents ? Colors.white : muted, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _activeTab = ProfileTab.notifications),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _activeTab == ProfileTab.notifications ? accentBlue : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('Alerts', style: TextStyle(color: _activeTab == ProfileTab.notifications ? Colors.white : muted, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -504,7 +570,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? Center(child: CircularProgressIndicator(color: accentBlue))
                   : _activeTab == ProfileTab.profile
                       ? _buildProfileForm()
-                      : _buildDocumentsView(),
+                      : _activeTab == ProfileTab.documents 
+                          ? _buildDocumentsView() 
+                          : _buildNotificationsView(),
             ),
           ],
         ),
@@ -948,6 +1016,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+  Widget _buildNotificationsView() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Mobile Push Alerts',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Manage what alerts you receive on this device.',
+            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+          ),
+          const SizedBox(height: 20),
+          _buildSwitchTile(
+            title: 'New Job Assigned',
+            subtitle: 'Get a push notification when you are assigned a new job.',
+            value: _pushJobAssigned,
+            onChanged: (val) {
+              setState(() => _pushJobAssigned = val);
+              _savePreferences();
+            },
+            icon: Icons.assignment_ind,
+          ),
+          _buildSwitchTile(
+            title: 'Task Assigned',
+            subtitle: 'Get a push notification when a new task is assigned to you.',
+            value: _pushTaskAssigned,
+            onChanged: (val) {
+                setState(() => _pushTaskAssigned = val);
+                _savePreferences();
+            },
+            icon: Icons.task_alt,
+          ),
+          const SizedBox(height: 32),
+          const Text(
+            'SMS Text Alerts',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          _buildSwitchTile(
+            title: 'Urgent Dispatch (SMS)',
+            subtitle: 'Get a text message when you are urgently assigned a new job.',
+            value: _smsJobAssigned,
+            onChanged: (val) {
+              setState(() => _smsJobAssigned = val);
+              _savePreferences();
+            },
+            icon: Icons.sms,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required IconData icon,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: accentBlue.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: accentBlue, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(subtitle, style: TextStyle(color: muted, fontSize: 12)),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: accentGreen,
+          ),
+        ],
+      ),
     );
   }
 }

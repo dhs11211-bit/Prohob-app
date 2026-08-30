@@ -1,7 +1,15 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:go_router/go_router.dart';
+import 'dart:io' show Platform;
 import '../backend/api_service.dart';
 import 'toast_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print("Handling a background message: ${message.messageId}");
+}
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -11,6 +19,8 @@ class FirebaseService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   Future<void> init(BuildContext context) async {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
     // Request permission (mostly for iOS, but good practice)
     NotificationSettings settings = await _messaging.requestPermission(
       alert: true,
@@ -42,15 +52,47 @@ class FirebaseService {
           );
         }
       });
+
+      // Handle background notification tap (Deep Linking)
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        print('A new onMessageOpenedApp event was published!');
+        _handleDeepLink(context, message);
+      });
+
+      // Handle notification tap when app is completely terminated
+      RemoteMessage? initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        _handleDeepLink(context, initialMessage);
+      }
+    }
+  }
+
+  void _handleDeepLink(BuildContext context, RemoteMessage message) {
+    if (message.data.containsKey('route')) {
+      final route = message.data['route'];
+      print('Deep linking to route: $route');
+      context.push(route);
     }
   }
 
   Future<void> _sendTokenToBackend(String token) async {
     try {
-      await ApiService.instance.post('/fcm-token', {'token': token});
-      print("FCM Token registered with backend.");
+      String os = 'web';
+      if (!kIsWeb) {
+        if (Platform.isIOS) {
+          os = 'ios';
+        } else if (Platform.isAndroid) {
+          os = 'android';
+        }
+      }
+
+      await ApiService.instance.post('/device-tokens', {
+        'token': token,
+        'platform': os,
+      });
+      print("Device Token registered with backend ($os).");
     } catch (e) {
-      print("Failed to register FCM token: $e");
+      print("Failed to register device token: $e");
     }
   }
 }
