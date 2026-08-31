@@ -566,7 +566,7 @@ class ApiService {
     final token = await _getToken();
 
     var request = http.MultipartRequest('POST', Uri.parse(url));
-    request.headers['Authorization'] = 'Bearer ';
+    request.headers['Authorization'] = 'Bearer $token';
     request.headers['Accept'] = 'application/json';
 
     request.fields['entity_type'] = entityType;
