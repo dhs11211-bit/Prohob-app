@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../custom_code/widgets/index.dart' as custom_widgets;
 import 'quote_list_page.dart';
 import '../tasks/tasks_list_screen.dart';
@@ -183,12 +184,7 @@ class _AdminMoreTabState extends State<AdminMoreTab> {
                   icon: Icons.check_box_rounded,
                   color: const Color(0xFFEC4899),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const TasksListScreen(),
-                      ),
-                    );
+                    context.pushNamed('TasksList');
                   },
                 ),
               ],

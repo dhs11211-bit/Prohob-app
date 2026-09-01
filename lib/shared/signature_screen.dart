@@ -5,9 +5,9 @@ import '../backend/api_service.dart';
 import 'toast_service.dart';
 
 class SignatureScreen extends StatefulWidget {
-  final int jobId;
+  final int? jobId; // Nullable for generic use (e.g., onboarding)
 
-  const SignatureScreen({Key? key, required this.jobId}) : super(key: key);
+  const SignatureScreen({Key? key, this.jobId}) : super(key: key);
 
   @override
   _SignatureScreenState createState() => _SignatureScreenState();
@@ -46,11 +46,16 @@ class _SignatureScreenState extends State<SignatureScreen> {
     try {
       final bytes = await _controller.toPngBytes();
       if (bytes != null) {
-        final base64Signature = base64Encode(bytes);
-        await ApiService.instance.completeJobWithSignature(
-            widget.jobId, 'data:image/png;base64,' + base64Signature, _nameController.text.trim());
-        ToastService.success(context, 'Job Completed Successfully!');
-        Navigator.pop(context, true); // return true to indicate success
+        final base64Signature = 'data:image/png;base64,' + base64Encode(bytes);
+        if (widget.jobId != null) {
+          await ApiService.instance.completeJobWithSignature(
+              widget.jobId!, base64Signature, _nameController.text.trim());
+          ToastService.success(context, 'Job Completed Successfully!');
+          Navigator.pop(context, true); // return true to indicate success
+        } else {
+          // Generic use case - return the signature data
+          Navigator.pop(context, base64Signature);
+        }
       }
     } catch (e) {
       ToastService.error(context, 'Failed to save signature');

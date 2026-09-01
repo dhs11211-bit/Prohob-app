@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../backend/api_service.dart';
 import '../custom_code/widgets/index.dart' as custom_widgets;
 import 'task_detail_screen.dart';
@@ -241,11 +242,9 @@ class _TasksListScreenState extends State<TasksListScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TaskDetailScreen(taskId: task['id']),
-            ),
+          final result = await context.pushNamed(
+            'TaskDetail',
+            pathParameters: {'id': task['id'].toString()},
           );
           if (result == true) {
             _fetchTasks(); // Refresh if task was updated

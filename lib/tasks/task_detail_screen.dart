@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../backend/api_service.dart';
 import 'package:intl/intl.dart';
 
@@ -38,10 +39,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
+  bool _wasUpdated = false;
+
   Future<void> _updateStatus(String newStatus) async {
     try {
       await ApiService.instance.updateTask(widget.taskId, {'task_status': newStatus});
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Status updated')));
+      _wasUpdated = true;
       _fetchData();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update status: $e')));
@@ -56,6 +60,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         'mentions': [], // Simplification for mobile typing
       });
       _commentController.clear();
+      _wasUpdated = true;
       _fetchData();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post comment: $e')));
@@ -80,6 +85,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop(_wasUpdated);
+            } else {
+              context.goNamed('TasksList'); // Fallback to list
+            }
+          },
+        ),
         title: Text(_task!['task_number'] ?? 'TK-${_task!['id']}', style: const TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF1E3A8A),
         iconTheme: const IconThemeData(color: Colors.white),

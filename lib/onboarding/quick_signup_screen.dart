@@ -3,6 +3,8 @@ import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'onboarding_wizard.dart';
+import '../backend/api_service.dart';
 
 class QuickSignupScreen extends StatefulWidget {
   const QuickSignupScreen({Key? key}) : super(key: key);
@@ -29,7 +31,7 @@ class _QuickSignupScreenState extends State<QuickSignupScreen> {
   bool _otpSent = false;
   bool _isLoading = false;
 
-  final String apiUrl = 'http://localhost:8000/api';
+  String get apiUrl => ApiService.baseUrl.replaceAll('/mob', '');
 
   Future<void> sendOtp() async {
     if (_phoneController.text.isEmpty) {
@@ -75,8 +77,8 @@ class _QuickSignupScreenState extends State<QuickSignupScreen> {
       
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account created!')));
-        // In FlutterFlow context, typically navigate using context.goNamed('Dashboard')
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account created! Please sign in.')));
+        Navigator.pop(context);
       } else {
         final error = json.decode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${error['message'] ?? 'Unknown error'}')));
