@@ -20,6 +20,9 @@ import '/index.dart';
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
 
+import '/tasks/tasks_list_screen.dart';
+import '/tasks/task_detail_screen.dart';
+
 const kTransitionInfoKey = '__transition_info__';
 
 GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -147,6 +150,18 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: 'WalletPage',
           path: '/walletPage',
           builder: (context, params) => NavBarPage(initialIndex: 3),
+        ),
+        FFRoute(
+          name: 'TasksList',
+          path: '/tasks',
+          builder: (context, params) => const TasksListScreen(),
+        ),
+        FFRoute(
+          name: 'TaskDetail',
+          path: '/tasks/:id',
+          builder: (context, params) => TaskDetailScreen(
+            taskId: int.tryParse(params.state.pathParameters['id']!) ?? 0,
+          ),
         ),
         FFRoute(
           name: 'ChatPage',

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import 'package:http_parser/http_parser.dart';
 import 'offline_sync_service.dart';
+import 'location_tracking_service.dart';
 import '../shared/index.dart' as shared;
 
 class ValidationException implements Exception {
@@ -85,48 +86,6 @@ class ApiService {
       return _unwrapData(data);
     } else {
       throw Exception(data['message'] ?? 'Login failed');
-    }
-  }
-
-  Future<Map<String, dynamic>> clockBreak(
-      int jobId, double? lat, double? lng) async {
-    final url = Uri.parse('$baseUrl/clock/break');
-    final response = await http.post(
-      url,
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'job_id': jobId,
-        'latitude': lat,
-        'longitude': lng,
-      }),
-    );
-    final data = jsonDecode(response.body);
-    if (response.statusCode == 401) {
-      LaravelAuthManager.signOut();
-    }
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return _unwrapData(data);
-    } else {
-      throw Exception(data['message'] ?? 'Failed to toggle break');
-    }
-  }
-
-  Future<Map<String, dynamic>> logJobAttempt(
-      int jobId, Map<String, dynamic> payload) async {
-    final url = Uri.parse('$baseUrl/jobs/$jobId/log-attempt');
-    final response = await http.post(
-      url,
-      headers: await _getHeaders(),
-      body: jsonEncode(payload),
-    );
-    final data = jsonDecode(response.body);
-    if (response.statusCode == 401) {
-      LaravelAuthManager.signOut();
-    }
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return _unwrapData(data);
-    } else {
-      throw Exception(data['message'] ?? 'Failed to log attempt');
     }
   }
 
@@ -428,7 +387,7 @@ class ApiService {
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       try {
-        shared.BackgroundGpsService.start();
+        LocationTrackingService.instance.startTracking();
       } catch (e) {
         print('Could not start GPS tracking: $e');
       }
@@ -476,7 +435,7 @@ class ApiService {
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       try {
-        shared.BackgroundGpsService.stop();
+        LocationTrackingService.instance.stopTracking();
       } catch (e) {
         print('Could not stop GPS tracking: $e');
       }
@@ -561,7 +520,7 @@ class ApiService {
     }
   }
 
-  Future<void> uploadAttachment(String entityType, int entityId, List<int> fileBytes, String fileName) async {
+  Future<Map<String, dynamic>> uploadAttachment(String entityType, int entityId, List<int> fileBytes, String fileName) async {
     String url = baseUrl.replaceAll('/mob', '') + '/attachments';
     final token = await _getToken();
 
@@ -583,9 +542,38 @@ class ApiService {
     if (response.statusCode >= 400) {
       throw Exception('Failed to upload attachment');
     }
+    return jsonDecode(response.body);
+  }
+
+  Future<dynamic> sendJobAlert(Map<String, dynamic> data) async {
+    return await post('/jobs/${data['job_id']}/alert', data);
   }
 
   // --- Generic Endpoints ---
+  Future<Map<String, dynamic>> _request(String method, String endpoint,
+      {Map<String, dynamic>? queryParameters, Map<String, dynamic>? body}) async {
+    dynamic result;
+    switch (method.toUpperCase()) {
+      case 'GET':
+        result = await get(endpoint, queryParams: queryParameters);
+        break;
+      case 'POST':
+        result = await post(endpoint, body ?? {});
+        break;
+      case 'PUT':
+        result = await put(endpoint, body ?? {});
+        break;
+      case 'DELETE':
+        result = await delete(endpoint);
+        break;
+      default:
+        throw Exception('Method $method not supported');
+    }
+    if (result is Map<String, dynamic>) return result;
+    if (result is List) return {'data': result};
+    return {};
+  }
+
   Future<dynamic> get(String endpoint,
       {Map<String, dynamic>? queryParams}) async {
     String urlStr = endpoint.startsWith('http')
@@ -738,10 +726,10 @@ class ApiService {
       Uri.parse(url),
       headers: await _getHeaders(),
       body: jsonEncode({
-        'entity_type': 'job',
-        'entity_id': jobId,
-        'note': note,
-        'visibility': visibility
+        'entity_type': payload['entity_type'] ?? 'job',
+        'entity_id': payload['entity_id'] ?? payload['job_id'],
+        'note': payload['note'],
+        'visibility': payload['visibility'] ?? 'internal'
       }),
     );
     if (response.statusCode == 401) {

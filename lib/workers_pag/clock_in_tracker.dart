@@ -533,9 +533,11 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                           .isEmpty) return;
                                       setModal(() => isSending = true);
                                       try {
-                                        // TODO: Phase 4 - Connect to Laravel Chat API
-                                        await Future.delayed(
-                                            const Duration(seconds: 1));
+                                        await ApiService.instance.sendJobAlert({
+                                          'job_id': _todayJobs.isNotEmpty ? _todayJobs[_currentJobIndex]['id'] : 0,
+                                          'message': adminMsgController.text,
+                                          'type': 'supervisor_alert',
+                                        });
                                         Navigator.pop(context);
                                         ToastService.success(
                                             context, 'Alert sent!');

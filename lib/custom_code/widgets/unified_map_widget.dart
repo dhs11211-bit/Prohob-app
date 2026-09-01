@@ -1214,8 +1214,10 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                 ),
                 Builder(
                   builder: (context) {
-                    // Temporarily using placeholder for staff name since we disabled Firebase query
-                    String workerName = 'Staff';
+                    String workerName = '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim();
+                    if (workerName.isEmpty) {
+                      workerName = data['name'] ?? 'Staff';
+                    }
 
                     return GestureDetector(
                       onTap: () {
