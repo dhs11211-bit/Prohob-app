@@ -141,7 +141,7 @@ class ApiService {
   // --- Chat Media Upload ---
   Future<Map<String, dynamic>> uploadChatMedia(
       int chatId, List<int> fileBytes, String fileName) async {
-    final url = Uri.parse('$baseUrl/chat/$chatId/media');
+    final url = Uri.parse(baseUrl.replaceAll('/mob', '') + '/conversations/$chatId/media');
 
     var request = http.MultipartRequest('POST', url);
     final storage = const FlutterSecureStorage();
