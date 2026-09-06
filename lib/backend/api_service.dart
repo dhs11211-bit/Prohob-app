@@ -786,16 +786,33 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  Future<void> duplicateJob(int jobId) async {
+  Future<Map<String, dynamic>> duplicateJob(int jobId, [Map<String, dynamic>? data]) async {
     String url = baseUrl.replaceAll('/mob', '') + '/jobs/$jobId/duplicate';
     final response = await http.post(
       Uri.parse(url),
       headers: await _getHeaders(),
+      body: data != null ? jsonEncode(data) : jsonEncode({
+        'copy_customer': true,
+        'copy_services': true,
+        'copy_materials': true,
+        'copy_checklist': true,
+        'copy_crew': false,
+        'copy_notes': true,
+        'copy_attachments': true
+      }),
     );
     if (response.statusCode == 401) {
       LaravelAuthManager.signOut();
     }
-    // Could return newly created Job ID if needed.
+    
+    final decoded = jsonDecode(response.body);
+    final dataObj = _unwrapData(decoded);
+    if (dataObj is Map<String, dynamic>) {
+      // job_detail_screen.dart expects 'new_job_id'
+      dataObj['new_job_id'] = dataObj['id'];
+      return dataObj;
+    }
+    return decoded;
   }
 
   // --- Chat Endpoints ---
@@ -1069,7 +1086,16 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> convertEvent(int eventId, String targetType) async {
-    return _request('POST', '/jobs/$eventId/convert', body: {'target_type': targetType});
+    String url = baseUrl.replaceAll('/mob', '') + '/jobs/$eventId/convert';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+      body: jsonEncode({'target_type': targetType}),
+    );
+    if (response.statusCode == 401) {
+      LaravelAuthManager.signOut();
+    }
+    return _unwrapData(jsonDecode(response.body));
   }
 
   // TASKS MODULE
