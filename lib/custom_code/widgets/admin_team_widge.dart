@@ -1625,7 +1625,7 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge>
                                           setModalState(() => isSaving = true);
                                           try {
                                             await ApiService.instance
-                                                .put('/employee/profile', {
+                                                .put('/users/profile', {
                                               'first_name':
                                                   firstNameCtrl.text.trim(),
                                               'last_name':

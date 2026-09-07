@@ -403,7 +403,7 @@ class _AdminDashboardWidgeState extends State<AdminDashboardWidge> {
                                         setModalState(() => isSaving = true);
                                         try {
                                           await ApiService.instance.put(
-                                              '/employee/profile', {
+                                              '/users/profile', {
                                             'first_name':
                                                 firstNameCtrl.text.trim(),
                                             'last_name':

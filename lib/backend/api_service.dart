@@ -924,7 +924,7 @@ class ApiService {
   // --- Profile Endpoints ---
   Future<Map<String, dynamic>> updateProfile(
       Map<String, dynamic> profileData) async {
-    final url = Uri.parse('$baseUrl/employee/profile');
+    final url = Uri.parse('$baseUrl/users/profile');
     final response = await http.put(
       url,
       headers: await _getHeaders(),
@@ -946,7 +946,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> uploadDocument(
       String docType, List<int> fileBytes, String fileName) async {
-    final url = Uri.parse('$baseUrl/employee/profile/document');
+    final url = Uri.parse('$baseUrl/users/profile/document');
     final token = await _getToken();
 
     var request = http.MultipartRequest('POST', url);
