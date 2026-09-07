@@ -1388,7 +1388,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                                           setModalState(() => isSaving = true);
                                           try {
                                             await ApiService.instance.put(
-                                                '/employee/profile', {
+                                                '/users/profile', {
                                               'first_name':
                                                   firstNameCtrl.text.trim(),
                                               'last_name':
