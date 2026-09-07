@@ -1036,7 +1036,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       tabs.add(const Tab(text: 'Completion'));
       tabViews.add(Padding(padding: const EdgeInsets.all(12), child: Text(comp, style: TextStyle(color: textWhite, fontSize: 14))));
     }
-    if ((AuthHelpers.isAdmin || AuthHelpers.hasPermission('can_see_internal_notes')) && internal.isNotEmpty) {
+    if ((AuthHelpers.isAdmin || AuthHelpers.hasPermission('view_internal_instructions')) && internal.isNotEmpty) {
       tabs.add(const Tab(text: 'Internal'));
       tabViews.add(Padding(padding: const EdgeInsets.all(12), child: Text(internal, style: TextStyle(color: goldColor, fontSize: 14))));
     }
@@ -2015,9 +2015,9 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
   @override
   Widget build(BuildContext context) {
 
-    final canViewFinancials = (AuthHelpers.hasPermission('VIEW PROFITABILITY') || AuthHelpers.isAdmin) && AuthHelpers.hasMobilePermission('can_view_job_price');
-    final canEditJob = AuthHelpers.hasPermission('EDIT JOBS') || AuthHelpers.isAdmin || AuthHelpers.hasPermission('can_edit_job_details');
-    final canDeleteJob = AuthHelpers.hasPermission('DELETE JOBS') || AuthHelpers.isAdmin;
+    final canViewFinancials = (AuthHelpers.hasPermission('job.view_financials') || AuthHelpers.isAdmin) && AuthHelpers.hasMobilePermission('can_view_job_price');
+    final canEditJob = AuthHelpers.hasPermission('job.edit') || AuthHelpers.isAdmin;
+    final canDeleteJob = AuthHelpers.hasPermission('job.delete') || AuthHelpers.isAdmin;
 
     String jobNumber = _jobData?['job_number'] ?? '';
     String jobTitle = _jobData?['title'] ?? 'Job Details';
@@ -2955,7 +2955,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                         }).toList(),
                                         const SizedBox(height: 16),
                                       ],
-                                      if ((_jobData!['invoices'] == null || (_jobData!['invoices'] as List).isEmpty) && (AuthHelpers.hasPermission('CREATE INVOICES') || AuthHelpers.isAdmin) && AuthHelpers.hasMobilePermission('can_send_invoice'))
+                                      if ((_jobData!['invoices'] == null || (_jobData!['invoices'] as List).isEmpty) && (AuthHelpers.hasPermission('invoice.create') || AuthHelpers.isAdmin) && AuthHelpers.hasMobilePermission('can_send_invoice'))
                                         Padding(
                                           padding: const EdgeInsets.only(bottom: 20),
                                           child: ElevatedButton.icon(
