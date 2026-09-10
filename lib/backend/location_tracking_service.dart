@@ -9,8 +9,10 @@ class LocationTrackingService {
 
   Timer? _timer;
   bool _isTracking = false;
+  int? currentJobId;
 
-  void startTracking() {
+  void startTracking({int? jobId}) {
+    currentJobId = jobId;
     if (_isTracking) return;
     _isTracking = true;
     
@@ -27,6 +29,7 @@ class LocationTrackingService {
     _timer?.cancel();
     _timer = null;
     _isTracking = false;
+    currentJobId = null;
   }
 
   Future<void> _sendLocation() async {
@@ -44,14 +47,20 @@ class LocationTrackingService {
         timeLimit: const Duration(seconds: 10),
       );
 
-      await ApiService.instance.post('/users/live-location', {
+      final Map<String, dynamic> payload = {
         'lat': pos.latitude,
         'lng': pos.longitude,
         'accuracy_m': pos.accuracy,
-        'speed_mps': pos.speed,
-        'heading': pos.heading,
+        'speed_mps': pos.speed < 0 ? null : pos.speed,
+        'heading': pos.heading < 0 ? null : pos.heading,
         'is_mocked': pos.isMocked,
-      });
+      };
+
+      if (currentJobId != null) {
+        payload['job_id'] = currentJobId;
+      }
+
+      await ApiService.instance.post('/location-tracking/ping', payload);
     } catch (e) {
       print("Background location tracking error: $e");
     }

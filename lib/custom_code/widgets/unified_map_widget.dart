@@ -122,12 +122,11 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
 
     if (_selectedFilter == 0 || _selectedFilter == 2) {
       for (var worker in _staffLocations) {
-        if (worker is Map) {
-          double? lat = worker['latitude'] != null
-              ? double.tryParse(worker['latitude'].toString())
+          double? lat = worker['lat'] != null
+              ? double.tryParse(worker['lat'].toString())
               : null;
-          double? lng = worker['longitude'] != null
-              ? double.tryParse(worker['longitude'].toString())
+          double? lng = worker['lng'] != null
+              ? double.tryParse(worker['lng'].toString())
               : null;
           if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
             updateBounds(lat, lng);
@@ -135,6 +134,7 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
         }
       }
     }
+
 
     if (minLat != null && maxLat != null && minLng != null && maxLng != null) {
       if (minLat == maxLat) {
@@ -290,11 +290,11 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
       for (int i = 0; i < locations.length; i++) {
         if (locations[i] is Map<String, dynamic>) {
           var worker = locations[i];
-          double? lat = worker['latitude'] != null
-              ? double.tryParse(worker['latitude'].toString())
+          double? lat = worker['lat'] != null
+              ? double.tryParse(worker['lat'].toString())
               : null;
-          double? lng = worker['longitude'] != null
-              ? double.tryParse(worker['longitude'].toString())
+          double? lng = worker['lng'] != null
+              ? double.tryParse(worker['lng'].toString())
               : null;
           String address = worker['address']?.toString() ?? '';
 
@@ -302,8 +302,8 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
               address.isNotEmpty) {
             final coords = await _geocodeAddress(address);
             if (coords != null) {
-              locations[i]['latitude'] = coords['lat'];
-              locations[i]['longitude'] = coords['lng'];
+              locations[i]['lat'] = coords['lat'];
+              locations[i]['lng'] = coords['lng'];
               updated = true;
               lat = coords['lat'];
               lng = coords['lng'];
@@ -325,13 +325,14 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                     permission == LocationPermission.always) {
                   Position position = await Geolocator.getCurrentPosition(
                       desiredAccuracy: LocationAccuracy.high);
-                  locations[i]['latitude'] = position.latitude;
-                  locations[i]['longitude'] = position.longitude;
+                  locations[i]['lat'] = position.latitude;
+                  locations[i]['lng'] = position.longitude;
                   updated = true;
                 }
               }
             } catch (_) {}
           }
+
         }
       }
 
@@ -1744,17 +1745,13 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
                           }
 
                           if (locationsToPlot.isEmpty) {
-                            double? lat = worker['latitude'] != null
-                                ? double.tryParse(worker['latitude'].toString())
-                                : (worker['lat'] != null
-                                    ? double.tryParse(worker['lat'].toString())
-                                    : null);
-                            double? lng = worker['longitude'] != null
-                                ? double.tryParse(
-                                    worker['longitude'].toString())
-                                : (worker['lng'] != null
-                                    ? double.tryParse(worker['lng'].toString())
-                                    : null);
+                            double? lat = worker['lat'] != null
+                                ? double.tryParse(worker['lat'].toString())
+                                : null;
+                            double? lng = worker['lng'] != null
+                                ? double.tryParse(worker['lng'].toString())
+                                : null;
+
                             if (lat != null &&
                                 lng != null &&
                                 lat != 0.0 &&
