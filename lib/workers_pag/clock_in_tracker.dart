@@ -203,8 +203,9 @@ class _ClockInTrackerState extends State<ClockInTracker> {
       try {
         await ApiService.instance
             .clockIn(jobId, userPos?.latitude, userPos?.longitude);
-        LocationTrackingService.instance.startTracking();
+        LocationTrackingService.instance.startTracking(jobId: jobId);
         await _fetchData();
+
         if (mounted) setState(() {});
       } catch (e) {
         if (mounted) {
