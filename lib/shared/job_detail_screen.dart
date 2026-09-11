@@ -2872,6 +2872,16 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                                       computedTotal += price * qty;
                                     }
                                   }
+                                  if (_materials.isNotEmpty) {
+                                    for (var mat in _materials) {
+                                      bool isBillable = mat['is_billable'] == true || mat['is_billable'] == 1 || mat['is_billable'] == '1';
+                                      if (isBillable) {
+                                        final mPrice = double.tryParse(mat['unit_price']?.toString() ?? '0') ?? 0.0;
+                                        final mQty = double.tryParse(mat['quantity_required']?.toString() ?? '1') ?? 1.0;
+                                        computedTotal += mPrice * mQty;
+                                      }
+                                    }
+                                  }
                                   // Also honour backend-provided value if details not loaded
                                   if (computedTotal == 0.0) {
                                     computedTotal = double.tryParse(

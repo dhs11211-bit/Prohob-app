@@ -291,7 +291,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
                         const SizedBox(height: 16),
                         ..._getActiveMaterials().map((mat) {
                           final q = double.tryParse(mat['quantity_required']?.toString() ?? '1') ?? 1;
-                          final c = double.tryParse(mat['unit_cost']?.toString() ?? '0') ?? 0;
+                          final c = double.tryParse(mat['unit_price']?.toString() ?? '0') ?? 0;
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Row(
