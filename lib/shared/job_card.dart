@@ -89,7 +89,7 @@ class SharedJobCard extends StatelessWidget {
     }
     
     if (bannerColors.isEmpty) {
-      bannerColors = [statusColor];
+      bannerColors = [statusColor, statusColor];
     } else if (bannerColors.length == 1) {
       bannerColors = [bannerColors[0], bannerColors[0]];
     }
@@ -111,20 +111,21 @@ class SharedJobCard extends StatelessWidget {
             )
           ],
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Left color banner (Split Colors)
-            Container(
-              width: 8,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: bannerColors,
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left color banner (Split Colors)
+              Container(
+                width: 8,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: bannerColors,
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                 ),
               ),
-            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -326,15 +327,18 @@ class SharedJobCard extends StatelessWidget {
           ),
             const SizedBox(width: 8),
             // Right Chevron Circle Button
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration:
-                  const BoxDecoration(color: circleBg, shape: BoxShape.circle),
-              child: const Icon(Icons.chevron_right, color: muted, size: 20),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration:
+                    const BoxDecoration(color: circleBg, shape: BoxShape.circle),
+                child: const Icon(Icons.chevron_right, color: muted, size: 20),
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -5,6 +5,7 @@ import '/backend/api_service.dart';
 import 'job_card.dart';
 import 'job_detail_screen.dart';
 import 'job_parser.dart';
+import 'unavailability_screen.dart';
 
 class SharedJobListPage extends StatefulWidget {
   const SharedJobListPage({
@@ -566,18 +567,27 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                                     fontWeight: FontWeight.bold),
                               ),
                               if (lastDateStr == null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                      color: card,
-                                      borderRadius: BorderRadius.circular(8)),
-                                  child: Text(
-                                    '+ Request time off',
-                                    style: TextStyle(
-                                        color: muted,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold),
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => UnavailabilityScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                        color: card,
+                                        borderRadius: BorderRadius.circular(8)),
+                                    child: Text(
+                                      '+ Request time off',
+                                      style: TextStyle(
+                                          color: muted,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                 ),
                             ],
