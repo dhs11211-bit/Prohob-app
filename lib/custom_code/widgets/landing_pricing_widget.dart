@@ -211,10 +211,13 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
       }
     }
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final double cardWidth = screenWidth > 420
+        ? 380.0
+        : (screenWidth - 32).clamp(240.0, 380.0);
+
     return Container(
-      width: MediaQuery.of(context).size.width > 400
-          ? 380
-          : MediaQuery.of(context).size.width - 32,
+      width: cardWidth,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B), // Card color
@@ -226,6 +229,7 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (isPopular)
             Container(
@@ -248,18 +252,17 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
               Text(price,
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 42,
                       fontWeight: FontWeight.bold)),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8, left: 4),
-                child: Text("/mo",
-                    style: TextStyle(color: Colors.white38, fontSize: 16)),
-              ),
+              const SizedBox(width: 4),
+              const Text("/mo",
+                  style: TextStyle(color: Colors.white38, fontSize: 16)),
             ],
           ),
           if (trialDays != null && trialDays > 0)
@@ -299,13 +302,17 @@ class _LandingPricingWidgetState extends State<LandingPricingWidget> {
           ...features.map((f) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Icon(Icons.check_circle,
                         color: Color(0xFF10B981), size: 18),
                     const SizedBox(width: 12),
-                    Text(f,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 14)),
+                    Expanded(
+                      child: Text(
+                        f,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ),
                   ],
                 ),
               )),

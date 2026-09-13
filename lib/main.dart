@@ -19,13 +19,16 @@ import '/backend/api_service.dart';
 import '/shared/toast_service.dart';
 import '/components/create_invoice_modal.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Background messaging handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  if (!kIsWeb) {
+    await Firebase.initializeApp();
+  }
   print("Handling a background message: ${message.messageId}");
 }
 
@@ -39,9 +42,26 @@ void main() async {
   GoRouter.optionURLReflectsImperativeAPIs = true;
   usePathUrlStrategy();
 
-  // Task 10.8: Initialize Firebase
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // Initialize Firebase safely for both Web and Mobile
+  try {
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyCtUmbGv4iB3auEdmwyMesDzYUIe-UV93c",
+          appId: "1:7390119917:web:89389a7765342053d689e4",
+          messagingSenderId: "7390119917",
+          projectId: "prohob-pusher",
+          authDomain: "prohob-pusher.firebaseapp.com",
+          storageBucket: "prohob-pusher.firebasestorage.app",
+        ),
+      );
+    } else {
+      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    }
+  } catch (e) {
+    print('Firebase initialization error: $e');
+  }
 
   await LaravelAuthManager.initialize();
   await FlutterFlowTheme.initialize();
@@ -50,9 +70,11 @@ void main() async {
   await appState.initializePersistedState();
 
   try {
+    if (!kIsWeb) {
       await shared.BackgroundGpsService.initializeService();
+    }
   } catch(e) {
-      print('Background GPS Service Init Error: $e');
+    print('Background GPS Service Init Error: $e');
   }
 
   runApp(ChangeNotifierProvider(

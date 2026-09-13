@@ -450,8 +450,8 @@ class _CreateInvoiceModalState extends State<CreateInvoiceModal> {
                                     color: const Color(0xFF1E293B),
                                     borderRadius: BorderRadius.circular(10),
                                     child: SizedBox(
-                                      width: MediaQuery.of(context).size.width -
-                                          40,
+                                      width: (MediaQuery.of(context).size.width - 40)
+                                          .clamp(200.0, double.infinity),
                                       height: 200,
                                       child: ListView.builder(
                                         padding: const EdgeInsets.all(8.0),
