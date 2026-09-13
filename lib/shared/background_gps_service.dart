@@ -3,8 +3,8 @@ import 'dart:ui';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:geolocator/geolocator.dart';
-import 'api_service.dart';
-import 'app_state.dart';
+import '../backend/api_service.dart';
+import '../app_state.dart';
 
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {

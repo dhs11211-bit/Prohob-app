@@ -75,7 +75,7 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
       List<dynamic> fetchedAlerts = [];
       
       try {
-        final responses = await Future.wait([
+        final responses = await Future.wait<dynamic>([
           ApiService.instance.getClockStatus(widget.jobId).catchError((_) => <String, dynamic>{}),
           ApiService.instance.getNotes('job', widget.jobId).catchError((_) => {'data': []}),
           ApiService.instance.getJobMaterials(widget.jobId).catchError((_) => {'data': []}),

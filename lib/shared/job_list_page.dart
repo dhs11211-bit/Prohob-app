@@ -504,7 +504,7 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                           children: [
                             const Text('JOBS TODAY', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                             const SizedBox(height: 4),
-                            Text('${_getJobsForDate(_allJobs, _selectedDay).length}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.black)),
+                            Text('${_getJobsForDate(_allJobs, _selectedDay).length}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
                           ],
                         ),
                         Container(width: 1, height: 40, color: Colors.white24),
@@ -514,7 +514,7 @@ class _SharedJobListPageState extends State<SharedJobListPage> {
                             const SizedBox(height: 4),
                             Text(
                               '\$${_getJobsForDate(_allJobs, _selectedDay).fold<double>(0, (sum, item) => sum + (double.tryParse(item['total_amount']?.toString() ?? '0') ?? 0)).toStringAsFixed(2)}',
-                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.black)
+                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)
                             ),
                           ],
                         ),

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../backend/api_service.dart';
 import '../shared/toast_service.dart';
-import '../shared/job_media_panel.dart'; // We can reuse media panel
-import '../shared/job_notes_section.dart'; // We can reuse notes panel
 
 class EventDetailScreen extends StatefulWidget {
   final int eventId;
@@ -321,10 +319,26 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
 
             _buildSectionHeader('EVENT NOTES'),
-            JobNotesSection(jobId: widget.eventId), // Polymorphic reuse!
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('No notes recorded for this event.', style: TextStyle(color: Colors.white54)),
+            ),
 
             _buildSectionHeader('ATTACHMENTS'),
-            JobMediaPanel(jobId: widget.eventId), // Polymorphic reuse!
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('No attachments uploaded.', style: TextStyle(color: Colors.white54)),
+            ),
 
             const SizedBox(height: 40),
           ],

@@ -178,7 +178,7 @@ class SharedJobCard extends StatelessWidget {
                               color: seriesPurple, size: 12),
                         ),
                       ],
-                      if (data['is_unpaid'] == true) ...[
+                      if (jobData['is_unpaid'] == true) ...[
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -306,15 +306,15 @@ class SharedJobCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (data['progress_percentage'] != null && data['progress_percentage'] > 0) ...[
+                  if (jobData['progress_percentage'] != null && jobData['progress_percentage'] > 0) ...[
                     const SizedBox(height: 12),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: (data['progress_percentage'] as num).toDouble() / 100,
+                        value: (jobData['progress_percentage'] as num).toDouble() / 100,
                         backgroundColor: Colors.white10,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          data['progress_percentage'] == 100 ? Colors.green : Colors.blue,
+                          jobData['progress_percentage'] == 100 ? Colors.green : Colors.blue,
                         ),
                         minHeight: 4,
                       ),
@@ -323,6 +323,7 @@ class SharedJobCard extends StatelessWidget {
                 ],
               ),
             ),
+          ),
             const SizedBox(width: 8),
             // Right Chevron Circle Button
             Container(
