@@ -135,7 +135,8 @@ class _CustomNavBarState extends State<CustomNavBar> {
         if (!sel && action != null) action();
       },
       child: Container(
-        width: (MediaQuery.of(context).size.width - 80) / 4,
+        width: ((MediaQuery.of(context).size.width - 80) / 4)
+            .clamp(40.0, double.infinity),
         alignment: Alignment.center,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
