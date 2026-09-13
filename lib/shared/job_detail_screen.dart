@@ -1617,12 +1617,16 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
   Future<void> _fetchGoogleMapsKey() async {
     try {
       final response = await ApiService.instance.get('/settings');
-      if (response != null && response['success'] == true) {
-        final settings = response['data'] ?? response;
-        if (settings.containsKey('google_maps_api_key') && settings['google_maps_api_key'] != null && settings['google_maps_api_key'].toString().trim().isNotEmpty) {
+      if (response != null && response is Map) {
+        final settings = (response.containsKey('data') && response['data'] is Map)
+            ? response['data'] as Map
+            : response;
+        if (settings.containsKey('google_maps_api_key') &&
+            settings['google_maps_api_key'] != null &&
+            settings['google_maps_api_key'].toString().trim().isNotEmpty) {
           if (mounted) {
             setState(() {
-              _googleMapsApiKey = settings['google_maps_api_key'];
+              _googleMapsApiKey = settings['google_maps_api_key'].toString();
             });
           }
         }

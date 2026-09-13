@@ -12,12 +12,16 @@ class AuthHelpers {
     return (data?['role']?['slug'] ?? 'staff').toString().toLowerCase();
   }
 
-  static bool get isAdmin {
+  static bool get isSuperAdmin {
     final slug = roleSlug;
-    return slug == 'admin' ||
-        slug == 'super_admin' ||
-        slug == 'super-admin' ||
-        slug == 'manager';
+    return slug == 'super_admin' || slug == 'super-admin';
+  }
+
+  static bool get isAdmin {
+    if (isSuperAdmin) return true;
+    final slug = roleSlug;
+    if (slug == 'admin') return true;
+    return permissions.any((p) => p == '*' || p == 'system.admin');
   }
 
   static List<String> get permissions {
@@ -49,7 +53,6 @@ class AuthHelpers {
   }
 
   static bool hasPermission(String permissionName) {
-    if (isAdmin) return true;
     // Phase 12.2: Direct user-override check
     final data = userData;
     if (data?['permissions'] is Map && data!['permissions'].containsKey(permissionName)) {
@@ -57,8 +60,13 @@ class AuthHelpers {
       if (data['permissions'][permissionName] == false) return false;
     }
     
+    if (isSuperAdmin) return true;
+
     final target = permissionName.trim().toLowerCase();
-    return permissions.any((p) => p.trim().toLowerCase() == target);
+    return permissions.any((p) {
+      final perm = p.trim().toLowerCase();
+      return perm == '*' || perm == 'system.admin' || perm == target;
+    });
   }
 
   static Map<String, dynamic> mobilePermissions = {};
