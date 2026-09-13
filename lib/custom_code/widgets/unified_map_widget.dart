@@ -133,7 +133,6 @@ class _UnifiedMapWidgetState extends State<UnifiedMapWidget> {
           }
         }
       }
-    }
 
 
     if (minLat != null && maxLat != null && minLng != null && maxLng != null) {

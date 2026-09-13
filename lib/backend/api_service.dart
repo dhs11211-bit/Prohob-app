@@ -550,12 +550,18 @@ class ApiService {
   }
 
   // --- Generic Endpoints ---
-  Future<Map<String, dynamic>> _request(String method, String endpoint,
-      {Map<String, dynamic>? queryParameters, Map<String, dynamic>? body}) async {
+  Future<Map<String, dynamic>> request({
+    String method = 'GET',
+    String endpoint = '',
+    Map<String, dynamic>? queryParams,
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? body,
+  }) async {
+    final params = queryParams ?? queryParameters;
     dynamic result;
     switch (method.toUpperCase()) {
       case 'GET':
-        result = await get(endpoint, queryParams: queryParameters);
+        result = await get(endpoint, queryParams: params);
         break;
       case 'POST':
         result = await post(endpoint, body ?? {});
@@ -564,7 +570,7 @@ class ApiService {
         result = await put(endpoint, body ?? {});
         break;
       case 'DELETE':
-        result = await delete(endpoint);
+        result = await delete(endpoint, body: body);
         break;
       default:
         throw Exception('Method $method not supported');
@@ -573,6 +579,15 @@ class ApiService {
     if (result is List) return {'data': result};
     return {};
   }
+
+  Future<Map<String, dynamic>> _request(String method, String endpoint,
+      {Map<String, dynamic>? queryParameters, Map<String, dynamic>? body}) =>
+      request(
+        method: method,
+        endpoint: endpoint,
+        queryParameters: queryParameters,
+        body: body,
+      );
 
   Future<dynamic> get(String endpoint,
       {Map<String, dynamic>? queryParams}) async {
@@ -668,12 +683,13 @@ class ApiService {
     }
   }
 
-  Future<dynamic> delete(String endpoint) async {
+  Future<dynamic> delete(String endpoint, {Map<String, dynamic>? body}) async {
     final url = Uri.parse(
         '$baseUrl${endpoint.startsWith('/') ? endpoint : '/$endpoint'}');
     final response = await http.delete(
       url,
       headers: await _getHeaders(),
+      body: body != null ? jsonEncode(body) : null,
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 401) {
@@ -762,17 +778,43 @@ class ApiService {
   }
 
   Future<void> completeJobWithSignature(
-      int jobId, String signatureBase64) async {
+      int jobId, String signatureBase64, [String? signerName]) async {
     String url = baseUrl.replaceAll('/mob', '') + '/jobs/$jobId/complete';
+    final payload = <String, dynamic>{
+      'signature_base64': signatureBase64,
+    };
+    if (signerName != null && signerName.isNotEmpty) {
+      payload['signer_name'] = signerName;
+    }
     final response = await http.post(
       Uri.parse(url),
       headers: await _getHeaders(),
-      body: jsonEncode({
-        'signature_base64': signatureBase64,
-      }),
+      body: jsonEncode(payload),
     );
     if (response.statusCode == 401) {
       LaravelAuthManager.signOut();
+    }
+  }
+
+  Future<dynamic> getJob(dynamic id) async {
+    return await get('/jobs/$id');
+  }
+
+  Future<Map<String, dynamic>> getNotes(String entityType, int entityId) async {
+    return await getJobNotes(entityId);
+  }
+
+  Future<Map<String, dynamic>> getMobilePermissions() async {
+    try {
+      final user = await getMe();
+      if (user['role'] != null && user['role']['permissions'] != null) {
+        if (user['role']['permissions'] is Map) {
+          return Map<String, dynamic>.from(user['role']['permissions']);
+        }
+      }
+      return {};
+    } catch (_) {
+      return {};
     }
   }
 

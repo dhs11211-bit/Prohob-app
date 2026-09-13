@@ -8,6 +8,7 @@ import '../backend/api_service.dart';
 import 'toast_service.dart';
 import 'signature_screen.dart';
 import 'gps_consent_screen.dart';
+import 'permission_helper.dart';
 import '../backend/location_tracking_service.dart';
 
 class JobActionButtons extends StatefulWidget {
@@ -166,7 +167,7 @@ class _JobActionButtonsState extends State<JobActionButtons> {
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        await shared.PermissionHelper.requestAllRequiredPermissions();
+        await PermissionHelper.requestAllRequiredPermissions();
         permission = await Geolocator.checkPermission();
         if (permission == LocationPermission.denied) {
           return null;
