@@ -45,9 +45,13 @@ class JobParser {
     // 1. Try to parse actual start_date and start_time
     if (jobData['start_date'] != null) {
       try {
-        final dateStr = jobData['start_date'].toString().split('T')[0];
-        final timeStr = jobData['start_time']?.toString() ?? '00:00:00';
-        return DateTime.parse('${dateStr}T$timeStr').toLocal();
+        final rawDate = jobData['start_date'].toString().trim();
+        final dateStr = rawDate.split('T')[0].split(' ')[0];
+        final timeStr = jobData['start_time']?.toString().trim();
+        if (timeStr != null && timeStr.isNotEmpty) {
+          return DateTime.parse('${dateStr}T$timeStr').toLocal();
+        }
+        return DateTime.parse(dateStr).toLocal();
       } catch (_) {}
     }
 
