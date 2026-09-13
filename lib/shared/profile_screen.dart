@@ -188,6 +188,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _entryNotesController.text = addrData['address_notes'].toString();
           }
 
+          if (addrData['state'] != null && addrData['state'].toString().isNotEmpty) {
+            _stateStr = addrData['state'].toString();
+          }
+          if (addrData['zip_code'] != null && addrData['zip_code'].toString().isNotEmpty) {
+            _zipCode = addrData['zip_code'].toString();
+          }
+          if (addrData['country'] != null && addrData['country'].toString().isNotEmpty) {
+            _country = addrData['country'].toString();
+          }
+          if (addrData['latitude'] != null) {
+            _lat = double.tryParse(addrData['latitude'].toString()) ?? 0.0;
+          }
+          if (addrData['longitude'] != null) {
+            _lng = double.tryParse(addrData['longitude'].toString()) ?? 0.0;
+          }
+
           if (userData['role'] != null) {
             if (userData['role'] is Map) {
               _userRole = userData['role']['name'] ??
@@ -293,15 +309,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchGoogleMapsApiKey() async {
     try {
       final response = await ApiService.instance.get('/settings');
-      if (response != null && response['success'] == true) {
-        final settings = response['data'] ?? response;
-        final mapSetting = settings.firstWhere(
-          (s) => s['setting_key'] == 'google_maps_api_key',
-          orElse: () => null,
-        );
+      if (response != null) {
+        final settings = (response is Map && response.containsKey('data') && response['data'] is Map)
+            ? response['data'] as Map
+            : (response is Map ? response : null);
+        String? key;
+        if (settings != null && settings.containsKey('google_maps_api_key')) {
+          key = settings['google_maps_api_key']?.toString();
+        } else if (response is List) {
+          final mapSetting = response.firstWhere(
+            (s) => s is Map && (s['setting_key'] == 'google_maps_api_key' || s['slug'] == 'google_maps_api_key'),
+            orElse: () => null,
+          );
+          key = mapSetting != null ? (mapSetting['setting_value'] ?? mapSetting['value'])?.toString() : null;
+        }
         setState(() {
-          _googleMapsApiKey = mapSetting != null
-              ? mapSetting['setting_value']
+          _googleMapsApiKey = (key != null && key.trim().isNotEmpty)
+              ? key
               : AppConstants.fallbackGoogleMapsApiKey;
         });
       } else {
@@ -672,7 +696,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     controller: _firstNameController,
                     icon: Icons.person_outline,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))
+                      FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z0-9 '\-]"))
                     ],
                     validator: (val) =>
                         val == null || val.trim().isEmpty ? 'Required' : null,
@@ -686,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     controller: _lastNameController,
                     icon: Icons.person_outline,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))
+                      FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z0-9 '\-]"))
                     ],
                     validator: (val) =>
                         val == null || val.trim().isEmpty ? 'Required' : null,

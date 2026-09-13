@@ -102,17 +102,15 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   Future<void> _fetchGoogleMapsKey() async {
     try {
       final settings = await ApiService.instance.get('/settings');
-      if (mounted &&
-          settings is Map &&
-          settings.containsKey('data') &&
-          settings['data'] is Map &&
-          settings['data'].containsKey('google_maps_api_key') &&
-          settings['data']['google_maps_api_key'] != null &&
-          settings['data']['google_maps_api_key']
-              .toString()
-              .trim()
-              .isNotEmpty) {
-        _googleMapsApiKey = settings['data']['google_maps_api_key'];
+      if (mounted && settings is Map) {
+        final data = (settings.containsKey('data') && settings['data'] is Map)
+            ? settings['data'] as Map
+            : settings;
+        if (data.containsKey('google_maps_api_key') &&
+            data['google_maps_api_key'] != null &&
+            data['google_maps_api_key'].toString().trim().isNotEmpty) {
+          _googleMapsApiKey = data['google_maps_api_key'].toString();
+        }
       }
     } catch (e) {
       debugPrint("Error fetching maps key: $e");

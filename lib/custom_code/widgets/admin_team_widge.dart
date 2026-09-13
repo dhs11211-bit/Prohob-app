@@ -217,9 +217,10 @@ class _AdminTeamWidgeState extends State<AdminTeamWidge>
   Future<void> _fetchWorkers() async {
     try {
       final settingsRes = await ApiService.instance.get('/settings');
-      if (settingsRes is Map<String, dynamic> &&
-          settingsRes.containsKey('data')) {
-        final data = settingsRes['data'] as Map<String, dynamic>;
+      if (settingsRes is Map) {
+        final data = (settingsRes.containsKey('data') && settingsRes['data'] is Map)
+            ? settingsRes['data'] as Map
+            : settingsRes;
         if (data.containsKey('google_maps_api_key') &&
             data['google_maps_api_key'] != null &&
             data['google_maps_api_key'].toString().trim().isNotEmpty) {
