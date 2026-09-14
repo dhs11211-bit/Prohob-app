@@ -318,6 +318,33 @@ class _SharedCustomHeaderState extends State<SharedCustomHeader> {
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
+                            color: const Color(0xFFEC4899).withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.check_box_outlined,
+                              color: Color(0xFFEC4899), size: 20),
+                        ),
+                        title: const Text('Tasks & Checklists',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                        subtitle: Text('View assigned to-dos and checklists',
+                            style: TextStyle(color: muted, fontSize: 12)),
+                        trailing: const Icon(Icons.chevron_right_rounded,
+                            color: Colors.white38),
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.pushNamed('TasksList');
+                        },
+                      ),
+                      const SizedBox(height: 6),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
                             color: accentBlue.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),

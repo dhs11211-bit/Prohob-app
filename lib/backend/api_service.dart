@@ -78,9 +78,6 @@ class ApiService {
     );
 
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) {
-      LaravelAuthManager.signOut();
-    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       // Success
       return _unwrapData(data);
@@ -629,7 +626,10 @@ class ApiService {
       body: jsonEncode(body),
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) {
+    if (response.statusCode == 401 &&
+        !endpoint.contains('device-tokens') &&
+        !endpoint.contains('logout') &&
+        !endpoint.contains('login')) {
       LaravelAuthManager.signOut();
     }
     if (response.statusCode == 422 && data['errors'] != null) {
@@ -692,7 +692,9 @@ class ApiService {
       body: body != null ? jsonEncode(body) : null,
     );
     final data = jsonDecode(response.body);
-    if (response.statusCode == 401) {
+    if (response.statusCode == 401 &&
+        !endpoint.contains('device-tokens') &&
+        !endpoint.contains('logout')) {
       LaravelAuthManager.signOut();
     }
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -713,12 +715,12 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  Future<void> updateJobMaterialStatus(int materialId, String status) async {
+  Future<void> updateJobMaterialStatus(int materialId, String materialStatus) async {
     String url = baseUrl.replaceAll('/mob', '') + '/job-materials/$materialId';
     final response = await http.put(
       Uri.parse(url),
       headers: await _getHeaders(),
-      body: jsonEncode({'status': status}),
+      body: jsonEncode({'material_status': materialStatus}),
     );
     if (response.statusCode == 401) {
       LaravelAuthManager.signOut();
@@ -767,8 +769,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getChecklistCompletionStatus(int jobId) async {
-    String url = baseUrl.replaceAll('/mob', '') +
-        '/jobs/$jobId/checklist-completion-status';
+    String url = '$baseUrl/jobs/$jobId/checklist-completion-status';
     final response =
         await http.get(Uri.parse(url), headers: await _getHeaders());
     if (response.statusCode == 401) {
@@ -779,11 +780,12 @@ class ApiService {
 
   Future<void> completeJobWithSignature(
       int jobId, String signatureBase64, [String? signerName]) async {
-    String url = baseUrl.replaceAll('/mob', '') + '/jobs/$jobId/complete';
+    String url = '$baseUrl/jobs/$jobId/complete';
     final payload = <String, dynamic>{
       'signature_base64': signatureBase64,
     };
     if (signerName != null && signerName.isNotEmpty) {
+      payload['completion_signature_name'] = signerName;
       payload['signer_name'] = signerName;
     }
     final response = await http.post(
@@ -793,6 +795,10 @@ class ApiService {
     );
     if (response.statusCode == 401) {
       LaravelAuthManager.signOut();
+    }
+    if (response.statusCode >= 400) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to complete job');
     }
   }
 
@@ -1147,6 +1153,14 @@ class ApiService {
     return _request('GET', '/tasks', queryParameters: params);
   }
 
+  Future<Map<String, dynamic>> getTaskStats() async {
+    return _request('GET', '/tasks/stats');
+  }
+
+  Future<Map<String, dynamic>> getTaskOptions() async {
+    return _request('GET', '/tasks/options');
+  }
+
   Future<Map<String, dynamic>> getTask(int id) async {
     return _request('GET', '/tasks/$id');
   }
@@ -1157,6 +1171,34 @@ class ApiService {
 
   Future<Map<String, dynamic>> updateTask(int id, Map<String, dynamic> data) async {
     return _request('PUT', '/tasks/$id', body: data);
+  }
+
+  Future<Map<String, dynamic>> toggleTask(int id) async {
+    return _request('PUT', '/tasks/$id/toggle');
+  }
+
+  Future<Map<String, dynamic>> duplicateTask(int id) async {
+    return _request('POST', '/tasks/$id/duplicate');
+  }
+
+  Future<Map<String, dynamic>> verifyTask(int id) async {
+    return _request('POST', '/tasks/$id/verify');
+  }
+
+  Future<Map<String, dynamic>> deleteTask(int id) async {
+    return _request('DELETE', '/tasks/$id');
+  }
+
+  Future<Map<String, dynamic>> addTaskSubtask(int taskId, String title) async {
+    return _request('POST', '/tasks/$taskId/subtasks', body: {'title': title});
+  }
+
+  Future<Map<String, dynamic>> updateTaskSubtask(int taskId, int subtaskId, Map<String, dynamic> data) async {
+    return _request('PUT', '/tasks/$taskId/subtasks/$subtaskId', body: data);
+  }
+
+  Future<Map<String, dynamic>> deleteTaskSubtask(int taskId, int subtaskId) async {
+    return _request('DELETE', '/tasks/$taskId/subtasks/$subtaskId');
   }
 
   Future<Map<String, dynamic>> getTaskComments(int taskId) async {

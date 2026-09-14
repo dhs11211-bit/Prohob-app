@@ -38,7 +38,6 @@ class JobParser {
   }
 
   /// Strictly extracts the true start date of a job based ONLY on start_date and start_time.
-  /// Never falls back to scheduled_time or created_at timestamps.
   static DateTime? getStartDate(Map<String, dynamic>? jobData) {
     if (jobData == null) return null;
 
@@ -55,6 +54,25 @@ class JobParser {
       } catch (_) {}
     }
 
-    return null; // Return null explicitly if start_date is missing, do NOT fallback to scheduled_time!
+    return null;
+  }
+
+  /// Strictly extracts the true end date of a job based on end_date and end_time.
+  static DateTime? getEndDate(Map<String, dynamic>? jobData) {
+    if (jobData == null) return null;
+
+    if (jobData['end_date'] != null) {
+      try {
+        final rawDate = jobData['end_date'].toString().trim();
+        final dateStr = rawDate.split('T')[0].split(' ')[0];
+        final timeStr = jobData['end_time']?.toString().trim();
+        if (timeStr != null && timeStr.isNotEmpty) {
+          return DateTime.parse('${dateStr}T$timeStr').toLocal();
+        }
+        return DateTime.parse(dateStr).toLocal();
+      } catch (_) {}
+    }
+
+    return null;
   }
 }

@@ -11,3 +11,7 @@ export 'admin_more_tab.dart';
 export 'toast_service.dart';
 export 'background_gps_service.dart';
 export 'permission_helper.dart';
+export 'admin_speed_dial.dart';
+export 'quote_list_page.dart';
+export 'quote_detail_screen.dart';
+export 'create_quote_screen.dart';

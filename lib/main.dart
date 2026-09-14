@@ -18,6 +18,7 @@ import 'app_state.dart';
 import '/backend/api_service.dart';
 import '/shared/toast_service.dart';
 import '/components/create_invoice_modal.dart';
+import 'tasks/tasks_list_screen.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
@@ -266,103 +267,26 @@ class _NavBarPageState extends State<NavBarPage> {
     }
   }
 
-  SpeedDial _buildAdminSpeedDial() {
-    return SpeedDial(
-      icon: Icons.add,
-      activeIcon: Icons.close,
-      spacing: 3,
-      childPadding: const EdgeInsets.all(5),
-      spaceBetweenChildren: 4,
-      backgroundColor: const Color(0xFF3B82F6),
-      foregroundColor: Colors.white,
-      elevation: 8.0,
-      animationCurve: Curves.elasticInOut,
-      isOpenOnStart: false,
-      children: [
-        SpeedDialChild(
-          child: const Icon(Icons.receipt),
-          backgroundColor: Colors.teal,
-          foregroundColor: Colors.white,
-          label: 'Create Invoice',
-          onTap: () {
-            showCreateInvoiceModal(context, onInvoiceCreated: () {
-              // Optionally trigger a refresh if we are on the finance page
-              if (_currentIndex == 3) {
-                setState(() {
-                  _currentPage = custom_widgets.AdminFinancesWidge(
-                    key: UniqueKey(),
-                    width: double.infinity,
-                    height: double.infinity,
-                    onLogout: () async {},
-                  );
-                });
-              }
-            });
-          },
-        ),
-        SpeedDialChild(
-          child: const Icon(Icons.person_add),
-          backgroundColor: Colors.indigo,
-          foregroundColor: Colors.white,
-          label: 'Create Customer',
-          onTap: () {
-            setState(() {
-              _currentIndex = 4;
-              _currentPage = custom_widgets.AdminCustomersView(
-                key: UniqueKey(),
-                width: double.infinity,
-                height: double.infinity,
-                openCreateCustomerModal: true,
-                onLogout: () async {},
-              );
-            });
-          },
-        ),
-        SpeedDialChild(
-          child: const Icon(Icons.engineering),
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-          label: 'Create Worker',
-          onTap: () {
-            setState(() {
-              _currentIndex = 4;
-              _currentPage = custom_widgets.AdminTeamWidge(
-                key: UniqueKey(),
-                width: double.infinity,
-                height: double.infinity,
-                openCreateWorkerModal: true,
-                onLogout: () async {},
-                onChatWithWorker: (workerId, workerName) async {},
-                onChatTap: (chatId, chatName) async {},
-              );
-            });
-          },
-        ),
-        SpeedDialChild(
-          child: const Icon(Icons.work),
-          backgroundColor: Colors.orange,
-          foregroundColor: Colors.white,
-          label: 'Create Job',
-          onTap: () {
-            setState(() {
-              _currentIndex = 1;
-              _currentPage = custom_widgets.AdminCustomersView(
-                key: UniqueKey(),
-                width: double.infinity,
-                height: double.infinity,
-                openCreateJobModal: true,
-                onLogout: () async {},
-                onJobCreated: () {
-                  safeSetState(() {
-                    _currentPage = null;
-                    _currentIndex = 1;
-                  });
-                },
-              );
-            });
-          },
-        ),
-      ],
+  Widget _buildAdminSpeedDial() {
+    return shared.AdminSpeedDial(
+      onInvoiceCreated: () {
+        if (_currentIndex == 3) {
+          setState(() {
+            _currentPage = custom_widgets.AdminFinancesWidge(
+              key: UniqueKey(),
+              width: double.infinity,
+              height: double.infinity,
+              onLogout: () async {},
+            );
+          });
+        }
+      },
+      onNavigateInShell: (page, index) {
+        setState(() {
+          _currentIndex = index;
+          _currentPage = page;
+        });
+      },
     );
   }
 

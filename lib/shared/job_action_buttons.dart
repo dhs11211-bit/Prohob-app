@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import '../backend/api_service.dart';
 import 'toast_service.dart';
 import 'signature_screen.dart';
@@ -18,8 +19,12 @@ class JobActionButtons extends StatefulWidget {
   final Map<String, dynamic>? clockStatus;
   final Future<void> Function() onStateChanged;
   final bool compact; // true = job card, false = full job detail
-  final DateTime? scheduledTime;
+  final DateTime? scheduledStartTime;
+  final DateTime? scheduledEndTime;
+  final DateTime? scheduledTime; // Kept for Flutter VM hot-reload memory compatibility
   final String? mapUrl;
+
+  DateTime? get effectiveStartTime => scheduledStartTime ?? scheduledTime;
 
   const JobActionButtons({
     Key? key,
@@ -28,6 +33,8 @@ class JobActionButtons extends StatefulWidget {
     required this.clockStatus,
     required this.onStateChanged,
     this.compact = false,
+    this.scheduledStartTime,
+    this.scheduledEndTime,
     this.scheduledTime,
     this.mapUrl,
   }) : super(key: key);
@@ -485,6 +492,67 @@ class _JobActionButtonsState extends State<JobActionButtons> {
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: Colors.white)),
+          ],
+        ),
+      );
+    }
+
+    // Determine whether this job is scheduled for today (or multi-day spanning today)
+    bool isToday = true;
+    if (widget.effectiveStartTime != null) {
+      final now = DateTime.now();
+      final sched = widget.effectiveStartTime!.toLocal();
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final startDate = DateTime(sched.year, sched.month, sched.day);
+
+      if (widget.scheduledEndTime != null) {
+        final endSched = widget.scheduledEndTime!.toLocal();
+        final endDate = DateTime(endSched.year, endSched.month, endSched.day);
+        isToday = !todayDate.isBefore(startDate) && !todayDate.isAfter(endDate);
+      } else {
+        isToday = startDate.isAtSameMomentAs(todayDate);
+      }
+    }
+
+    if (!hasClockedIn && !isToday) {
+      final now = DateTime.now();
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final sched = widget.effectiveStartTime != null ? widget.effectiveStartTime!.toLocal() : null;
+      final startDate = sched != null ? DateTime(sched.year, sched.month, sched.day) : null;
+      final isFuture = startDate != null && startDate.isAfter(todayDate);
+      final dateStr = sched != null
+          ? DateFormat('EEE, MMM d, yyyy').format(sched)
+          : 'Upcoming Date';
+
+      return Container(
+        width: double.infinity,
+        height: 55,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF334155)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isFuture ? Icons.calendar_today : Icons.history_toggle_off_rounded,
+              size: 18,
+              color: const Color(0xFF94A3B8),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                isFuture ? 'Scheduled for $dateStr' : 'Past Job ($dateStr)',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: Color(0xFF94A3B8),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       );

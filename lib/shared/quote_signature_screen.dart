@@ -66,12 +66,16 @@ class _QuoteSignatureScreenState extends State<QuoteSignatureScreen> {
           body: payload,
         );
         
-        ToastService.success(context, 'Estimate Accepted Successfully!');
-        Navigator.pop(context, true); // return true to indicate success
+        if (mounted) {
+          ToastService.success(context, 'Estimate Accepted Successfully!');
+          Navigator.pop(context, true); // return true to indicate success
+        }
       }
     } catch (e) {
-      ToastService.error(context, 'Failed to save signature');
-      setState(() => _isSaving = false);
+      if (mounted) {
+        ToastService.error(context, 'Failed to save signature: $e');
+        setState(() => _isSaving = false);
+      }
     }
   }
 

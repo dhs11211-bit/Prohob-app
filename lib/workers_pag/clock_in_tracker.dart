@@ -89,9 +89,45 @@ class _ClockInTrackerState extends State<ClockInTracker> {
     try {
       final jobs = await ApiService.instance.getTodayJobs();
       final status = await ApiService.instance.getClockStatus();
+
+      final now = DateTime.now();
+      final todayDate = DateTime(now.year, now.month, now.day);
+
+      final filteredJobs = jobs.where((job) {
+        if (job is! Map<String, dynamic>) return true;
+
+        // Keep job if technician is actively clocked into it
+        bool isCurrentJobActive = status != null &&
+            status['status'] == 'clocked_in' &&
+            status['job_id']?.toString() == job['id']?.toString();
+        if (isCurrentJobActive) return true;
+
+        // Check if job is for today
+        DateTime? sDate = JobParser.getStartDate(job);
+        if (sDate != null) {
+          final sDateLocal = sDate.toLocal();
+          final startDate = DateTime(sDateLocal.year, sDateLocal.month, sDateLocal.day);
+
+          // Multi-day check if end_date exists
+          if (job['end_date'] != null) {
+            try {
+              final eDate = DateTime.parse(job['end_date'].toString().split('T')[0]).toLocal();
+              final endDate = DateTime(eDate.year, eDate.month, eDate.day);
+              if (!todayDate.isBefore(startDate) && !todayDate.isAfter(endDate)) {
+                return true;
+              }
+            } catch (_) {}
+          }
+
+          return startDate.isAtSameMomentAs(todayDate);
+        }
+
+        return false;
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _todayJobs = jobs;
+          _todayJobs = filteredJobs;
           _clockStatus = status;
           _isLoadingJobs = false;
         });
@@ -155,7 +191,7 @@ class _ClockInTrackerState extends State<ClockInTracker> {
   }
 
   Future<void> _performClockIn(int jobId, double? jobLat, double? jobLng,
-      DateTime? scheduledTime) async {
+      DateTime? scheduledStartTime) async {
     _showConfirmDialog(
         '🚨 Start Shift?', 'Are you sure you want to Clock In now?', () async {
       setState(() => _isProcessing = true);
@@ -666,8 +702,8 @@ class _ClockInTrackerState extends State<ClockInTracker> {
             String status = (job['job_status'] ?? '').toString().toLowerCase();
             bool isCompleted = status == 'completed';
             
-            DateTime scheduledTime = JobParser.getStartDate(job) ?? DateTime.now();
-            String timeLabel = DateFormat('hh:mm a').format(scheduledTime);
+            DateTime scheduledStartTime = JobParser.getStartDate(job) ?? DateTime.now();
+            String timeLabel = DateFormat('hh:mm a').format(scheduledStartTime);
             
             return GestureDetector(
               onTap: () {
@@ -724,41 +760,43 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                 var todayJobs = _todayJobs;
                 if (todayJobs.isEmpty) {
                   return Center(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                       child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 32),
-                          padding: const EdgeInsets.all(32),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
                           decoration: BoxDecoration(
                               color: card,
-                              borderRadius: BorderRadius.circular(32),
+                              borderRadius: BorderRadius.circular(24),
                               boxShadow: [
                                 BoxShadow(
-                                    color: Colors.black.withOpacity(0.5),
-                                    blurRadius: 20,
-                                    spreadRadius: 5)
+                                    color: Colors.black.withOpacity(0.4),
+                                    blurRadius: 16,
+                                    spreadRadius: 2)
                               ]),
                           child:
                               Column(mainAxisSize: MainAxisSize.min, children: [
                             Container(
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                     color: neonAction.withOpacity(0.1),
                                     shape: BoxShape.circle),
                                 child: Icon(Icons.coffee_rounded,
-                                    color: neonAction, size: 50)),
-                            const SizedBox(height: 24),
+                                    color: neonAction, size: 44)),
+                            const SizedBox(height: 18),
                             Text('You\'re all caught up!',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                     color: text,
-                                    fontSize: 22,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
                             Text(
                                 'No shifts assigned for today. Enjoy your time off or wait for Dispatch to update.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                    color: muted, fontSize: 15, height: 1.5))
-                          ])));
+                                    color: muted, fontSize: 14, height: 1.4))
+                          ]))));
                 }
 
                 if (_currentJobIndex >= todayJobs.length) {
@@ -813,13 +851,15 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                               String displayAddress =
                                   jobData['address'] ?? 'No address set';
 
-                              DateTime scheduledTime =
+                              DateTime scheduledStartTime =
                                   JobParser.getStartDate(jobData) ??
                                       DateTime.now();
+                              DateTime? scheduledEndTime =
+                                  JobParser.getEndDate(jobData);
                               String shiftTimeLabel =
-                                  DateFormat('hh:mm a').format(scheduledTime);
+                                  DateFormat('hh:mm a').format(scheduledStartTime);
                               String shiftDateLabel = DateFormat('EEEE, MMM d')
-                                  .format(scheduledTime);
+                                  .format(scheduledStartTime);
 
                               double? jobLat;
                               double? jobLng;
@@ -1250,8 +1290,10 @@ class _ClockInTrackerState extends State<ClockInTracker> {
                                                       onStateChanged:
                                                           _fetchData,
                                                       compact: true,
-                                                      scheduledTime:
-                                                          scheduledTime,
+                                                      scheduledStartTime:
+                                                          scheduledStartTime,
+                                                      scheduledEndTime:
+                                                          scheduledEndTime,
                                                     ),
                                                   ),
                                                   const SizedBox(width: 12),
