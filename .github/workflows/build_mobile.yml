@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -57,17 +57,28 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build iOS
-        run: flutter build ios --release --no-codesign
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
 
-      - name: Compress iOS Runner Build
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign -v
+
+      - name: Package iOS App and IPA
         run: |
           cd build/ios/iphoneos
           zip -r ../../../Runner.app.zip Runner.app
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../../../Runner.ipa Payload
 
-      - name: Upload iOS Artifact
+      - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: runner-ios-app
-          path: Runner.app.zip
+          name: runner-ios-build
+          path: |
+            Runner.app.zip
+            Runner.ipa
           if-no-files-found: warn
+
