@@ -67,11 +67,11 @@ jobs:
           BUILD_EXIT=$?
           if [ $BUILD_EXIT -ne 0 ]; then
             echo "::error title=Build Failed::iOS build exited with code $BUILD_EXIT"
-            grep -i -C 2 -E "error:|fatal error:|CommandPhaseScriptExecution failed|build failed" ios_build.log | tail -n 25 | while IFS= read -r line; do
-              [ -n "$line" ] && echo "::error title=Xcode/Flutter Error::$line"
+            grep -B 2 -A 35 -E "Exception|Oops|FormatException|StateError|Unhandled" ios_build.log | head -n 40 | while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error title=Exception::$line"
             done
-            tail -n 20 ios_build.log | while IFS= read -r line; do
-              [ -n "$line" ] && echo "::notice title=Log Tail::$line"
+            tail -n 60 ios_build.log | head -n 30 | while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error title=Trace::$line"
             done
             exit $BUILD_EXIT
           fi
