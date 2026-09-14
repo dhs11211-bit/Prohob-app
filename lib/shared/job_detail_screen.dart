@@ -648,40 +648,242 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
   }
 
   
+  String _formatJobDueString() {
+    if (_jobData == null) return '';
+    final sDate = _jobData!['end_date'] ?? _jobData!['start_date'];
+    final sTime = _jobData!['end_time'] ?? _jobData!['start_time'];
+    if (sDate == null) return '';
+
+    try {
+      final parsedDate = DateTime.parse(sDate.toString());
+      final formattedDate = DateFormat('EEEE, MMM d, yyyy').format(parsedDate);
+      if (sTime != null && sTime.toString().isNotEmpty) {
+        final timeStr = sTime.toString();
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          final hour = int.tryParse(parts[0]) ?? 0;
+          final minute = int.tryParse(parts[1]) ?? 0;
+          final dt = DateTime(2000, 1, 1, hour, minute);
+          final formattedTime = DateFormat('h:mm a').format(dt);
+          return '$formattedDate at $formattedTime';
+        }
+        return '$formattedDate at $sTime';
+      }
+      return formattedDate;
+    } catch (_) {
+      return sDate.toString() + (sTime != null ? ' at $sTime' : '');
+    }
+  }
+
+  String _humanizeAlertKey(String key) {
+    return key
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1).toLowerCase() : '')
+        .join(' ');
+  }
+
+  Widget _buildAlertCard(String rawAlert) {
+    final alert = rawAlert.trim();
+    String title = 'Critical Alert';
+    String description = 'Attention is required for this job.';
+    IconData icon = Icons.warning_amber_rounded;
+    Color primaryColor = const Color(0xFFEF4444);
+    Color cardBgColor = const Color(0xFF450A0A).withOpacity(0.5);
+    Color borderColor = const Color(0xFFEF4444).withOpacity(0.4);
+    String badgeText = 'CRITICAL';
+    String? actionText;
+    VoidCallback? onAction;
+
+    if (alert == 'past_due_incomplete') {
+      title = 'Job Past Due & Incomplete';
+      final dueStr = _formatJobDueString();
+      final statusStr = (_jobData?['job_status'] ?? 'scheduled').toString().toUpperCase();
+      description = dueStr.isNotEmpty
+          ? 'Scheduled end time ($dueStr) has passed, but this job is still in $statusStr status. Please complete the job or update the schedule.'
+          : 'The scheduled time for this job has passed, but it has not been marked as completed.';
+      icon = Icons.access_time_filled_rounded;
+      primaryColor = const Color(0xFFEF4444);
+      cardBgColor = const Color(0xFF450A0A).withOpacity(0.5);
+      borderColor = const Color(0xFFEF4444).withOpacity(0.4);
+      badgeText = 'CRITICAL';
+    } else if (alert == 'missing_crew') {
+      title = 'No Crew Assigned';
+      description = 'There are currently no staff members or technicians assigned to this job. Assign crew members to ensure timely service.';
+      icon = Icons.group_off_rounded;
+      primaryColor = const Color(0xFFEF4444);
+      cardBgColor = const Color(0xFF450A0A).withOpacity(0.5);
+      borderColor = const Color(0xFFEF4444).withOpacity(0.4);
+      badgeText = 'CRITICAL';
+      actionText = 'Assign Crew';
+      onAction = () => _showAssignWorkerModal();
+    } else if (alert == 'missing_materials') {
+      title = 'Missing Required Materials';
+      description = 'One or more required materials or supplies for this job are marked as missing. Review inventory before proceeding.';
+      icon = Icons.inventory_2_outlined;
+      primaryColor = const Color(0xFFEF4444);
+      cardBgColor = const Color(0xFF450A0A).withOpacity(0.5);
+      borderColor = const Color(0xFFEF4444).withOpacity(0.4);
+      badgeText = 'CRITICAL';
+    } else if (alert == 'unpaid_deposit') {
+      title = 'Deposit Payment Pending';
+      String depStr = '';
+      final dep = _jobData?['deposit'];
+      if (dep != null) {
+        final d = double.tryParse(dep.toString()) ?? 0;
+        if (d > 0) depStr = ' of \$${d.toStringAsFixed(2)}';
+      }
+      description = 'A required deposit$depStr has not been collected or verified for this job.';
+      icon = Icons.monetization_on_outlined;
+      primaryColor = const Color(0xFFF59E0B);
+      cardBgColor = const Color(0xFF451A03).withOpacity(0.5);
+      borderColor = const Color(0xFFF59E0B).withOpacity(0.4);
+      badgeText = 'WARNING';
+    } else if (alert == 'incomplete_checklist' || alert == 'incomplete_required_checklist') {
+      title = 'Required Checklist Incomplete';
+      description = 'Mandatory checklist tasks or required verification photos must be completed before finalizing this job.';
+      icon = Icons.fact_check_outlined;
+      primaryColor = const Color(0xFFF97316);
+      cardBgColor = const Color(0xFF431407).withOpacity(0.5);
+      borderColor = const Color(0xFFF97316).withOpacity(0.4);
+      badgeText = 'REQUIRED';
+    } else if (alert == 'no_scheduled_date') {
+      title = 'Job Not Scheduled';
+      description = 'This job is set to scheduled status but does not have a start date assigned. Please assign a scheduled date and time.';
+      icon = Icons.event_busy_rounded;
+      primaryColor = const Color(0xFFF59E0B);
+      cardBgColor = const Color(0xFF451A03).withOpacity(0.5);
+      borderColor = const Color(0xFFF59E0B).withOpacity(0.4);
+      badgeText = 'WARNING';
+    } else if (alert.startsWith('travel|')) {
+      final parts = alert.split('|');
+      final minutes = parts.length > 1 ? parts[1] : '0';
+      title = 'Travel Time Buffer: $minutes min';
+      description = 'Estimated $minutes minutes travel time from the preceding job. Allow sufficient transit buffer before arrival.';
+      icon = Icons.directions_car_rounded;
+      primaryColor = const Color(0xFF38BDF8);
+      cardBgColor = const Color(0xFF0C2144).withOpacity(0.5);
+      borderColor = const Color(0xFF38BDF8).withOpacity(0.4);
+      badgeText = 'INFO';
+    } else {
+      title = 'Alert: ${_humanizeAlertKey(alert)}';
+      description = 'Active alert: ${alert.replaceAll('_', ' ')}. Please review job status and requirements.';
+      icon = Icons.warning_amber_rounded;
+      primaryColor = const Color(0xFFEF4444);
+      cardBgColor = const Color(0xFF450A0A).withOpacity(0.5);
+      borderColor = const Color(0xFFEF4444).withOpacity(0.4);
+      badgeText = 'ALERT';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardBgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor, width: 1.2),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: primaryColor, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: primaryColor.withOpacity(0.4), width: 0.8),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(
+                    color: primaryColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 34),
+            child: Text(
+              description,
+              style: const TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ),
+          if (actionText != null && onAction != null) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(left: 34),
+              child: InkWell(
+                onTap: onAction,
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: primaryColor.withOpacity(0.35), width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        actionText,
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, color: primaryColor, size: 13),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildAlertsBanner() {
     if (_alerts.isEmpty) return const SizedBox.shrink();
     return Container(
       width: double.infinity,
-      color: Colors.redAccent.withOpacity(0.9),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       margin: const EdgeInsets.only(bottom: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,        children: _alerts.map((alert) {
-          String text = 'Critical Alert';
-          IconData iconData = Icons.warning_amber_rounded;
-          Color iconColor = Colors.white;
-
-          if (alert == 'missing_crew') text = 'No Crew Assigned';
-          else if (alert == 'missing_materials') text = 'Missing Materials';
-          else if (alert == 'incomplete_checklist') text = 'Incomplete Checklist Tasks';
-          else if (alert.toString().startsWith('travel|')) {
-            final parts = alert.toString().split('|');
-            text = 'Travel Time: ${parts[1]} mins from previous job';
-            iconData = Icons.directions_car;
-            iconColor = Colors.yellowAccent;
-          }
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              children: [
-                Icon(iconData, color: iconColor, size: 20),
-                const SizedBox(width: 8),
-                Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-              ],
-            ),
-          );
-        }).toList(),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _alerts.map((alert) => _buildAlertCard(alert.toString())).toList(),
       ),
     );
   }
@@ -855,26 +1057,34 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
           )
         else
           ..._materials.map((mat) {
-            String status = mat['status'] ?? 'pending';
+            final String materialStatus = (mat['material_status'] ?? 'required').toString().toLowerCase();
             Color badgeColor = Colors.grey;
-            if (status == 'loaded') badgeColor = accentBlue;
-            if (status == 'in_use') badgeColor = goldColor;
-            if (status == 'used' || status == 'returned') badgeColor = accentGreen;
-            if (status == 'missing') badgeColor = Colors.red;
+            if (materialStatus == 'ready' || materialStatus == 'loaded') badgeColor = accentBlue;
+            if (materialStatus == 'in_use') badgeColor = goldColor;
+            if (materialStatus == 'used') badgeColor = accentGreen;
+            if (materialStatus == 'returned') badgeColor = Colors.purpleAccent;
+            if (materialStatus == 'missing') badgeColor = Colors.red;
+
+            final dynamic rawQty = mat['quantity_required'] ?? mat['quantity'] ?? 1;
+            final String qtyStr = rawQty.toString();
 
             return ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(mat['name'] ?? 'Unknown Item', style: TextStyle(color: textWhite, fontSize: 15)),
-              subtitle: Text('Qty: ${mat['quantity']} ${mat['unit'] ?? ''}', style: TextStyle(color: muted, fontSize: 13)),
+              title: Text(mat['name']?.toString() ?? 'Unknown Item', style: TextStyle(color: textWhite, fontSize: 15)),
+              subtitle: Text('Qty: $qtyStr ${mat['unit'] ?? ''}', style: TextStyle(color: muted, fontSize: 13)),
               trailing: InkWell(
-                onTap: () => _showMaterialStatusSheet(mat),
+                onTap: () => _showMaterialStatusSheet(Map<String, dynamic>.from(mat is Map ? mat : {})),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: badgeColor.withOpacity(0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: badgeColor.withOpacity(0.5))),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(status.toUpperCase().replaceAll('_', ' '), style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                      Text(materialStatus.toUpperCase().replaceAll('_', ' '), style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold)),
                       const SizedBox(width: 4),
                       Icon(Icons.arrow_drop_down, color: badgeColor, size: 16),
                     ],
@@ -899,18 +1109,19 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text('Update Status: ${material['name']}', style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text('Update Material Status: ${material['name'] ?? 'Material'}', style: TextStyle(color: textWhite, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
-              ...['pending', 'loaded', 'in_use', 'used', 'returned', 'missing'].map((s) => ListTile(
+              ...['required', 'ready', 'loaded', 'in_use', 'used', 'returned', 'missing'].map((s) => ListTile(
                 title: Text(s.toUpperCase().replaceAll('_', ' '), style: TextStyle(color: textWhite)),
                 onTap: () async {
                   Navigator.pop(context);
                   try {
-                    await ApiService.instance.updateJobMaterialStatus(material['id'], s);
-                    ToastService.success(context, 'Material updated');
+                    final int matId = int.tryParse(material['id']?.toString() ?? '0') ?? 0;
+                    await ApiService.instance.updateJobMaterialStatus(matId, s);
+                    ToastService.success(context, 'Material status updated');
                     _loadJobDetail();
                   } catch (_) {
-                    ToastService.error(context, 'Failed to update material');
+                    ToastService.error(context, 'Failed to update material status');
                   }
                 },
               )).toList(),
@@ -2045,19 +2256,31 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
     String description = _jobData?['description'] ?? _jobData?['notes'] ?? 'No notes provided.';
     bool isRecurring = JobParser.isRecurring(_jobData);
   
-    DateTime? scheduledTime = JobParser.getStartDate(_jobData);
+    DateTime? scheduledStartTime = JobParser.getStartDate(_jobData);
+    DateTime? scheduledEndTime = JobParser.getEndDate(_jobData);
 
     bool isToday = false;
-    if (scheduledTime != null) {
+    if (scheduledStartTime != null) {
       final now = DateTime.now();
-      isToday = scheduledTime.year == now.year && scheduledTime.month == now.month && scheduledTime.day == now.day;
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final startDate = DateTime(scheduledStartTime.year, scheduledStartTime.month, scheduledStartTime.day);
+      if (scheduledEndTime != null) {
+        final endDate = DateTime(scheduledEndTime.year, scheduledEndTime.month, scheduledEndTime.day);
+        isToday = !todayDate.isBefore(startDate) && !todayDate.isAfter(endDate);
+      } else {
+        isToday = startDate.isAtSameMomentAs(todayDate);
+      }
     }
 
-    String dateStr = scheduledTime != null
-        ? DateFormat('EEEE, MMMM d, yyyy').format(scheduledTime)
+    String dateStr = scheduledStartTime != null
+        ? (scheduledEndTime != null && (scheduledEndTime.year != scheduledStartTime.year || scheduledEndTime.month != scheduledStartTime.month || scheduledEndTime.day != scheduledStartTime.day)
+            ? '${DateFormat('MMM d, yyyy').format(scheduledStartTime)} - ${DateFormat('MMM d, yyyy').format(scheduledEndTime)}'
+            : DateFormat('EEEE, MMMM d, yyyy').format(scheduledStartTime))
         : 'No date set';
-    String timeStr = scheduledTime != null
-        ? '${DateFormat('h:mm a').format(scheduledTime)} - ${DateFormat('h:mm a').format(scheduledTime.add(const Duration(hours: 2)))}'
+    String timeStr = scheduledStartTime != null
+        ? (scheduledEndTime != null
+            ? '${DateFormat('h:mm a').format(scheduledStartTime)} - ${DateFormat('h:mm a').format(scheduledEndTime)}'
+            : DateFormat('h:mm a').format(scheduledStartTime))
         : 'No time set';
 
     String status = (_jobData?['job_status'] ?? 'SCHEDULED').toString().toUpperCase();
@@ -2237,19 +2460,19 @@ class _SharedJobDetailScreenState extends State<SharedJobDetailScreen> {
                               ),
                               const SizedBox(height: 16),
 
-                              if (isToday) ...[
-                                JobActionButtons(
-                                  jobId: widget.jobId,
-                                  jobStatus: status,
-                                  clockStatus: _clockStatus,
-                                  onStateChanged: _loadJobDetail,
-                                  compact: false,
-                                  mapUrl: (address != 'No address provided.' && address.isNotEmpty) 
-                                      ? 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}' 
-                                      : null,
-                                ),
-                                const SizedBox(height: 24),
-                              ],
+                              JobActionButtons(
+                                jobId: widget.jobId,
+                                jobStatus: status,
+                                clockStatus: _clockStatus,
+                                onStateChanged: _loadJobDetail,
+                                compact: false,
+                                scheduledStartTime: scheduledStartTime,
+                                scheduledEndTime: scheduledEndTime,
+                                mapUrl: (address != 'No address provided.' && address.isNotEmpty) 
+                                    ? 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}' 
+                                    : null,
+                              ),
+                              const SizedBox(height: 24),
 
                               // LOCATION Section
                               Row(

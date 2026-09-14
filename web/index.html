@@ -89,6 +89,9 @@
     }
 
     async function startApp() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(function() {});
+      }
       await loadGoogleMaps();
       
       // Now that Google Maps is loaded, we can safely execute Flutter's bootstrap

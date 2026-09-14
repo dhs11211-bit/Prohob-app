@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
 import 'package:rxdart/rxdart.dart';
 import '../backend/api_service.dart';
 import '../shared/auth_helpers.dart' as shared;
@@ -101,25 +102,62 @@ class LaravelAuthManager {
     return response;
   }
 
-  static Future<void> signOut() async {
-    try {
-      // Try to unregister FCM token before destroying session
-      try {
-        final token = await FirebaseMessaging.instance.getToken();
-        if (token != null) {
-          await ApiService.instance.delete('/device-tokens', body: {'token': token});
-        }
-      } catch (e) {
-        // Ignore firebase errors on logout
-      }
+  static bool _isSigningOut = false;
+  static DateTime? _lastSignOutTime;
 
-      await ApiService.instance.logout();
-    } catch (e) {
-      // Ignore network errors on logout
+  static Future<void> signOut() async {
+    final now = DateTime.now();
+    if (_isSigningOut) return;
+    if (_lastSignOutTime != null && now.difference(_lastSignOutTime!).inSeconds < 5) {
+      return;
     }
-    await _storage.delete(key: 'auth_token');
-    await _storage.delete(key: 'active_cl_id');
-    _updateUser(null);
+    _isSigningOut = true;
+    _lastSignOutTime = now;
+
+    try {
+      final token = await _storage.read(key: 'auth_token');
+      // Immediately wipe stored credentials and notify UI to prevent any concurrent re-entry
+      await _storage.delete(key: 'auth_token');
+      await _storage.delete(key: 'active_cl_id');
+      _updateUser(null);
+
+      if (token != null && token.isNotEmpty) {
+        // Try to unregister FCM token before destroying session
+        try {
+          final fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null && fcmToken.isNotEmpty) {
+            final url = Uri.parse('${ApiService.baseUrl}/device-tokens');
+            await http.delete(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode({'token': fcmToken}),
+            ).timeout(const Duration(seconds: 2), onTimeout: () => http.Response('{}', 200));
+          }
+        } catch (_) {
+          // Ignore errors on logout
+        }
+
+        try {
+          final url = Uri.parse('${ApiService.baseUrl}/auth/logout');
+          await http.post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          ).timeout(const Duration(seconds: 2), onTimeout: () => http.Response('{}', 200));
+        } catch (_) {
+          // Ignore network errors on logout
+        }
+      }
+    } finally {
+      _isSigningOut = false;
+    }
   }
 
   static void _updateUser(Map<String, dynamic>? userData) {

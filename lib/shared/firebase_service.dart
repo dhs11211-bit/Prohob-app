@@ -35,15 +35,30 @@ class FirebaseService {
         print('User granted permission');
         
         // Get the token and send it to our Laravel backend
-        String? token = await _messaging.getToken();
+        String? token;
+        try {
+          if (kIsWeb) {
+            token = await _messaging
+                .getToken()
+                .timeout(const Duration(seconds: 3), onTimeout: () => null);
+          } else {
+            token = await _messaging.getToken();
+          }
+        } catch (e) {
+          if (!kIsWeb) {
+            print('FirebaseService getToken error: $e');
+          }
+        }
         if (token != null) {
           _sendTokenToBackend(token);
         }
 
       // Listen for token refreshes
-      _messaging.onTokenRefresh.listen((newToken) {
-        _sendTokenToBackend(newToken);
-      });
+      if (!kIsWeb || token != null) {
+        _messaging.onTokenRefresh.listen((newToken) {
+          _sendTokenToBackend(newToken);
+        });
+      }
 
       // Handle foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
