@@ -61,7 +61,31 @@ jobs:
         run: flutter pub get
 
       - name: Build iOS
-        run: flutter build ios --release --no-codesign -v
+        run: |
+          set +e
+          flutter build ios --release --no-codesign -v > ios_build.log 2>&1
+          BUILD_EXIT=$?
+          if [ $BUILD_EXIT -ne 0 ]; then
+            echo "## ❌ iOS Build Failed with exit code $BUILD_EXIT" >> $GITHUB_STEP_SUMMARY
+            echo "### Error lines found in log:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -i -C 2 -E "error:|fatal error:|CommandPhaseScriptExecution failed|build failed" ios_build.log | tail -n 60 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "### Last 60 lines of build log:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -n 60 ios_build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat ios_build.log | tail -n 60
+            exit $BUILD_EXIT
+          fi
+
+      - name: Upload iOS Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ios_build.log
+          if-no-files-found: warn
 
       - name: Package iOS App and IPA
         run: |
